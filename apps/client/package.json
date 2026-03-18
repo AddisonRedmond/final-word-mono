@@ -24,6 +24,7 @@
 		"firebase-admin": "^13.7.0",
 		"motion": "^12.36.0",
 		"next": "^15.2.3",
+		"next-firebase-auth-edge": "^1.12.0",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
 		"superjson": "^2.2.1",
