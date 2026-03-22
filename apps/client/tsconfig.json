@@ -9,26 +9,28 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-
     /* Strictness */
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "checkJs": true,
-
     /* Bundled projects */
     "lib": ["dom", "dom.iterable", "ES2022"],
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "jsx": "preserve",
-    "plugins": [{ "name": "next" }],
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "incremental": true,
-
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@/types/*": ["../../packages/types/src/*"]
+      "@/types/*": ["../../packages/types/src/*"],
+      "@/firebase/*": ["../../packages/firebase/*"]
     }
   },
   "include": [

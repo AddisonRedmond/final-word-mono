@@ -1,5 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  GithubAuthProvider,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -14,3 +19,22 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export default app;
+
+export const handleGithubSignIn = async () => {
+  const provider = new GithubAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+  const token = await result.user.getIdToken();
+
+  await fetch("/api/login", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return result.user;
+};
+
+export const handleSignOut = async () => {
+  await Promise.all([signOut(auth), fetch("/api/logout", { method: "POST" })]);
+};
