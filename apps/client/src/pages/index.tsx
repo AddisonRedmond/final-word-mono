@@ -21,7 +21,7 @@ export default function Home() {
       </Head>
       <main className="flex flex-col h-screen">
         <Navbar />
-        <div className="flex flex-col grow items-center justify-center">
+        <div className="flex flex-col grow items-center justify-center gap-y-5">
           <div className="flex flex-col items-center gap-y-2">
             <Tile revealed={true} size="lg" word="FINAL" variant="correct" />
             <Tile revealed={true} word="WORD" size="md" variant="present" />
