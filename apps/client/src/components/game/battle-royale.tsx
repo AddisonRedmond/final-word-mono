@@ -1,12 +1,13 @@
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useWsStore } from "@/state/useWsStore";
+import { env } from "@/env.js";
 import type { ClientMessage } from "types";
 
 interface BattleRoyaleProps {
   onLeave: () => void;
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4200/ws";
+const WS_URL = env.NEXT_PUBLIC_WS_URL;
 
 export default function BattleRoyale({ onLeave }: BattleRoyaleProps) {
   const status = useWsStore((s) => s.status);

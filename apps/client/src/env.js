@@ -24,6 +24,7 @@ export const env = createEnv({
     NEXT_PUBLIC_FIREBASE_APP_ID: z.string(),
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string(),
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string(),
+    NEXT_PUBLIC_WS_URL: z.string().default("ws://localhost:4200/ws"),
   },
 
 
@@ -42,6 +43,7 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:
       process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

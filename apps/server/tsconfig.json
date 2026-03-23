@@ -5,12 +5,16 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "types": ["../../packages/types/src/index.ts"],
+      "firebase/server": ["../../packages/firebase/server.ts"],
+      "firebase/client": ["../../packages/firebase/client.ts"]
+    }
   },
   "exclude": ["node_modules"]
 }

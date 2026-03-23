@@ -25,12 +25,8 @@ export const handleGithubSignIn = async () => {
   const result = await signInWithPopup(auth, provider);
   const token = await result.user.getIdToken();
 
-  await fetch("/api/login", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  // Write the token cookie so the WS server can authenticate the upgrade request
+  document.cookie = `token=${token}; path=/; SameSite=Strict`;
 
   return result.user;
 };
