@@ -1,15 +1,23 @@
 {
   "name": "types",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest --run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "exports": {
     "./*": "./src/*"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "fast-check": "^4.6.0",
+    "vitest": "^4.1.0"
   }
 }
