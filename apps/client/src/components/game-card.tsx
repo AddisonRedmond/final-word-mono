@@ -27,7 +27,7 @@ const GameCard: React.FC<GameCardProps> = ({
   };
 
   return (
-    <div className="relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono cursor-pointer transition-all hover:border-green-400 active:scale-[0.98]">
+    <div className="shadow-xl relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono cursor-pointer transition-all hover:border-green-400 active:scale-[0.98]">
       {tiles && (
         <div className="flex gap-1.5 mb-3.5">
           {tiles.map((tile, i) => (
@@ -44,16 +44,16 @@ const GameCard: React.FC<GameCardProps> = ({
 
       {badge && (
         <span
-          className={`absolute top-3 right-3 ${badgeColors[badgeVariant]} text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-sm uppercase tracking-widest`}
+          className={`absolute -top-1 -right-1 ${badgeColors[badgeVariant]} text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-sm uppercase tracking-widest`}
         >
           {badge}
         </span>
       )}
 
-      <h2 className="text-white text-lg uppercase tracking-wide m-0 mb-1.5">
-        {title}
-      </h2>
-      <p className="text-gray-400 text-[11px] leading-relaxed m-0 mb-4">{desc}</p>
+      <h2 className="text-lg uppercase tracking-wide m-0 mb-1.5">{title}</h2>
+      <p className="text-gray-400 text-[11px] leading-relaxed m-0 mb-4">
+        {desc}
+      </p>
 
       <button
         onClick={onPlay}
