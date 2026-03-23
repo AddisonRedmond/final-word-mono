@@ -9,6 +9,7 @@ export function routeMessage(
   try {
     switch (msg.type) {
       case 'ping':
+        console.log("ping")
         return { type: 'pong' }
 
       case 'join_lobby':
