@@ -3,6 +3,7 @@ import { z } from 'zod'
 // Messages sent FROM the client TO the server
 export type ServerMessage =
   | { type: 'ping' }
+  | { type: 'find_or_create_lobby' }
   | { type: 'join_lobby'; lobbyId: string }
   | { type: 'leave_lobby'; lobbyId: string }
 
@@ -18,6 +19,7 @@ export type WsMessage = ServerMessage | ClientMessage
 // Zod schemas
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping') }),
+  z.object({ type: z.literal('find_or_create_lobby') }),
   z.object({ type: z.literal('join_lobby'), lobbyId: z.string() }),
   z.object({ type: z.literal('leave_lobby'), lobbyId: z.string() }),
 ])

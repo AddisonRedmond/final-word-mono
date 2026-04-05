@@ -26,10 +26,6 @@ app.get(
     return {
       onOpen(_evt, ws) {
         conn = { uid, ws }
-        // check if lobby exists that hasn't started,
-        // if there is one, add the user to it with default Player values from game.ts in types
-        // if there isn't one, create a new lobby with default lobby values from game.ts in types
-        // and add the player to that
       },
       onMessage(event, ws) {
         try {

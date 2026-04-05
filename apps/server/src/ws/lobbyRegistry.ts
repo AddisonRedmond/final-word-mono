@@ -1,6 +1,8 @@
 import type { WSContext } from 'hono/ws'
 import type { ClientMessage } from 'types/ws.js'
+import type { Game } from 'types/game.js'
 import { serializeMessage } from 'types/ws.js'
+import { randomUUID } from 'crypto'
 
 export interface Connection {
   uid: string
@@ -9,6 +11,29 @@ export interface Connection {
 
 export class LobbyRegistry {
   private lobbies = new Map<string, Set<Connection>>()
+  private games = new Map<string, Game>()
+
+  findOrCreateLobby(conn: Connection): string {
+    // Find an existing lobby that hasn't started yet
+    for (const [lobbyId, game] of this.games) {
+      if (!game.started) {
+        this.join(lobbyId, conn)
+        return lobbyId
+      }
+    }
+    // No open lobby found — create a new one
+    const lobbyId = randomUUID()
+    const game: Game = {
+      lobbyId,
+      createdAt: Date.now(),
+      started: false,
+      winner: '',
+      players: {},
+    }
+    this.games.set(lobbyId, game)
+    this.join(lobbyId, conn)
+    return lobbyId
+  }
 
   join(lobbyId: string, conn: Connection): void {
     let members = this.lobbies.get(lobbyId)

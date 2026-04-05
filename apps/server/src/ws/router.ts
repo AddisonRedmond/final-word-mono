@@ -12,6 +12,16 @@ export function routeMessage(
         console.log("ping")
         return { type: 'pong' }
 
+      case 'find_or_create_lobby': {
+        const lobbyId = registry.findOrCreateLobby(conn)
+        registry.broadcast(lobbyId, {
+          type: 'lobby_state',
+          lobbyId,
+          members: registry.getMembers(lobbyId),
+        })
+        return null
+      }
+
       case 'join_lobby':
         registry.join(msg.lobbyId, conn)
         registry.broadcast(msg.lobbyId, {

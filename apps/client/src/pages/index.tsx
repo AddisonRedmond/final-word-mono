@@ -4,9 +4,16 @@ import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
 import GameCard from "@/components/game-card";
 import BattleRoyale from "@/components/game/battle-royale";
+import { useWsStore } from "@/state/useWsStore";
 
 export default function Home() {
   const [playing, setPlaying] = useState(false);
+  const sendMessage = useWsStore((s) => s.sendMessage);
+
+  function handlePlay() {
+    sendMessage({ type: "find_or_create_lobby" });
+    setPlaying(true);
+  }
 
   if (playing) {
     return <BattleRoyale onLeave={() => setPlaying(false)} />;
@@ -32,7 +39,7 @@ export default function Home() {
               desc="100 players. One word. Last solver standing wins."
               badge="Live"
               badgeVariant="green"
-              onPlay={() => setPlaying(true)}
+              onPlay={() => handlePlay()}
               tiles={[
                 { word: "B", variant: "correct" },
                 { word: "A", variant: "present" },
