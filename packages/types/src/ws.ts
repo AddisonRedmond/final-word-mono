@@ -11,7 +11,7 @@ export type ServerMessage =
 export type ClientMessage =
   | { type: 'pong' }
   | { type: 'error'; reason: string }
-  | { type: 'lobby_state'; lobbyId: string; members: string[] }
+  | { type: 'lobby_state'; lobbyId: string; members: string[]; beginAtCountdown: number }
 
 // Union of all messages
 export type WsMessage = ServerMessage | ClientMessage
@@ -27,7 +27,7 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pong') }),
   z.object({ type: z.literal('error'), reason: z.string() }),
-  z.object({ type: z.literal('lobby_state'), lobbyId: z.string(), members: z.array(z.string()) }),
+  z.object({ type: z.literal('lobby_state'), lobbyId: z.string(), members: z.array(z.string()), beginAtCountdown: z.number() }),
 ])
 
 export const WsMessageSchema = z.union([ServerMessageSchema, ClientMessageSchema])

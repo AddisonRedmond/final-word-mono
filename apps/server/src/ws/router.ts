@@ -14,10 +14,12 @@ export function routeMessage(
 
       case 'find_or_create_lobby': {
         const lobbyId = registry.findOrCreateLobby(conn)
+        const game = registry.getGame(lobbyId)
         registry.broadcast(lobbyId, {
           type: 'lobby_state',
           lobbyId,
           members: registry.getMembers(lobbyId),
+          beginAtCountdown: game?.beginAtCountdown ?? 0,
         })
         return null
       }
@@ -28,6 +30,7 @@ export function routeMessage(
           type: 'lobby_state',
           lobbyId: msg.lobbyId,
           members: registry.getMembers(msg.lobbyId),
+          beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
         })
         return null
 
@@ -37,6 +40,7 @@ export function routeMessage(
           type: 'lobby_state',
           lobbyId: msg.lobbyId,
           members: registry.getMembers(msg.lobbyId),
+          beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
         })
         return null
 

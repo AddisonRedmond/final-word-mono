@@ -12,16 +12,15 @@ export interface Connection {
 export class LobbyRegistry {
   private lobbies = new Map<string, Set<Connection>>()
   private games = new Map<string, Game>()
+  private countdowns = new Map<string, ReturnType<typeof setInterval>>()
 
   findOrCreateLobby(conn: Connection): string {
-    // Find an existing lobby that hasn't started yet
     for (const [lobbyId, game] of this.games) {
       if (!game.started) {
         this.join(lobbyId, conn)
         return lobbyId
       }
     }
-    // No open lobby found — create a new one
     const lobbyId = randomUUID()
     const game: Game = {
       lobbyId,
@@ -29,10 +28,35 @@ export class LobbyRegistry {
       started: false,
       winner: '',
       players: {},
+      beginAtCountdown: Date.now() + 60_000,
     }
     this.games.set(lobbyId, game)
     this.join(lobbyId, conn)
+    this.startCountdown(lobbyId)
     return lobbyId
+  }
+
+  private startCountdown(lobbyId: string): void {
+    const interval = setInterval(() => {
+      const game = this.games.get(lobbyId)
+      if (!game) {
+        clearInterval(interval)
+        this.countdowns.delete(lobbyId)
+        return
+      }
+      this.broadcast(lobbyId, {
+        type: 'lobby_state',
+        lobbyId,
+        members: this.getMembers(lobbyId),
+        beginAtCountdown: game.beginAtCountdown,
+      })
+      if (Date.now() >= game.beginAtCountdown) {
+        clearInterval(interval)
+        this.countdowns.delete(lobbyId)
+        game.started = true
+      }
+    }, 1000)
+    this.countdowns.set(lobbyId, interval)
   }
 
   join(lobbyId: string, conn: Connection): void {
@@ -40,6 +64,12 @@ export class LobbyRegistry {
     if (!members) {
       members = new Set()
       this.lobbies.set(lobbyId, members)
+    }
+    for (const member of members) {
+      if (member.uid === conn.uid) {
+        members.delete(member)
+        break
+      }
     }
     members.add(conn)
   }
@@ -67,11 +97,19 @@ export class LobbyRegistry {
       members.delete(conn)
       if (members.size === 0) {
         this.lobbies.delete(lobbyId)
+        const interval = this.countdowns.get(lobbyId)
+        if (interval) {
+          clearInterval(interval)
+          this.countdowns.delete(lobbyId)
+        }
+        this.games.delete(lobbyId)
       } else {
+        const game = this.games.get(lobbyId)
         this.broadcast(lobbyId, {
           type: 'lobby_state',
           lobbyId,
           members: this.getMembers(lobbyId),
+          beginAtCountdown: game?.beginAtCountdown ?? 0,
         })
       }
     }
@@ -84,6 +122,10 @@ export class LobbyRegistry {
     for (const conn of members) {
       conn.ws.send(serialized)
     }
+  }
+
+  getGame(lobbyId: string): Game | undefined {
+    return this.games.get(lobbyId)
   }
 
   getMembers(lobbyId: string): string[] {

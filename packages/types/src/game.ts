@@ -14,4 +14,5 @@ export interface Game {
   started: boolean;
   winner: string;
   players: Player;
+  beginAtCountdown: number
 }

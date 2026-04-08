@@ -7,6 +7,7 @@ import { useWsStore } from '../state/useWsStore'
 
 interface UseWebSocketConfig {
   url: string
+  onOpen?: () => void
   onMessage?: (msg: ClientMessage) => void
 }
 
@@ -16,6 +17,7 @@ export function useWebSocket(config: UseWebSocketConfig): void {
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const queueRef = useRef<ServerMessage[]>([])
+  const joinedRef = useRef(false)
 
   // Keep a stable ref to config to avoid stale closures in connect()
   const configRef = useRef(config)
@@ -49,6 +51,10 @@ export function useWebSocket(config: UseWebSocketConfig): void {
         }
         queueRef.current = []
         storeRef.current._setSend(send)
+        if (!joinedRef.current) {
+          joinedRef.current = true
+          configRef.current.onOpen?.()
+        }
       }
 
       ws.onmessage = (event) => {
