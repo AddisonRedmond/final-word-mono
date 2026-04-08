@@ -25,8 +25,17 @@ export const handleGithubSignIn = async () => {
   const result = await signInWithPopup(auth, provider);
   const token = await result.user.getIdToken();
 
-  // Write the token cookie so the WS server can authenticate the upgrade request
+  // Set the raw token cookie for the WS server
   document.cookie = `token=${token}; path=/; SameSite=Strict`;
+
+  // Set the AuthToken cookie for next-firebase-auth-edge middleware
+  await fetch("/api/login", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
 
   return result.user;
 };

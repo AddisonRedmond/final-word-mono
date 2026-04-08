@@ -34,7 +34,7 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.next({ request: { headers } });
     },
     handleInvalidToken: async (reason) => {
-      console.info("Missing or malformed credentials", { reason });
+      console.error({reason})
       return redirectToLogin(request, {
         path: "/sign-in",
         publicPaths: PUBLIC_PATHS,

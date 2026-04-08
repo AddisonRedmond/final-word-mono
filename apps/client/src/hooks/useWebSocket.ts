@@ -86,13 +86,9 @@ export function useWebSocket(config: UseWebSocketConfig): void {
       }
     }
 
-    connect()
-
+    // Wait for a valid token before connecting
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      if (!user) return
-      const newToken = await user.getIdToken()
-      document.cookie = `token=${newToken}; path=/; SameSite=Strict`
-      // Reconnect: close current connection and reconnect
+      // Close any existing connection first
       if (wsRef.current !== null) {
         wsRef.current.close()
         wsRef.current = null
@@ -102,6 +98,11 @@ export function useWebSocket(config: UseWebSocketConfig): void {
         retryTimeoutRef.current = null
       }
       retryCountRef.current = 0
+
+      if (!user) return
+
+      const newToken = await user.getIdToken()
+      document.cookie = `token=${newToken}; path=/; SameSite=Strict`
       connect()
     })
 
