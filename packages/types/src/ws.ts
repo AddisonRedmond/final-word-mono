@@ -13,7 +13,7 @@ export type ServerMessage =
 export type ClientMessage =
   | { type: 'pong' }
   | { type: 'error'; reason: string }
-  | { type: 'lobby_state'; lobbyId: string; members: string[]; beginAtCountdown: number }
+  | { type: 'lobby_state'; lobbyId: string; members: string[]; beginAtCountdown: number; started: boolean }
   | { type: 'game_started'; lobbyId: string; players: string[] }
   | { type: 'guess_result'; lobbyId: string; guess: string; feedback: Array<'correct' | 'present' | 'absent'> }
   | { type: 'game_state_update'; lobbyId: string; players: Array<{ userId: string; guessCount: number; won: boolean; eliminated: boolean; healthMs: number }> }
@@ -37,7 +37,7 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pong') }),
   z.object({ type: z.literal('error'), reason: z.string() }),
-  z.object({ type: z.literal('lobby_state'), lobbyId: z.string(), members: z.array(z.string()), beginAtCountdown: z.number() }),
+  z.object({ type: z.literal('lobby_state'), lobbyId: z.string(), members: z.array(z.string()), beginAtCountdown: z.number(), started: z.boolean() }),
   z.object({ type: z.literal('game_started'), lobbyId: z.string(), players: z.array(z.string()) }),
   z.object({
     type: z.literal('guess_result'),

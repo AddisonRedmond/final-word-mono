@@ -1,0 +1,8 @@
+{
+  "name": "words",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./five_letter_words.js": "./five_letter_words.ts"
+  }
+}

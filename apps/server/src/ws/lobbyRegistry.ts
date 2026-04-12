@@ -34,6 +34,13 @@ export class LobbyRegistry {
     for (const [lobbyId, game] of this.games) {
       if (!game.started && this.getMembers(lobbyId).length < MAX_PLAYERS) {
         this.join(lobbyId, conn)
+        this.broadcast(lobbyId, {
+          type: 'lobby_state',
+          lobbyId,
+          members: this.getMembers(lobbyId),
+          beginAtCountdown: game.beginAtCountdown,
+          started: game.started,
+        })
         return lobbyId
       }
     }
@@ -50,6 +57,13 @@ export class LobbyRegistry {
     }
     this.games.set(lobbyId, game)
     this.join(lobbyId, conn)
+    this.broadcast(lobbyId, {
+      type: 'lobby_state',
+      lobbyId,
+      members: this.getMembers(lobbyId),
+      beginAtCountdown: game.beginAtCountdown,
+      started: game.started,
+    })
     this.startCountdown(lobbyId)
     return lobbyId
   }
@@ -67,25 +81,23 @@ export class LobbyRegistry {
         lobbyId,
         members: this.getMembers(lobbyId),
         beginAtCountdown: game.beginAtCountdown,
+        started: game.started,
       })
-      if (Date.now() >= game.beginAtCountdown) {
-        clearInterval(interval)
-        this.countdowns.delete(lobbyId)
-        
-        // Fill with bots if needed
-        const currentPlayers = this.getMembers(lobbyId).length
-        if (currentPlayers >= game.minPlayers) {
-          this.fillBotsAndStart(lobbyId)
-        } else {
-          // Not enough players, add bots to reach minimum
-          while (this.getMembers(lobbyId).length < game.minPlayers) {
-            this.addBot(lobbyId)
-          }
-          this.fillBotsAndStart(lobbyId)
-        }
-      }
     }, 1000)
     this.countdowns.set(lobbyId, interval)
+
+    setTimeout(() => {
+      clearInterval(interval)
+      this.countdowns.delete(lobbyId)
+
+      const game = this.games.get(lobbyId)
+      if (!game || game.started) return
+
+      while (this.getMembers(lobbyId).length < game.minPlayers) {
+        this.addBot(lobbyId)
+      }
+      this.fillBotsAndStart(lobbyId)
+    }, COUNTDOWN_DURATION)
   }
 
   private addBot(lobbyId: string): void {
@@ -368,6 +380,7 @@ export class LobbyRegistry {
           lobbyId,
           members: this.getMembers(lobbyId),
           beginAtCountdown: game?.beginAtCountdown ?? 0,
+          started: game?.started ?? false,
         })
       }
     }

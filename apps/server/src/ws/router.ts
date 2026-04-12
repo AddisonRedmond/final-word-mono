@@ -20,6 +20,7 @@ export function routeMessage(
           lobbyId,
           members: registry.getMembers(lobbyId),
           beginAtCountdown: game?.beginAtCountdown ?? 0,
+          started: game?.started ?? false,
         })
         return null
       }
@@ -34,6 +35,7 @@ export function routeMessage(
           lobbyId: msg.lobbyId,
           members: registry.getMembers(msg.lobbyId),
           beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
+          started: registry.getGame(msg.lobbyId)?.started ?? false,
         })
         return null
       }
@@ -45,6 +47,7 @@ export function routeMessage(
           lobbyId: msg.lobbyId,
           members: registry.getMembers(msg.lobbyId),
           beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
+          started: registry.getGame(msg.lobbyId)?.started ?? false,
         })
         return null
 

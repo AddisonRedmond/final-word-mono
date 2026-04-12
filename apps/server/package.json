@@ -13,7 +13,8 @@
     "firebase-admin": "^13.4.0",
     "firebase": "workspace:*",
     "hono": "^4.12.7",
-    "types": "workspace:*"
+    "types": "workspace:*",
+    "words": "workspace:*"
   },
   "@/types/*": [
     "../../packages/types/src/*"
