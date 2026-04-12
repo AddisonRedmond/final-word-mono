@@ -19,6 +19,7 @@ const ClientMessageArb: fc.Arbitrary<ClientMessage> = fc.oneof(
     type: fc.constant('lobby_state' as const),
     lobbyId: fc.string(),
     members: fc.array(fc.string()),
+    beginAtCountdown: fc.integer(),
   }),
 )
 

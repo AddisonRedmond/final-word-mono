@@ -24,7 +24,10 @@ export function routeMessage(
         return null
       }
 
-      case 'join_lobby':
+      case 'join_lobby': {
+        if (!registry.canJoinLobby(msg.lobbyId)) {
+          return { type: 'error', reason: 'lobby_full_or_started' }
+        }
         registry.join(msg.lobbyId, conn)
         registry.broadcast(msg.lobbyId, {
           type: 'lobby_state',
@@ -33,6 +36,7 @@ export function routeMessage(
           beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
         })
         return null
+      }
 
       case 'leave_lobby':
         registry.leave(msg.lobbyId, conn)
@@ -42,6 +46,14 @@ export function routeMessage(
           members: registry.getMembers(msg.lobbyId),
           beginAtCountdown: registry.getGame(msg.lobbyId)?.beginAtCountdown ?? 0,
         })
+        return null
+
+      case 'submit_guess':
+        registry.processGuess(msg.lobbyId, conn.uid, msg.guess)
+        return null
+
+      case 'set_target':
+        registry.setTarget(msg.lobbyId, conn.uid, msg.targetUserId)
         return null
 
       default:

@@ -1,3 +1,3 @@
-const FIVE_LETTER_WORDS = [
+export const FIVE_LETTER_WORDS = [
     "HOUND",
 ]

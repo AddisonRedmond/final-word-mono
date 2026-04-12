@@ -24,7 +24,7 @@ const { authMiddleware } = await import('../middleware/auth.js')
 function buildApp() {
   const app = new Hono()
   app.use('*', authMiddleware)
-  app.get('/', (c) => c.json({ uid: c.get('uid') }))
+  app.get('/', (c) => c.json({ uid: (c as any).get('uid') }))
   return app
 }
 

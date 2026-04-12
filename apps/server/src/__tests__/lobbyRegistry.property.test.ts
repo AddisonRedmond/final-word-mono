@@ -144,10 +144,16 @@ describe('Property 6: Lobby membership change broadcasts to all members', () => 
     const clientMessageArb = fc.oneof(
       fc.constant({ type: 'pong' as const }),
       fc.string({ minLength: 1 }).map((reason) => ({ type: 'error' as const, reason })),
-      fc.tuple(fc.string({ minLength: 1 }), fc.array(fc.string())).map(([lobbyId, members]) => ({
+      fc.tuple(fc.string({ minLength: 1 }), fc.array(fc.string()), fc.integer()).map(([lobbyId, members, beginAtCountdown]) => ({
         type: 'lobby_state' as const,
         lobbyId,
         members,
+        beginAtCountdown,
+      })),
+      fc.tuple(fc.string({ minLength: 1 }), fc.array(fc.string())).map(([lobbyId, players]) => ({
+        type: 'game_started' as const,
+        lobbyId,
+        players,
       })),
     )
 

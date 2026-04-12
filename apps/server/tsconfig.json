@@ -13,7 +13,8 @@
     "paths": {
       "types": ["../../packages/types/src/index.ts"],
       "firebase/server": ["../../packages/firebase/server.ts"],
-      "firebase/client": ["../../packages/firebase/client.ts"]
+      "firebase/client": ["../../packages/firebase/client.ts"],
+      "words/five_letter_words.js": ["../../packages/words/five_letter_words.ts"]
     }
   },
   "exclude": ["node_modules"]

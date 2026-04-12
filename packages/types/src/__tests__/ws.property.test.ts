@@ -14,6 +14,7 @@ const lobbyStateArb = fc.record({
   type: fc.constant('lobby_state' as const),
   lobbyId: fc.string(),
   members: fc.array(fc.string()),
+  beginAtCountdown: fc.integer(),
 })
 
 const wsMessageArb: fc.Arbitrary<WsMessage> = fc.oneof(
@@ -66,7 +67,7 @@ describe('Unit tests: all six MessageType values parse correctly', () => {
   })
 
   it('parses lobby_state', () => {
-    const msg: WsMessage = { type: 'lobby_state', lobbyId: 'room-1', members: ['alice', 'bob'] }
+    const msg: WsMessage = { type: 'lobby_state', lobbyId: 'room-1', members: ['alice', 'bob'], beginAtCountdown: 5 }
     expect(parseMessage(serializeMessage(msg))).toEqual(msg)
   })
 })
@@ -140,5 +141,92 @@ describe('Property 2: Invalid payload produces error', () => {
 describe('Unit test: parseMessage throws on invalid input', () => {
   it('throws on a plain invalid string "not-json"', () => {
     expect(() => parseMessage('not-json')).toThrow()
+  })
+})
+
+// Feature: game-loop, Property: WS message round-trips for new game-loop message types
+// Validates: Requirements 8.8
+
+const feedbackArb = fc.array(fc.constantFrom('correct' as const, 'present' as const, 'absent' as const))
+
+const submitGuessArb = fc.record({
+  type: fc.constant('submit_guess' as const),
+  lobbyId: fc.string(),
+  guess: fc.string(),
+})
+
+const setTargetArb = fc.record({
+  type: fc.constant('set_target' as const),
+  lobbyId: fc.string(),
+  targetUserId: fc.string(),
+})
+
+const guessResultArb = fc.record({
+  type: fc.constant('guess_result' as const),
+  lobbyId: fc.string(),
+  guess: fc.string(),
+  feedback: feedbackArb,
+})
+
+const gameStateUpdateArb = fc.record({
+  type: fc.constant('game_state_update' as const),
+  lobbyId: fc.string(),
+  players: fc.array(fc.record({
+    userId: fc.string(),
+    guessCount: fc.integer({ min: 0 }),
+    won: fc.boolean(),
+    eliminated: fc.boolean(),
+    healthMs: fc.integer({ min: 0 }),
+  })),
+})
+
+const gameOverArb = fc.record({
+  type: fc.constant('game_over' as const),
+  lobbyId: fc.string(),
+  winner: fc.string(),
+  players: fc.array(fc.record({
+    userId: fc.string(),
+    secretWord: fc.string(),
+    guesses: fc.array(fc.string()),
+    won: fc.boolean(),
+  })),
+})
+
+const attackWordArb = fc.record({
+  type: fc.constant('attack_word' as const),
+  lobbyId: fc.string(),
+  fromUserId: fc.string(),
+  word: fc.string(),
+  revealedPositions: fc.array(fc.integer({ min: 0, max: 4 })),
+})
+
+const playerHealthUpdateArb = fc.record({
+  type: fc.constant('player_health_update' as const),
+  lobbyId: fc.string(),
+  players: fc.array(fc.record({
+    userId: fc.string(),
+    healthMs: fc.integer({ min: 0 }),
+  })),
+})
+
+const gameLoopMessageArb = fc.oneof(
+  submitGuessArb,
+  setTargetArb,
+  guessResultArb,
+  gameStateUpdateArb,
+  gameOverArb,
+  attackWordArb,
+  playerHealthUpdateArb,
+)
+
+describe('Property: game-loop WS message round-trips', () => {
+  it('parseMessage(serializeMessage(msg)) deeply equals msg for all new game-loop message types', () => {
+    fc.assert(
+      fc.property(gameLoopMessageArb, (msg) => {
+        const result = parseMessage(serializeMessage(msg))
+        expect(result).toEqual(msg)
+      }),
+      { numRuns: 200 },
+    )
   })
 })
