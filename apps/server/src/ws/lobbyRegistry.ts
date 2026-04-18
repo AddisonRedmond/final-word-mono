@@ -25,7 +25,7 @@ const COUNTDOWN_DURATION = 60_000 // 60 seconds
 export class LobbyRegistry {
   private lobbies = new Map<string, Set<Connection>>()
   private games = new Map<string, Game>()
-  private countdowns = new Map<string, ReturnType<typeof setInterval>>()
+  private countdowns = new Map<string, ReturnType<typeof setTimeout>>()
   private healthTicks = new Map<string, ReturnType<typeof setInterval>>()
   private botIntervals = new Map<string, ReturnType<typeof setInterval>>()
   private botCounter = 0
@@ -69,35 +69,16 @@ export class LobbyRegistry {
   }
 
   private startCountdown(lobbyId: string): void {
-    const interval = setInterval(() => {
-      const game = this.games.get(lobbyId)
-      if (!game) {
-        clearInterval(interval)
-        this.countdowns.delete(lobbyId)
-        return
-      }
-      this.broadcast(lobbyId, {
-        type: 'lobby_state',
-        lobbyId,
-        members: this.getMembers(lobbyId),
-        beginAtCountdown: game.beginAtCountdown,
-        started: game.started,
-      })
-    }, 1000)
-    this.countdowns.set(lobbyId, interval)
-
-    setTimeout(() => {
-      clearInterval(interval)
+    console.log("starting countdown")
+    const timeout = setTimeout(() => {
       this.countdowns.delete(lobbyId)
 
       const game = this.games.get(lobbyId)
       if (!game || game.started) return
 
-      while (this.getMembers(lobbyId).length < game.minPlayers) {
-        this.addBot(lobbyId)
-      }
       this.fillBotsAndStart(lobbyId)
     }, COUNTDOWN_DURATION)
+    this.countdowns.set(lobbyId, timeout)
   }
 
   private addBot(lobbyId: string): void {
@@ -126,7 +107,8 @@ export class LobbyRegistry {
     if (!game) return
 
     // Fill remaining spots with bots
-    while (this.getMembers(lobbyId).length < game.maxPlayers) {
+    const botsNeededForMax = game.maxPlayers - this.getMembers(lobbyId).length
+    for (let i = 0; i < botsNeededForMax; i++) {
       this.addBot(lobbyId)
     }
 
@@ -358,7 +340,7 @@ export class LobbyRegistry {
         this.lobbies.delete(lobbyId)
         const interval = this.countdowns.get(lobbyId)
         if (interval) {
-          clearInterval(interval)
+          clearTimeout(interval)
           this.countdowns.delete(lobbyId)
         }
         const healthTick = this.healthTicks.get(lobbyId)
