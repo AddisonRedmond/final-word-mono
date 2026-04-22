@@ -12,6 +12,7 @@ import GameKeyboard from "./GameKeyboard";
 import { GameOverScreen } from "./GameOverScreen";
 import { OpponentPanel } from "./OpponentPanel";
 import { TargetSelector } from "./TargetSelector";
+import OpponentsContainer from "./opponent/OpponentContainer";
 
 type LobbyState = Extract<ClientMessage, { type: "lobby_state" }>;
 
@@ -96,7 +97,7 @@ export default function BattleRoyale({ onLeave }: BattleRoyaleProps) {
         0,
         Math.ceil((lobby.beginAtCountdown - Date.now()) / 1000),
       );
-      setCountdown(secs); 
+      setCountdown(secs);
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -134,55 +135,58 @@ export default function BattleRoyale({ onLeave }: BattleRoyaleProps) {
     </div>
   );
 
-  if (phase === "lobby") {
-    return (
-      <div className="flex flex-col h-screen">
-        {header}
-        <div className="flex flex-col grow items-center justify-center gap-6">
-          {status !== "open" ? (
-            <p className="font-mono text-sm text-gray-400">
-              {status === "connecting"
-                ? "Connecting to server…"
-                : "Disconnected"}{" "}
-            </p>
-          ) : (
-            <>
-              <p className="font-mono text-xs text-gray-400 uppercase tracking-widest">
-                Game starts in
-              </p>
-              {countdown !== null ? (
-                <ScrollTile
-                  letters={String(countdown)}
-                  theme="present"
-                  size="lg"
-                />
-              ) : (
-                <p className="font-mono text-sm text-gray-400">Waiting…</p>
-              )}{" "}
-            </>
-          )}{" "}
-        </div>
-      </div>
-    );
-  }
+  // if (phase === "lobby") {
+  //   return (
+  //     <div className="flex flex-col h-screen">
+  //       {header}
+  //       <div className="flex flex-col grow items-center justify-center gap-6">
+  //         {status !== "open" ? (
+  //           <p className="font-mono text-sm text-gray-400">
+  //             {status === "connecting"
+  //               ? "Connecting to server…"
+  //               : "Disconnected"}{" "}
+  //           </p>
+  //         ) : (
+  //           <>
+  //             <p className="font-mono text-xs text-gray-400 uppercase tracking-widest">
+  //               Game starts in
+  //             </p>
+  //             {countdown !== null ? (
+  //               <ScrollTile
+  //                 letters={String(countdown)}
+  //                 theme="present"
+  //                 size="lg"
+  //               />
+  //             ) : (
+  //               <p className="font-mono text-sm text-gray-400">Waiting…</p>
+  //             )}{" "}
+  //           </>
+  //         )}{" "}
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
-  if (gameOver !== null) {
-    return (
-      <div className="flex flex-col h-screen">
-        {header}
-        <GameOverScreen
-          gameOver={gameOver}
-          myUserId={myUserId}
-          onPlayAgain={handlePlayAgain}
-        />
-      </div>
-    );
-  }
+  // if (gameOver !== null) {
+  //   return (
+  //     <div className="flex flex-col h-screen">
+  //       {header}
+  //       <GameOverScreen
+  //         gameOver={gameOver}
+  //         myUserId={myUserId}
+  //         onPlayAgain={handlePlayAgain}
+  //       />
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="flex flex-col h-screen">
       {header}
       <div className="flex h-screen">
+        <OpponentsContainer>
+          <p>Opponent</p>
+        </OpponentsContainer>
         {/* Left: game board + keyboard */}
         <div className="flex flex-col items-center justify-center flex-1 gap-4">
           <AttackQueueIndicator count={attackQueueSize} />
@@ -203,20 +207,9 @@ export default function BattleRoyale({ onLeave }: BattleRoyaleProps) {
           />
         </div>
         {/* Right: opponents + targeting */}
-        <div className="flex flex-col gap-4 p-4 w-64 border-l border-white/10">
-          <TargetSelector
-            targetMode={targetMode}
-            onModeChange={(mode) => useGameStore.setState({ targetMode: mode })}
-          />
-          <OpponentPanel
-            opponents={opponents}
-            targetMode={targetMode}
-            selectedTargetId={targetUserId}
-            onSelectTarget={(userId) =>
-              gameStore.setTarget(userId, sendMessage)
-            }
-          />
-        </div>
+        <OpponentsContainer>
+          <p>Opponent</p>
+        </OpponentsContainer>
       </div>
     </div>
   );
