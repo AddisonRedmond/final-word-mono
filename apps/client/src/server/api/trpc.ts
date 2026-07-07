@@ -36,9 +36,11 @@ export async function createTRPCContext({
   req: NextApiRequest;
   res: NextApiResponse;
 }) {
-  const supabase = createSupabaseServerClient();
+  const supabase = createSupabaseServerClient(req, res);
 
-  const user = (await supabase).auth.getClaims;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return {
     supabase,
