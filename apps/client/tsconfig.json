@@ -30,7 +30,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "@/types/*": ["../../packages/types/src/*"],
-      "@/firebase/*": ["../../packages/firebase/*"]
     }
   },
   "include": [

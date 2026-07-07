@@ -1,7 +1,6 @@
 "use client";
 import Head from "next/head";
-import { handleSignOut } from "@/firebase/client";
-import { useAuthStore } from "@/state/useAuthStore";
+
 import { api } from "@/utils/api";
 import { useRouter } from "next/router";
 import Navbar from "@/components/navigation/navbar";
@@ -9,7 +8,6 @@ import Tile from "@/components/tile";
 import GameCard from "@/components/game-card";
 
 export default function Home() {
-  const user = useAuthStore((state) => state.user);
   const hello = api.post.hello.useQuery({ text: "from tRPC" });
 
   return (

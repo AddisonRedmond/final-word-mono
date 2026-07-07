@@ -6,11 +6,11 @@
  */
 import { httpBatchLink, loggerLink } from "@trpc/client";
 import { createTRPCNext } from "@trpc/next";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import superjson from "superjson";
-import { auth } from "@/firebase/client";
+import { ssrPrepass } from "@trpc/next/ssrPrepass";
 
-import type { AppRouter } from "@/server/api/root";
+import { type AppRouter } from "@/server/api/root";
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined") return ""; // browser should use relative url
@@ -20,6 +20,8 @@ const getBaseUrl = () => {
 
 /** A set of type-safe react-query hooks for your tRPC API. */
 export const api = createTRPCNext<AppRouter>({
+  ssr: true,
+  ssrPrepass,
   config() {
     return {
       /**
@@ -34,12 +36,13 @@ export const api = createTRPCNext<AppRouter>({
             (opts.direction === "down" && opts.result instanceof Error),
         }),
         httpBatchLink({
+          /**
+           * Transformer used for data de-serialization from the server.
+           *
+           * @see https://trpc.io/docs/data-transformers
+           */
           transformer: superjson,
           url: `${getBaseUrl()}/api/trpc`,
-          async headers() {
-            const token = await auth.currentUser?.getIdToken();
-            return token ? { Authorization: `Bearer ${token}` } : {};
-          },
         }),
       ],
     };
@@ -49,7 +52,6 @@ export const api = createTRPCNext<AppRouter>({
    *
    * @see https://trpc.io/docs/nextjs#ssr-boolean-default-false
    */
-  ssr: false,
   transformer: superjson,
 });
 

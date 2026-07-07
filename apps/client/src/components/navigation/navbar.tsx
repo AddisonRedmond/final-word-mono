@@ -1,5 +1,4 @@
-import { handleSignOut } from "@/firebase/client";
-import { useAuth } from "@/state/useAuthStore";
+
 import Image from "next/image";
 import { useRouter } from "next/router";
 
@@ -10,36 +9,11 @@ const PlayersOnline = () => (
   </div>
 );
 
-const UserProfile = () => {
-  const user = useAuth();
-  if (!user) return null;
-
-  return (
-    <div className="flex items-center gap-x-2">
-      {user.photoURL ? (
-        <Image
-          src={user.photoURL}
-          alt={user.displayName ?? "User avatar"}
-          className="size-8 rounded-full object-cover"
-          referrerPolicy="no-referrer"
-          unoptimized
-          width={32}
-          height={32}
-        />
-      ) : (
-        <div className="size-8 rounded-full bg-gray-400 grid place-content-center text-white text-sm font-semibold">
-          {user.displayName?.[0]?.toUpperCase() ?? "?"}{" "}
-        </div>
-      )}{" "}
-    </div>
-  );
-};
 
 const Navbar = () => {
   const router = useRouter();
 
   const hijackSignOut = async () => {
-    await handleSignOut();
     router.push("/sign-in");
   };
   return (
@@ -63,7 +37,6 @@ const Navbar = () => {
         >
           Sign Out
         </button>
-        <UserProfile />
       </div>
     </div>
   );
