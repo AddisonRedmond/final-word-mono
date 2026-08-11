@@ -1,11 +1,10 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { createNodeWebSocket } from "@hono/node-ws";
 import { createClient } from "@supabase/supabase-js";
+import { Server } from "socket.io";
 import "dotenv/config";
 
-const app = new Hono<{ Variables: { wsUserId: string } }>();
-const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,48 +28,9 @@ const getBearerToken = (authorizationHeader: string | undefined) => {
   return authorizationHeader.slice(7).trim() || null;
 };
 
-let messages = {};
-
 app.get("/", (c) => {
   return c.text("Hello Hono!");
 });
-
-app.get(
-  "/ws",
-  async (c, next) => {
-    const bearerToken = getBearerToken(c.req.header("authorization"));
-    const queryToken = c.req.query("access_token");
-    const accessToken = bearerToken ?? queryToken ?? null;
-
-    if (!accessToken) {
-      return c.text("Unauthorized: missing access token", 401);
-    }
-
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(accessToken);
-
-    if (error || !user) {
-      return c.text("Unauthorized: invalid access token", 401);
-    }
-
-    c.set("wsUserId", user.id);
-    await next();
-  },
-  upgradeWebSocket((c) => {
-    const wsUserId = c.get("wsUserId");
-
-    return {
-    onOpen() {
-        console.log(`New WebSocket connection for user ${wsUserId}`);
-    },
-    onMessage(event, ws) {
-        ws.send(`${event.data} | user=${wsUserId}`);
-    },
-    };
-  }),
-);
 
 const server = serve(
   {
@@ -82,4 +42,57 @@ const server = serve(
   },
 );
 
-injectWebSocket(server);
+const io = new Server(server, {
+  path: "/socket.io",
+  cors: {
+    origin: "*",
+  },
+});
+
+io.use(async (socket, next) => {
+  const authToken =
+    typeof socket.handshake.auth?.token === "string"
+      ? socket.handshake.auth.token
+      : null;
+
+  const queryToken =
+    typeof socket.handshake.query.access_token === "string"
+      ? socket.handshake.query.access_token
+      : null;
+
+  const rawAuthHeader = socket.handshake.headers.authorization;
+  const headerToken = getBearerToken(
+    typeof rawAuthHeader === "string" ? rawAuthHeader : undefined,
+  );
+
+  const accessToken = authToken ?? queryToken ?? headerToken;
+
+  if (!accessToken) {
+    next(new Error("Unauthorized: missing access token"));
+    return;
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(accessToken);
+
+  if (error || !user) {
+    next(new Error("Unauthorized: invalid access token"));
+    return;
+  }
+
+  socket.data.userId = user.id;
+  next();
+});
+
+io.on("connection", (socket) => {
+  console.log(`New Socket.IO connection for user ${socket.data.userId}`);
+
+  socket.on("guess", (payload) => {
+    socket.emit("guess:ack", {
+      userId: socket.data.userId,
+      payload,
+    });
+  });
+});

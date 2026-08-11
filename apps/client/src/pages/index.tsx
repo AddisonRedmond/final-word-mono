@@ -7,34 +7,26 @@ import GameCard from "@/components/game-card";
 import { useEffect, useRef, useState } from "react";
 import { env } from "@/env";
 import { createClient } from "@/utils/supabase/client";
+import { io, type Socket } from "socket.io-client";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
 
-  const sendWs = (type: string, payload: Record<string, unknown>) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn("Cannot send websocket message: connection is not open");
+  const sendGuess = (word: string) => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) {
+      console.warn("Cannot send guess: socket is not connected");
       return;
     }
 
-    ws.send(
-      JSON.stringify({
-        type,
-        payload,
-      }),
-    );
-  };
-
-  const sendGuess = (word: string) => {
-    sendWs("guess", { word });
+    socket.emit("guess", { word });
   };
 
   useEffect(() => {
     return () => {
-      wsRef.current?.close();
+      socketRef.current?.disconnect();
     };
   }, []);
 
@@ -50,31 +42,36 @@ export default function Home() {
       return;
     }
 
-    wsRef.current?.close();
+    socketRef.current?.disconnect();
 
-    const wsUrl = new URL(env.NEXT_PUBLIC_WS_URL);
-    wsUrl.searchParams.set("access_token", accessToken);
+    const socketBaseUrl = env.NEXT_PUBLIC_WS_URL.replace(/^ws/i, "http");
+    const socket = io(socketBaseUrl, {
+      path: "/socket.io",
+      auth: {
+        token: accessToken,
+      },
+      transports: ["websocket"],
+    });
 
-    const ws = new WebSocket(wsUrl.toString());
-    wsRef.current = ws;
+    socketRef.current = socket;
 
-    ws.onopen = () => {
-      console.log("WebSocket connected");
+    socket.on("connect", () => {
+      console.log("Socket.IO connected");
       setIsPlaying(true);
       sendGuess("BATTLE");
-    };
+    });
 
-    ws.onmessage = (event) => {
-      setMessages((prev) => [...prev, String(event.data)]);
-    };
+    socket.on("guess:ack", (payload) => {
+      setMessages((prev) => [...prev, JSON.stringify(payload)]);
+    });
 
-    ws.onerror = (event) => {
-      console.error("WebSocket error", event);
-    };
+    socket.on("connect_error", (error) => {
+      console.error("Socket.IO connection error", error.message);
+    });
 
-    ws.onclose = () => {
+    socket.on("disconnect", () => {
       setIsPlaying(false);
-    };
+    });
   };
   return (
     <>
@@ -92,7 +89,7 @@ export default function Home() {
           </div>
           <div>
            {isPlaying ? <div>
-            <button onClick={()=>sendGuess("PENIS")}>TEST</button>
+            <button onClick={() => sendGuess("FINAL")}>TEST</button>
             {JSON.stringify(messages)}
            </div> : <GameCard
               title="Battle Royale"
