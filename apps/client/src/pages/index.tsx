@@ -1,17 +1,81 @@
 "use client";
 import Head from "next/head";
 
-import { api } from "@/utils/api";
-import { useRouter } from "next/router";
 import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
 import GameCard from "@/components/game-card";
+import { useEffect, useRef, useState } from "react";
+import { env } from "@/env";
+import { createClient } from "@/utils/supabase/client";
 
 export default function Home() {
-  const hello = api.post.hello.useQuery({ text: "from tRPC" });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [messages, setMessages] = useState<string[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  console.log(hello.data)
+  const sendWs = (type: string, payload: Record<string, unknown>) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn("Cannot send websocket message: connection is not open");
+      return;
+    }
 
+    ws.send(
+      JSON.stringify({
+        type,
+        payload,
+      }),
+    );
+  };
+
+  const sendGuess = (word: string) => {
+    sendWs("guess", { word });
+  };
+
+  useEffect(() => {
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
+
+  const handlePlay = async () => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      console.error("No active session found for websocket auth");
+      return;
+    }
+
+    wsRef.current?.close();
+
+    const wsUrl = new URL(env.NEXT_PUBLIC_WS_URL);
+    wsUrl.searchParams.set("access_token", accessToken);
+
+    const ws = new WebSocket(wsUrl.toString());
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      setIsPlaying(true);
+      sendGuess("BATTLE");
+    };
+
+    ws.onmessage = (event) => {
+      setMessages((prev) => [...prev, String(event.data)]);
+    };
+
+    ws.onerror = (event) => {
+      console.error("WebSocket error", event);
+    };
+
+    ws.onclose = () => {
+      setIsPlaying(false);
+    };
+  };
   return (
     <>
       <Head>
@@ -27,11 +91,15 @@ export default function Home() {
             <Tile revealed={true} word="WORD" size="md" variant="present" />
           </div>
           <div>
-            <GameCard
+           {isPlaying ? <div>
+            <button onClick={()=>sendGuess("PENIS")}>TEST</button>
+            {JSON.stringify(messages)}
+           </div> : <GameCard
               title="Battle Royale"
               desc="100 players. One word. Last solver standing wins."
               badge="Live"
               badgeVariant="green"
+              onPlay={handlePlay}
               tiles={[
                 { word: "B", variant: "correct" },
                 { word: "A", variant: "present" },
@@ -40,7 +108,7 @@ export default function Home() {
                 { word: "L", variant: "correct" },
                 { word: "E", variant: "present" },
               ]}
-            />{" "}
+            />}
           </div>
         </div>
       </main>

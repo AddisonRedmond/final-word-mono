@@ -21,7 +21,7 @@ const SignIn: NextPage = () => {
       <button
         type="button"
         onClick={handleGitHubSignIn}
-        className="flex items-center justify-center gap-3 rounded-lg border border-white/20 bg-white/10 px-6 py-3 text-white backdrop-blur-sm transition hover:bg-white/20 active:scale-95"
+        className="flex items-center justify-center gap-3 rounded-lg border border-white/60 bg-zinc-900/95 px-6 py-3 font-semibold text-white shadow-lg shadow-black/40 backdrop-blur-sm transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 active:scale-95"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

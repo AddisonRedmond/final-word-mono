@@ -1,6 +1,6 @@
-
-import Image from "next/image";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 const PlayersOnline = () => (
   <div className="flex items-center gap-x-1.5 text-sm">
@@ -9,12 +9,59 @@ const PlayersOnline = () => (
   </div>
 );
 
+interface ProfileProps {
+  name: string | null;
+  email: string | null;
+}
+
+const Profile = ({ name, email }: ProfileProps) => {
+  return (
+    <div className="text-right leading-tight">
+      <p className="text-sm font-semibold text-gray-900">{name ?? "Player"}</p>
+      <p className="text-xs text-gray-500">{email ?? "No email"}</p>
+    </div>
+  );
+};
 
 const Navbar = () => {
   const router = useRouter();
+  const [supabase] = useState(() => createClient());
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
 
-  const hijackSignOut = async () => {
-    router.push("/sign-in");
+  useEffect(() => {
+    const syncUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setProfileName(user?.user_metadata?.name ?? user?.user_metadata?.full_name ?? null);
+      setProfileEmail(user?.email ?? null);
+    };
+
+    void syncUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      setProfileName(user?.user_metadata?.name ?? user?.user_metadata?.full_name ?? null);
+      setProfileEmail(user?.email ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      router.push("/sign-in");
+    }
   };
   return (
     <div className="w-full h-14 p-4 flex justify-between">
@@ -31,11 +78,14 @@ const Navbar = () => {
           🏆 Leaderboard
         </button>
         <PlayersOnline />
+        <Profile email={profileEmail} name={profileName} />
         <button
-          onClick={()=> hijackSignOut()}
+          type="button"
+          disabled={isSigningOut}
+          onClick={handleSignOut}
           className="text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors"
         >
-          Sign Out
+          {isSigningOut ? "Signing out..." : "Sign Out"}
         </button>
       </div>
     </div>
