@@ -3,11 +3,19 @@ import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import "dotenv/config";
-
+import type { Game } from "../../../packages/types/src/game";
+import { getOrCreateGame } from "../utils/game-utils";
+import type { ServerPlayerMap } from "../../../packages/types/src/game.js";
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const Max_Players = 50;
+const Max_Wait_Time = 45; //Seconds
+
+const games = new Map<string, Game>();
+const serverOnlyData: ServerPlayerMap = new Map();
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing Supabase environment variables for WebSocket auth");
@@ -83,16 +91,40 @@ io.use(async (socket, next) => {
   }
 
   socket.data.userId = user.id;
+  socket.data.name = user.user_metadata?.full_name ?? "Player";
+
   next();
 });
 
 io.on("connection", (socket) => {
   console.log(`New Socket.IO connection for user ${socket.data.userId}`);
 
+  socket.on("join", () => {
+    const { userId, name } = socket.data;
+    const game = getOrCreateGame(games, Max_Players);
+    const roomId = game.room.lobbyId;
+
+    socket.data.roomId = roomId;
+    game.players.set(userId, { userId, name });
+    serverOnlyData.set(roomId, { string: "string" });
+    socket.join(roomId);
+
+    socket.emit("join:ack", {
+      game: {
+        ...game,
+        players: Object.fromEntries(game.players),
+      },
+    });
+  });
+
   socket.on("guess", (payload) => {
-    socket.emit("guess:ack", {
+    console.log("GUESS");
+    const roomId = socket.data.roomId;
+    const serverData = serverOnlyData;
+    socket.emitWithAck("guess:ack", {
       userId: socket.data.userId,
-      payload,
+      serverData: Object.fromEntries(serverOnlyData),
+      games: Object.fromEntries(games),
     });
   });
 });

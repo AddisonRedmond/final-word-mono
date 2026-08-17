@@ -12,6 +12,7 @@ import { io, type Socket } from "socket.io-client";
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
+  const [lobby, setLobby] = useState<Record<string, unknown>>({});
   const socketRef = useRef<Socket | null>(null);
 
   const sendGuess = (word: string) => {
@@ -22,6 +23,16 @@ export default function Home() {
     }
 
     socket.emit("guess", { word });
+  };
+
+  const sendJoin = () => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) {
+      console.warn("Cannot send guess: socket is not connected");
+      return;
+    }
+
+    socket.emit("join", "I'm joining");
   };
 
   useEffect(() => {
@@ -44,7 +55,7 @@ export default function Home() {
 
     socketRef.current?.disconnect();
 
-    const socketBaseUrl = env.NEXT_PUBLIC_WS_URL.replace(/^ws/i, "http");
+    const socketBaseUrl = env.NEXT_PUBLIC_WS_URL;
     const socket = io(socketBaseUrl, {
       path: "/socket.io",
       auth: {
@@ -58,11 +69,15 @@ export default function Home() {
     socket.on("connect", () => {
       console.log("Socket.IO connected");
       setIsPlaying(true);
-      sendGuess("BATTLE");
     });
 
     socket.on("guess:ack", (payload) => {
-      setMessages((prev) => [...prev, JSON.stringify(payload)]);
+      console.log("EMITTED")
+      console.log(JSON.stringify(payload))
+    });
+
+    socket.on("join:ack", (payload) => {
+      setLobby(payload);
     });
 
     socket.on("connect_error", (error) => {
@@ -88,24 +103,33 @@ export default function Home() {
             <Tile revealed={true} word="WORD" size="md" variant="present" />
           </div>
           <div>
-           {isPlaying ? <div>
-            <button onClick={() => sendGuess("FINAL")}>TEST</button>
-            {JSON.stringify(messages)}
-           </div> : <GameCard
-              title="Battle Royale"
-              desc="100 players. One word. Last solver standing wins."
-              badge="Live"
-              badgeVariant="green"
-              onPlay={handlePlay}
-              tiles={[
-                { word: "B", variant: "correct" },
-                { word: "A", variant: "present" },
-                { word: "T", variant: "absent" },
-                { word: "T", variant: "correct" },
-                { word: "L", variant: "correct" },
-                { word: "E", variant: "present" },
-              ]}
-            />}
+            {isPlaying ? (
+              <div>
+                <button onClick={() => sendGuess("FINAL")}>TEST</button>
+                <button onClick={() => sendJoin()} className="bg-green-300">
+                  HANDLE JOIN
+                </button>
+                <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
+                  {JSON.stringify(lobby, null, 2)}
+                </pre>
+              </div>
+            ) : (
+              <GameCard
+                title="Battle Royale"
+                desc="100 players. One word. Last solver standing wins."
+                badge="Live"
+                badgeVariant="green"
+                onPlay={handlePlay}
+                tiles={[
+                  { word: "B", variant: "correct" },
+                  { word: "A", variant: "present" },
+                  { word: "T", variant: "absent" },
+                  { word: "T", variant: "correct" },
+                  { word: "L", variant: "correct" },
+                  { word: "E", variant: "present" },
+                ]}
+              />
+            )}
           </div>
         </div>
       </main>
