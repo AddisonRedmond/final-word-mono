@@ -3,37 +3,16 @@ import Head from "next/head";
 
 import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
-import GameCard from "@/components/game-card";
 import { useEffect, useRef, useState } from "react";
 import { env } from "@/env";
 import { createClient } from "@/utils/supabase/client";
 import { io, type Socket } from "socket.io-client";
+import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
+import BattleRoyale from "@/components/games/battle-royale";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [messages, setMessages] = useState<string[]>([]);
-  const [lobby, setLobby] = useState<Record<string, unknown>>({});
   const socketRef = useRef<Socket | null>(null);
-
-  const sendGuess = (word: string) => {
-    const socket = socketRef.current;
-    if (!socket || !socket.connected) {
-      console.warn("Cannot send guess: socket is not connected");
-      return;
-    }
-
-    socket.emit("guess", { word });
-  };
-
-  const sendJoin = () => {
-    const socket = socketRef.current;
-    if (!socket || !socket.connected) {
-      console.warn("Cannot send guess: socket is not connected");
-      return;
-    }
-
-    socket.emit("join", "I'm joining");
-  };
 
   useEffect(() => {
     return () => {
@@ -66,28 +45,31 @@ export default function Home() {
 
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    const handleConnect = () => {
       console.log("Socket.IO connected");
       setIsPlaying(true);
-    });
+    };
 
-    socket.on("guess:ack", (payload) => {
-      console.log("EMITTED")
-      console.log(JSON.stringify(payload))
-    });
-
-    socket.on("join:ack", (payload) => {
-      setLobby(payload);
-    });
-
-    socket.on("connect_error", (error) => {
+    const handleConnectError = (error: Error) => {
       console.error("Socket.IO connection error", error.message);
-    });
-
-    socket.on("disconnect", () => {
       setIsPlaying(false);
-    });
+    };
+
+    const handleDisconnect = () => {
+      setIsPlaying(false);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+    };
   };
+
   return (
     <>
       <Head>
@@ -104,31 +86,11 @@ export default function Home() {
           </div>
           <div>
             {isPlaying ? (
-              <div>
-                <button onClick={() => sendGuess("FINAL")}>TEST</button>
-                <button onClick={() => sendJoin()} className="bg-green-300">
-                  HANDLE JOIN
-                </button>
-                <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
-                  {JSON.stringify(lobby, null, 2)}
-                </pre>
-              </div>
+              <BattleRoyale socketRef={socketRef} />
             ) : (
-              <GameCard
-                title="Battle Royale"
-                desc="100 players. One word. Last solver standing wins."
-                badge="Live"
-                badgeVariant="green"
-                onPlay={handlePlay}
-                tiles={[
-                  { word: "B", variant: "correct" },
-                  { word: "A", variant: "present" },
-                  { word: "T", variant: "absent" },
-                  { word: "T", variant: "correct" },
-                  { word: "L", variant: "correct" },
-                  { word: "E", variant: "present" },
-                ]}
-              />
+              <div>
+                <BattleRoyalCard handlePlay={handlePlay} />
+              </div>
             )}
           </div>
         </div>

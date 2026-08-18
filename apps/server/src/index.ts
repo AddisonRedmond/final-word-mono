@@ -3,9 +3,11 @@ import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import "dotenv/config";
-import type { Game } from "../../../packages/types/src/game";
-import { getOrCreateGame } from "../utils/game-utils";
-import type { ServerPlayerMap } from "../../../packages/types/src/game.js";
+import { getOrCreateGame, GetRandomWord } from "../utils/game-utils.js";
+import type {
+  Game,
+  ServerPlayerMap,
+} from "../../../packages/types/src/game.js";
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -106,7 +108,7 @@ io.on("connection", (socket) => {
 
     socket.data.roomId = roomId;
     game.players.set(userId, { userId, name });
-    serverOnlyData.set(roomId, { string: "string" });
+    serverOnlyData.set(roomId, { [userId]: GetRandomWord() });
     socket.join(roomId);
 
     socket.emit("join:ack", {
@@ -118,13 +120,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("guess", (payload) => {
-    console.log("GUESS");
-    const roomId = socket.data.roomId;
-    const serverData = serverOnlyData;
     socket.emitWithAck("guess:ack", {
       userId: socket.data.userId,
-      serverData: Object.fromEntries(serverOnlyData),
-      games: Object.fromEntries(games),
     });
   });
 });

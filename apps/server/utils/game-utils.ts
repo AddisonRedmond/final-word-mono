@@ -1,26 +1,40 @@
 import { randomUUID } from "node:crypto";
-import type { Game } from "../../../packages/types/src/game.ts";
+import words from "./words.js";
+import type { Game } from "../../../packages/types/src/game.js";
 
 export const getOrCreateGame = (
-	games: Map<string, Game>,
-	maxPlayers: number,
+  games: Map<string, Game>,
+  maxPlayers: number,
 ): Game => {
-	for (const game of games.values()) {
-		if (!game.room.isStarted && game.players.size < maxPlayers) {
-			return game;
-		}
-	}
+  for (const game of games.values()) {
+    if (!game.room.isStarted && game.players.size < maxPlayers) {
+      return game;
+    }
+  }
 
-	const lobbyId = randomUUID();
-	const game: Game = {
-		room: {
-			lobbyId,
-			startTime: Date.now(),
-			isStarted: false,
-		},
-		players: new Map(),
-	};
+  const lobbyId = randomUUID();
+  const game: Game = {
+    room: {
+      lobbyId,
+      startTime: Date.now(),
+      isStarted: false,
+    },
+    players: new Map(),
+  };
 
-	games.set(lobbyId, game);
-	return game;
+  games.set(lobbyId, game);
+  return game;
 };
+
+export const GetRandomWord = () => {
+  const randomIndex = Math.floor(Math.random() * words.length);
+  return words[randomIndex] ?? "PLAYER";
+};
+
+export const checkWord = (guess:string, word: string) => {
+    // get partial matches,
+    // get full matches, 
+    // get no matches
+
+    // return object 
+}
