@@ -83,6 +83,8 @@ const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
         <button onClick={() => leave()}>Leave</button>
       </div>
 
+      {lobby?.room.isStarted ? "Time to play the game": "Waiting for the game to start"}
+
       <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
         {JSON.stringify(lobby, null, 2)}
       </pre>

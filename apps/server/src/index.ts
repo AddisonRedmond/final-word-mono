@@ -162,6 +162,7 @@ io.on("connection", (socket) => {
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
     let roomServerOnlyData = serverOnlyData.get(roomId);
+    
     if (!roomServerOnlyData) {
       const startTimer = setTimeout(
         () => {
