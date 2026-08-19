@@ -14,7 +14,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const Max_Players = 50;
-const Max_Wait_Time = 45; //Seconds
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerPlayerMap = new Map();
@@ -99,23 +98,82 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`New Socket.IO connection for user ${socket.data.userId}`);
+  socket.on("disconnect", () => {
+    const { roomId, userId, name } = socket.data;
+    console.log(`${name} disconnected`);
+
+    if (!roomId) {
+      return;
+    }
+
+    const game = games.get(roomId);
+    const player = game?.players.get(userId);
+    if (!game || !player) {
+      return;
+    }
+
+    player.isEliminated = true;
+    io.to(roomId).emit("lobby:update", {
+      ...game,
+      players: Object.fromEntries(game.players),
+    });
+  });
+
+  socket.on("leave", (ack?: (response: { ok: boolean }) => void) => {
+    const { roomId, userId, name } = socket.data;
+    if (!roomId) {
+      ack?.({ ok: false });
+      return;
+    }
+
+    const game = games.get(roomId);
+    if (!game) {
+      ack?.({ ok: false });
+      return;
+    }
+
+    game.players.delete(userId);
+
+    const roomServerData = serverOnlyData.get(roomId);
+    if (roomServerData) {
+      delete roomServerData[userId];
+      if (Object.keys(roomServerData).length === 0) {
+        serverOnlyData.delete(roomId);
+      }
+    }
+
+    socket.data.roomId = undefined;
+    socket.leave(roomId);
+
+    if (game.players.size === 0) {
+      games.delete(roomId);
+      serverOnlyData.delete(roomId);
+    } else {
+      io.to(roomId).emit("lobby:update", {
+        ...game,
+        players: Object.fromEntries(game.players),
+      });
+    }
+
+    console.log(`${name} left ${roomId}`);
+    ack?.({ ok: true });
+  });
 
   socket.on("join", () => {
     const { userId, name } = socket.data;
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
+    const roomServerData = serverOnlyData.get(roomId) ?? {};
 
     socket.data.roomId = roomId;
     game.players.set(userId, { userId, name });
-    serverOnlyData.set(roomId, { [userId]: GetRandomWord() });
+    roomServerData[userId] = GetRandomWord();
+    serverOnlyData.set(roomId, roomServerData);
     socket.join(roomId);
 
     socket.emit("join:ack", {
-      game: {
-        ...game,
-        players: Object.fromEntries(game.players),
-      },
+      ...game,
+      players: Object.fromEntries(game.players),
     });
   });
 

@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import words from "./words.js";
 import type { Game } from "../../../packages/types/src/game.js";
 
+const Max_Wait_Time = 45 * 1000; //Seconds
+
 export const getOrCreateGame = (
   games: Map<string, Game>,
   maxPlayers: number,
@@ -16,7 +18,8 @@ export const getOrCreateGame = (
   const game: Game = {
     room: {
       lobbyId,
-      startTime: Date.now(),
+      startTime: Date.now() + Max_Wait_Time,
+      createdAt: Date.now(),
       isStarted: false,
     },
     players: new Map(),
@@ -31,10 +34,9 @@ export const GetRandomWord = () => {
   return words[randomIndex] ?? "PLAYER";
 };
 
-export const checkWord = (guess:string, word: string) => {
-    // get partial matches,
-    // get full matches, 
-    // get no matches
-
-    // return object 
-}
+export const checkWord = (guess: string, word: string) => {
+  // get partial matches,
+  // get full matches,
+  // get no matches
+  // return object
+};

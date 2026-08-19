@@ -6,6 +6,7 @@ export type PlayerDisplay = {
   noMatch?: string[];
   queue?: string[];
   endTimeStamp?: number;
+  isEliminated: boolean;
 };
 
 export type ServerOnlyData = {
@@ -18,6 +19,7 @@ export type Room = {
   lobbyId: string;
   startTime: number;
   isStarted: boolean;
+  createdAt: number;
 };
 
 export type Game = {

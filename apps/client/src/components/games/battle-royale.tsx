@@ -1,12 +1,13 @@
 import { useEffect, useState, type RefObject } from "react";
 import type { Socket } from "socket.io-client";
-
+import CountDownTimer from "../game-components/timer";
+import type { Game } from "@/types/game";
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
 };
 
 const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
-  const [lobby, setLobby] = useState<Record<string, unknown>>({});
+  const [lobby, setLobby] = useState<Game>();
 
   const getSocket = () => socketRef.current;
 
@@ -36,7 +37,9 @@ const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
       return;
     }
 
-    socket.disconnect();
+    socket.emit("leave", () => {
+      socket.disconnect();
+    });
   };
 
   useEffect(() => {
@@ -50,22 +53,32 @@ const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
       console.log(JSON.stringify(payload));
     };
 
-    const handleJoinAck = (payload: Record<string, unknown>) => {
+    const handleJoinAck = (payload: Game) => {
+      setLobby(payload);
+    };
+
+    const handleLobbyUpdate = (payload: Game) => {
       setLobby(payload);
     };
 
     socket.on("guess:ack", handleGuessAck);
     socket.on("join:ack", handleJoinAck);
+    socket.on("lobby:update", handleLobbyUpdate);
 
     sendJoin();
     return () => {
       socket.off("guess:ack", handleGuessAck);
       socket.off("join:ack", handleJoinAck);
+      socket.off("lobby:update", handleLobbyUpdate);
     };
   }, [socketRef]);
 
   return (
     <div className="flex flex-col items-center gap-3">
+      <CountDownTimer
+        expiryTimestamp={lobby?.room?.startTime}
+        timerTitle="Game Starting"
+      />
       <div className="flex gap-2">
         <button onClick={sendJoin} className="bg-green-300">
           HANDLE JOIN
