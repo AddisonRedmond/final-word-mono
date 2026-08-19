@@ -166,7 +166,7 @@ io.on("connection", (socket) => {
     const roomServerData = serverOnlyData.get(roomId) ?? {};
 
     socket.data.roomId = roomId;
-    game.players.set(userId, { userId, name });
+    game.players.set(userId, { userId, name, isEliminated: false });
     roomServerData[userId] = GetRandomWord();
     serverOnlyData.set(roomId, roomServerData);
     socket.join(roomId);

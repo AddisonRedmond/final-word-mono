@@ -10,7 +10,12 @@ export type PlayerDisplay = {
 };
 
 export type ServerOnlyData = {
-  word: string;
+  [roomId: string]: {
+    playerData: ServerPlayerMap,
+    gameTimers: {
+      startTimer: ReturnType<typeof setTimeout>;
+    }
+  }
 };
 
 export type ServerPlayerMap = Map<string, Record<string, string>>;

@@ -8,6 +8,68 @@ interface TileProps {
   size?: "sm" | "md" | "lg";
 }
 
+interface SlotTileProps {
+  letters: string;
+  tileClassName: string | ((index: number, isRevealed: boolean) => string);
+  revealed?: boolean | boolean[];
+  desktopOnly?: boolean;
+}
+
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
+
+export const SlotTile: React.FC<SlotTileProps> = ({
+  letters,
+  tileClassName,
+  revealed = true,
+  desktopOnly = false,
+}) => (
+  <motion.div
+    initial={{ scale: 0, opacity: 0 }}
+    exit={{ scale: 0, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    className={`flex gap-2 ${desktopOnly ? "hidden sm:flex" : ""}`}
+  >
+    {letters.split("").map((letter, index) => {
+      const isRevealed = Array.isArray(revealed)
+        ? (revealed[index] ?? false)
+        : revealed;
+      const letterIndex = Math.max(alphabet.indexOf(letter.toUpperCase()), 0);
+      const className =
+        typeof tileClassName === "function"
+          ? tileClassName(index, isRevealed)
+          : tileClassName;
+
+      return (
+        <div key={index} className={`${className} overflow-hidden rounded-md`}>
+          <motion.div
+            initial={{ y: 0, opacity: 0 }}
+            animate={{
+              y: isRevealed ? `-${letterIndex * 100}%` : 0,
+              opacity: isRevealed ? 1 : 0,
+            }}
+            transition={{
+              duration: 0.8,
+              type: "spring",
+              damping: 12,
+              delay: isRevealed ? index * 0.1 : 0,
+            }}
+            className="h-full w-full"
+          >
+            {alphabet.map((alphabetLetter) => (
+              <p
+                key={alphabetLetter}
+                className="flex h-full items-center justify-center font-bold uppercase select-none"
+              >
+                {alphabetLetter}
+              </p>
+            ))}
+          </motion.div>
+        </div>
+      );
+    })}
+  </motion.div>
+);
+
 const Tile: React.FC<TileProps> = ({
   word,
   revealed = false,
@@ -34,44 +96,23 @@ const Tile: React.FC<TileProps> = ({
     lg: "h-20 w-20 text-4xl",
   };
 
+  const letterRevealed = word.split("").map(
+    (letter, index) =>
+      revealed || guesses[index]?.toUpperCase() === letter.toUpperCase(),
+  );
+
   return (
-    <div className="flex gap-2">
-      {word.split("").map((letter, index) => {
-        const isFlipped =
-          revealed || guesses[index]?.toUpperCase() === letter.toUpperCase();
-
-        return (
-          <div key={index} className=" perspective-[1000px]">
-            <motion.div
-              initial={revealed ? { rotateY: 180 } : undefined}
-              animate={{ rotateY: isFlipped ? 0 : 180 }}
-              transition={{
-                duration: 0.45,
-                ease: "easeInOut",
-                delay: revealed ? index * 0.08 : 0,
-              }}
-              className="relative w-full h-full"
-              style={{ transformStyle: "preserve-3d" }}
-            >
-              {/* FRONT: revealed letter */}
-              <div
-                className={`relative flex items-center justify-center rounded-lg font-bold uppercase select-none transition-all duration-200
-                  shadow-[inset_0_-3px_0_0_rgba(0,0,0,0.15),0_2px_8px_rgba(0,0,0,0.1)]
-                  hover:scale-105 hover:shadow-[inset_0_-3px_0_0_rgba(0,0,0,0.15),0_4px_12px_rgba(0,0,0,0.15)]
-                  ${variantClasses[variant]} ${sizeClasses[size]}`}
-              >
-                <p className="text-xl font-semibold text-white tracking-wider">
-                  {letter}
-                </p>
-              </div>
-
-              {/* BACK: blank */}
-              <div className="absolute inset-0 grid place-content-center rounded-md bg-gray-100 border border-gray-300 transform-[rotateY(180deg)] backface-hidden"></div>
-            </motion.div>
-          </div>
-        );
-      })}
-    </div>
+    <SlotTile
+      letters={word}
+      revealed={letterRevealed}
+      tileClassName={(_, isRevealed) =>
+        `${sizeClasses[size]} ${
+          isRevealed
+            ? variantClasses[variant]
+            : "border border-gray-300 bg-gray-100"
+        }`
+      }
+    />
   );
 };
 
