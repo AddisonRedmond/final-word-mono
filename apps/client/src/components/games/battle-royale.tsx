@@ -80,9 +80,6 @@ const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
         timerTitle="Game Starting"
       />
       <div className="flex gap-2">
-        <button onClick={sendJoin} className="bg-green-300">
-          HANDLE JOIN
-        </button>
         <button onClick={() => leave()}>Leave</button>
       </div>
 

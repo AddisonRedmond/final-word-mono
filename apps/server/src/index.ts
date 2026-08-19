@@ -4,10 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import "dotenv/config";
 import { getOrCreateGame, GetRandomWord } from "../utils/game-utils.js";
-import type {
-  Game,
-  ServerPlayerMap,
-} from "../../../packages/types/src/game.js";
+import type { Game, ServerOnlyData } from "../../../packages/types/src/game.js";
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,7 +13,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const Max_Players = 50;
 
 const games = new Map<string, Game>();
-const serverOnlyData: ServerPlayerMap = new Map();
+const serverOnlyData: ServerOnlyData = new Map();
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing Supabase environment variables for WebSocket auth");
@@ -134,10 +131,11 @@ io.on("connection", (socket) => {
 
     game.players.delete(userId);
 
-    const roomServerData = serverOnlyData.get(roomId);
-    if (roomServerData) {
-      delete roomServerData[userId];
-      if (Object.keys(roomServerData).length === 0) {
+    const roomServerOnlyData = serverOnlyData.get(roomId);
+    if (roomServerOnlyData) {
+      delete roomServerOnlyData.playerData[userId];
+      if (Object.keys(roomServerOnlyData.playerData).length === 0) {
+        clearTimeout(roomServerOnlyData.gameTimers.startTimer);
         serverOnlyData.delete(roomId);
       }
     }
@@ -163,13 +161,45 @@ io.on("connection", (socket) => {
     const { userId, name } = socket.data;
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
-    const roomServerData = serverOnlyData.get(roomId) ?? {};
+    let roomServerOnlyData = serverOnlyData.get(roomId);
+    if (!roomServerOnlyData) {
+      const startTimer = setTimeout(
+        () => {
+          const gameToStart = games.get(roomId);
+          if (!gameToStart || gameToStart.room.isStarted) {
+            return;
+          }
+
+          gameToStart.room.isStarted = true;
+          io.to(roomId).emit("lobby:update", {
+            ...gameToStart,
+            players: Object.fromEntries(gameToStart.players),
+          });
+        },
+        Math.max(game.room.startTime - Date.now(), 0),
+      );
+
+      roomServerOnlyData = {
+        playerData: {},
+        gameTimers: { startTimer },
+      };
+      serverOnlyData.set(roomId, roomServerOnlyData);
+    }
 
     socket.data.roomId = roomId;
     game.players.set(userId, { userId, name, isEliminated: false });
-    roomServerData[userId] = GetRandomWord();
-    serverOnlyData.set(roomId, roomServerData);
+    roomServerOnlyData.playerData[userId] = GetRandomWord();
     socket.join(roomId);
+
+    if (game.players.size >= Max_Players) {
+      clearTimeout(roomServerOnlyData.gameTimers.startTimer);
+      game.room.isStarted = true;
+
+      io.to(roomId).emit("lobby:update", {
+        ...game,
+        players: Object.fromEntries(game.players),
+      });
+    }
 
     socket.emit("join:ack", {
       ...game,
