@@ -171,6 +171,7 @@ io.on("connection", (socket) => {
 
   socket.on("join", () => {
     const { userId, name } = socket.data;
+    console.log(`${name} connected`)
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
     //
