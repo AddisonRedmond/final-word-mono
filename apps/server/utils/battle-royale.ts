@@ -1,47 +1,77 @@
-import type {
-	Game,
-	ServerOnlyData,
-	ServerOnlyRoomData,
-} from "../../../packages/types/src/game.js";
+import type { Game } from "../../../packages/types/src/game.js";
+import type { Server } from "socket.io";
 
-export const startWaitTimer = (
-	game: Game,
-	games: Map<string, Game>,
-	onStart: (game: Game) => void,
-) => {
-	return setTimeout(
-		() => {
-			const gameToStart = games.get(game.room.lobbyId);
-			if (!gameToStart || gameToStart.room.isStarted) {
-				return;
-			}
+const initialTimer = 120 * 1000;
 
-			gameToStart.room.isStarted = true;
-			onStart(gameToStart);
-		},
-		Math.max(game.room.startTime - Date.now(), 0),
-	);
+type GameTimers = {
+  startTimer?: ReturnType<typeof setTimeout>;
+  gameTimer?: ReturnType<typeof setInterval>;
 };
 
-export const handleSetServerOnlyData = (
-	serverOnlyData: ServerOnlyData,
-	games: Map<string, Game>,
-	roomId: string,
-	game: Game,
-	onStart: (game: Game) => void,
-): ServerOnlyRoomData => {
-	const existingServerOnlyData = serverOnlyData.get(roomId);
-	if (existingServerOnlyData) {
-		return existingServerOnlyData;
-	}
+export const crownWinnerAndCleanUp = () => {};
 
-	const roomServerOnlyData: ServerOnlyRoomData = {
-		playerData: {},
-		gameTimers: {
-			startTimer: startWaitTimer(game, games, onStart),
-		},
-	};
+export const handleStartGame = (
+  game: Game,
+  io: Server,
+  timers: GameTimers,
+): void => {
+  game.room.isStarted = true;
+  const lifeExpiry = Date.now() + initialTimer;
 
-	serverOnlyData.set(roomId, roomServerOnlyData);
-	return roomServerOnlyData;
+  for (const player of game.players.values()) {
+    player.life = lifeExpiry;
+  }
+
+  timers.gameTimer = setInterval(() => {
+    let changed = false;
+    const now = Date.now();
+
+    for (const player of game.players.values()) {
+      if (!player.isEliminated && player.life > 0 && now >= player.life) {
+        player.isEliminated = true;
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    io.to(game.room.lobbyId).emit("lobby:update", {
+      ...game,
+      players: Object.fromEntries(game.players),
+    });
+
+    if (
+      !Array.from(game.players.values()).some((player) => !player.isEliminated)
+    ) {
+      clearInterval(timers.gameTimer);
+      timers.gameTimer = undefined;
+    }
+  }, 1000);
+};
+
+export const handleStartLobbyTimer = (
+  game: Game,
+  io: Server,
+  gameTimers: GameTimers,
+): void => {
+  if (game.room.isStarted) {
+    return;
+  }
+
+  handleStartGame(game, io, gameTimers);
+  io.to(game.room.lobbyId).emit("lobby:update", {
+    ...game,
+    players: Object.fromEntries(game.players),
+  });
+};
+
+export const userAlreadyJoined = (
+  games: Map<string, Game>,
+  userId: string,
+): boolean => {
+  return Array.from(games.values()).some((game) =>
+    game.players.has(userId),
+  );
 };

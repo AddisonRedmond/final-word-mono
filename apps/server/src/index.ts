@@ -4,6 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import "dotenv/config";
 import { getOrCreateGame, GetRandomWord } from "../utils/game-utils.js";
+import {
+  handleStartGame,
+  handleStartLobbyTimer,
+  userAlreadyJoined,
+} from "../utils/battle-royale.js";
 import type { Game, ServerOnlyData } from "../../../packages/types/src/game.js";
 const app = new Hono();
 
@@ -129,13 +134,20 @@ io.on("connection", (socket) => {
       return;
     }
 
+    // might have to change this, to a different flag so eliminated users dont unrender
     game.players.delete(userId);
 
     const roomServerOnlyData = serverOnlyData.get(roomId);
     if (roomServerOnlyData) {
+      // TODO: extract into utils folder
       delete roomServerOnlyData.playerData[userId];
       if (Object.keys(roomServerOnlyData.playerData).length === 0) {
-        clearTimeout(roomServerOnlyData.gameTimers.startTimer);
+        if (roomServerOnlyData.timers.startTimer) {
+          clearTimeout(roomServerOnlyData.timers.startTimer);
+        }
+        if (roomServerOnlyData.timers.gameTimer) {
+          clearInterval(roomServerOnlyData.timers.gameTimer);
+        }
         serverOnlyData.delete(roomId);
       }
     }
@@ -161,48 +173,45 @@ io.on("connection", (socket) => {
     const { userId, name } = socket.data;
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
+    //
     let roomServerOnlyData = serverOnlyData.get(roomId);
-    
+    //
+    socket.data.roomId = roomId;
+    if (userAlreadyJoined(games, userId)) {
+      return;
+    }
+    game.players.set(userId, {
+      name,
+      isEliminated: false,
+      life: 0,
+    });
+
     if (!roomServerOnlyData) {
-      const startTimer = setTimeout(
-        () => {
-          const gameToStart = games.get(roomId);
-          if (!gameToStart || gameToStart.room.isStarted) {
-            return;
-          }
-
-          gameToStart.room.isStarted = true;
-          io.to(roomId).emit("lobby:update", {
-            ...gameToStart,
-            players: Object.fromEntries(gameToStart.players),
-          });
-        },
-        Math.max(game.room.startTime - Date.now(), 0),
-      );
-
       roomServerOnlyData = {
         playerData: {},
-        gameTimers: { startTimer },
+        timers: {},
       };
       serverOnlyData.set(roomId, roomServerOnlyData);
+
+      const timers = roomServerOnlyData.timers;
+      const startTimer = setTimeout(
+        () => handleStartLobbyTimer(game, io, timers),
+        Math.max(game.room.startTime - Date.now(), 0),
+      );
+      timers.startTimer = startTimer;
     }
 
-    socket.data.roomId = roomId;
-    game.players.set(userId, { userId, name, isEliminated: false });
     roomServerOnlyData.playerData[userId] = GetRandomWord();
     socket.join(roomId);
 
     if (game.players.size >= Max_Players) {
-      clearTimeout(roomServerOnlyData.gameTimers.startTimer);
-      game.room.isStarted = true;
-
-      io.to(roomId).emit("lobby:update", {
-        ...game,
-        players: Object.fromEntries(game.players),
-      });
+      if (roomServerOnlyData.timers.startTimer) {
+        clearTimeout(roomServerOnlyData.timers.startTimer);
+      }
+      handleStartGame(game, io, roomServerOnlyData.timers);
     }
 
-    socket.emit("join:ack", {
+    io.to(roomId).emit("lobby:update", {
       ...game,
       players: Object.fromEntries(game.players),
     });

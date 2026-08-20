@@ -1,5 +1,4 @@
 export type PlayerDisplay = {
-  userId: string;
   name: string;
   fullMatches?: number[];
   partialMatches?: number[];
@@ -7,14 +6,16 @@ export type PlayerDisplay = {
   queue?: string[];
   endTimeStamp?: number;
   isEliminated: boolean;
+  life: number;
 };
 
 export type ServerOnlyData = Map<
   string,
   {
     playerData: Record<string, string>;
-    gameTimers: {
-      startTimer: ReturnType<typeof setTimeout>;
+    timers: {
+      startTimer?: ReturnType<typeof setTimeout>;
+      gameTimer?: ReturnType<typeof setInterval>;
     };
   }
 >;

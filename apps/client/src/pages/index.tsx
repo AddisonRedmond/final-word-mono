@@ -9,6 +9,7 @@ import { createClient } from "@/utils/supabase/client";
 import { io, type Socket } from "socket.io-client";
 import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import BattleRoyale from "@/components/games/battle-royale";
+import { AnimatePresence, motion } from "motion/react";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -81,17 +82,29 @@ export default function Home() {
         <Navbar />
         <div className="flex flex-col grow items-center justify-center gap-y-5">
           <div className="flex flex-col items-center gap-y-2">
-            <Tile revealed={true} size="lg" word="FINAL" variant="correct" />
-            <Tile revealed={true} word="WORD" size="md" variant="present" />
+            <Tile
+              revealed={true}
+              size={isPlaying ? "sm" : "lg"}
+              word="FINAL"
+              variant="correct"
+            />
+            <Tile
+              revealed={true}
+              word="WORD"
+              size={isPlaying ? "sm" : "md"}
+              variant="present"
+            />
           </div>
           <div>
-            {isPlaying ? (
-              <BattleRoyale socketRef={socketRef} />
-            ) : (
-              <div>
-                <BattleRoyalCard handlePlay={handlePlay} />
-              </div>
-            )}
+            <AnimatePresence>
+              {isPlaying ? (
+                <BattleRoyale socketRef={socketRef} />
+              ) : (
+                <div>
+                  <BattleRoyalCard handlePlay={handlePlay} />
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </main>

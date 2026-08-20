@@ -13,6 +13,7 @@ interface SlotTileProps {
   tileClassName: string | ((index: number, isRevealed: boolean) => string);
   revealed?: boolean | boolean[];
   desktopOnly?: boolean;
+  tileSize?: { width: number; height: number };
 }
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
@@ -22,6 +23,7 @@ export const SlotTile: React.FC<SlotTileProps> = ({
   tileClassName,
   revealed = true,
   desktopOnly = false,
+  tileSize,
 }) => (
   <motion.div
     initial={{ scale: 0, opacity: 0 }}
@@ -40,7 +42,13 @@ export const SlotTile: React.FC<SlotTileProps> = ({
           : tileClassName;
 
       return (
-        <div key={index} className={`${className} overflow-hidden rounded-md`}>
+        <motion.div
+          key={index}
+          initial={tileSize}
+          animate={tileSize}
+          transition={{ duration: 0.25, ease: "easeInOut" }}
+          className={`${className} overflow-hidden rounded-md`}
+        >
           <motion.div
             initial={{ y: 0, opacity: 0 }}
             animate={{
@@ -64,7 +72,7 @@ export const SlotTile: React.FC<SlotTileProps> = ({
               </p>
             ))}
           </motion.div>
-        </div>
+        </motion.div>
       );
     })}
   </motion.div>
@@ -91,9 +99,15 @@ const Tile: React.FC<TileProps> = ({
 
   // Map size to classes
   const sizeClasses = {
-    sm: "h-10 w-10 text-lg",
-    md: "h-14 w-14 text-2xl",
-    lg: "h-20 w-20 text-4xl",
+    sm: "text-lg",
+    md: "text-2xl",
+    lg: "text-4xl",
+  };
+
+  const sizeDimensions = {
+    sm: { width: 40, height: 40 },
+    md: { width: 56, height: 56 },
+    lg: { width: 80, height: 80 },
   };
 
   const letterRevealed = word.split("").map(
@@ -105,6 +119,7 @@ const Tile: React.FC<TileProps> = ({
     <SlotTile
       letters={word}
       revealed={letterRevealed}
+      tileSize={sizeDimensions[size]}
       tileClassName={(_, isRevealed) =>
         `${sizeClasses[size]} ${
           isRevealed
