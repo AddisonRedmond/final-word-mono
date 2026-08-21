@@ -1,73 +1,80 @@
-import { AnimatePresence, motion } from "motion/react";
-import { Glass, RoundedRect, Shader } from "shaders/react";
+import { memo } from "react";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 
-type TileVariant = "default" | "correct" | "present" | "absent";
+type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
 
 const variantClasses: Record<TileVariant, string> = {
   default: "bg-amber-50 text-stone-800 border border-amber-200/60",
   correct: "bg-emerald-500 text-white border border-emerald-600",
   present: "bg-amber-400 text-white border border-amber-500",
   absent: "bg-stone-400 text-white border border-stone-500",
+  hopper: "bg-stone-200 text-black border border-stone-300",
 };
 
-const HopperQueue = () => {
-  return <div></div>;
-};
+// static content, never re-renders when guess changes
+const HopperQueue = memo(() => {
+  return (
+    <>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div className="flex gap-x-1 justify-between my-1 text-lg font-semibold" key={i}>
+          <GuessLetter letter="C" variant="hopper" />
+          <GuessLetter letter="" variant="hopper" />
+          <GuessLetter letter="A" variant="hopper" />
+          <GuessLetter letter="" variant="hopper" />
+          <GuessLetter letter="Y" variant="hopper" />
+        </div>
+      ))}
+    </>
+  );
+});
 
-const GuessLetter: React.FC<{
+const GuessLetter = memo(function GuessLetter({
+  letter,
+  variant = "default",
+}: {
   letter?: string;
   variant?: TileVariant;
-}> = ({ letter, variant = "default" }) => {
+}) {
   return (
     <div
       className={`grid size-14 place-content-center rounded-md ${variantClasses[variant]}`}
     >
       <AnimatePresence>
         {letter && (
-          <motion.p
+          <m.p
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
           >
             {letter}
-          </motion.p>
+          </m.p>
         )}
       </AnimatePresence>
     </div>
   );
-};
+});
 
-const GuessContainer = () => {
+const GUESS_LENGTH = 5;
+
+const GuessContainer = ({ guess = "" }: { guess?: string }) => {
+  const guessLetters = Array.from({ length: GUESS_LENGTH }, (_, i) => ({
+    letter: guess[i],
+  }));
+
   return (
-    <div>
-      {/* maybe apply glass shader to this */}
-      <div className="relative isolate overflow-hidden rounded-md">
-        <Shader
-          colorSpace="srgb"
-          toneMapping="neutral"
-          className="absolute inset-0 z-0 size-full"
-        >
-          <Glass
-            refraction={0.8}
-            edgeSoftness={0.2}
-            thickness={0.25}
-            aberration={0.2}
-            fresnel={0.15}
-            highlight={0.1}
-          >
-            <RoundedRect center={{ x: 0.5, y: 0.5 }} />
-          </Glass>
-        </Shader>
-
-        <div className="relative z-10 flex items-center justify-evenly gap-x-1 border border-white/20 bg-white/10 p-2 text-xl font-bold backdrop-blur-sm">
-          <GuessLetter letter="T" variant="default" />
-          <GuessLetter />
-          <GuessLetter />
-          <GuessLetter />
-          <GuessLetter />
+    <LazyMotion features={domAnimation} strict>
+      <div>
+        <div className="relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
+          <div className="pointer-events-none absolute inset-0 rounded-md bg-linear-to-br from-white/40 via-white/5 to-transparent" />
+          <HopperQueue />
+          <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
+            {guessLetters.map((tile, i) => (
+              <GuessLetter key={i} {...tile} />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </LazyMotion>
   );
 };
 

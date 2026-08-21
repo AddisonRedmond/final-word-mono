@@ -1,4 +1,4 @@
-import { useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
 import type { Game } from "@/types/game";
@@ -10,10 +10,29 @@ type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
 };
 
+const GUESS_LENGTH = 5;
+
 const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<Game>();
-
+  const [guess, setGuess] = useState("");
   useBattleRoyaleSocket({ socketRef, setLobby });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Backspace") {
+        setGuess((prev) => prev.slice(0, -1));
+        return;
+      }
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        setGuess((prev) =>
+          prev.length < GUESS_LENGTH ? prev + e.key.toUpperCase() : prev,
+        );
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <motion.div
@@ -34,7 +53,7 @@ const BattleRoyale = ({ socketRef }: BattleRoyaleProps) => {
           <button onClick={() => br.leave(socketRef)}>Leave</button>
         </div>
 
-        <GuessContainer />
+        <GuessContainer guess={guess} />
 
         <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
           {JSON.stringify(lobby, null, 2)}
