@@ -17,7 +17,6 @@ export default function Home() {
   const socketRef = useRef<Socket | null>(null);
   const user = useAuthStore((state) => state.user);
 
-  console.log(user);
   useEffect(() => {
     return () => {
       socketRef.current?.disconnect();
@@ -100,8 +99,8 @@ export default function Home() {
           </div>
           <div>
             <AnimatePresence>
-              {isPlaying ? (
-                <BattleRoyale socketRef={socketRef} userId={user?.id} />
+              {isPlaying && user?.id ? (
+                <BattleRoyale socketRef={socketRef} userId={user.id} />
               ) : (
                 <div>
                   <BattleRoyalCard handlePlay={handlePlay} />

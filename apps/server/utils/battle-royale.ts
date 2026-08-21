@@ -67,11 +67,9 @@ export const handleStartLobbyTimer = (
   });
 };
 
-export const userAlreadyJoined = (
+export const findGameForUser = (
   games: Map<string, Game>,
   userId: string,
-): boolean => {
-  return Array.from(games.values()).some((game) =>
-    game.players.has(userId),
-  );
+): Game | undefined => {
+  return Array.from(games.values()).find((game) => game.players.has(userId));
 };

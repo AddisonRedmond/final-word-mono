@@ -7,7 +7,7 @@ import { getOrCreateGame, GetRandomWord } from "../utils/game-utils.js";
 import {
   handleStartGame,
   handleStartLobbyTimer,
-  userAlreadyJoined,
+  findGameForUser,
 } from "../utils/battle-royale.js";
 import type { Game, ServerOnlyData } from "../../../packages/types/src/game.js";
 const app = new Hono();
@@ -113,28 +113,8 @@ io.on("connection", (socket) => {
       return;
     }
 
-    game.players.delete(userId);
-
-    const roomServerOnlyData = serverOnlyData.get(roomId);
-    if (roomServerOnlyData) {
-      delete roomServerOnlyData.playerData[userId];
-      if (Object.keys(roomServerOnlyData.playerData).length === 0) {
-        if (roomServerOnlyData.timers.startTimer) {
-          clearTimeout(roomServerOnlyData.timers.startTimer);
-        }
-        if (roomServerOnlyData.timers.gameTimer) {
-          clearInterval(roomServerOnlyData.timers.gameTimer);
-        }
-        serverOnlyData.delete(roomId);
-      }
-    }
-
-    if (game.players.size === 0) {
-      games.delete(roomId);
-      serverOnlyData.delete(roomId);
-      return;
-    }
-
+    // Keep the player and their private game data so an accidental disconnect
+    // can reconnect to the same game. Explicit leave removes them below.
     io.to(roomId).emit("lobby:update", {
       ...game,
       players: Object.fromEntries(game.players),
@@ -193,7 +173,25 @@ io.on("connection", (socket) => {
     const { userId, name } = socket.data;
     console.log(`${name} connected`);
 
-    if (userAlreadyJoined(games, userId)) {
+    const existingGame = findGameForUser(games, userId);
+    const existingPlayer = existingGame?.players.get(userId);
+
+    if (existingGame && existingPlayer) {
+      if (existingPlayer.isEliminated) {
+        socket.emit("join:error", {
+          code: "ELIMINATED",
+          message: "Eliminated players cannot rejoin this game.",
+        });
+        return;
+      }
+
+      const roomId = existingGame.room.lobbyId;
+      socket.data.roomId = roomId;
+      socket.join(roomId);
+      socket.emit("join:ack", {
+        ...existingGame,
+        players: Object.fromEntries(existingGame.players),
+      });
       return;
     }
 

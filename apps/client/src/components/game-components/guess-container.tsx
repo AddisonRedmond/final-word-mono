@@ -1,8 +1,11 @@
-import { memo } from "react";
+import { memo, useId } from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 
 type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
-
+type GuessContainerProps = {
+  guess: string;
+  queue?: string[];
+};
 const variantClasses: Record<TileVariant, string> = {
   default: "bg-amber-50 text-stone-800 border border-amber-200/60",
   correct: "bg-emerald-500 text-white border border-emerald-600",
@@ -12,19 +15,19 @@ const variantClasses: Record<TileVariant, string> = {
 };
 
 // static content, never re-renders when guess changes
-const HopperQueue = memo(() => {
+const HopperQueue: React.FC<{ queue?: string[] }> = memo(({ queue }) => {
   return (
     <>
-      {Array.from({ length: 4 }).map((_, i) => (
+      {queue?.map((item, i) => (
         <div
           className="flex gap-x-1 px-2 justify-between my-1 text-lg font-semibold"
           key={i}
         >
-          <GuessLetter letter="C" variant="hopper" />
-          <GuessLetter letter="" variant="hopper" />
-          <GuessLetter letter="A" variant="hopper" />
-          <GuessLetter letter="" variant="hopper" />
-          <GuessLetter letter="Y" variant="hopper" />
+          {item.split("").map((letter) => {
+            return (
+              <GuessLetter key={useId()} letter={letter} variant="hopper" />
+            );
+          })}
         </div>
       ))}
     </>
@@ -59,7 +62,10 @@ const GuessLetter = memo(function GuessLetter({
 
 const GUESS_LENGTH = 5;
 
-const GuessContainer = ({ guess = "" }: { guess?: string }) => {
+const GuessContainer: React.FC<GuessContainerProps> = ({
+  guess = "",
+  queue,
+}) => {
   const guessLetters = Array.from(
     { length: GUESS_LENGTH },
     (_, index) => guess.at(index) ?? "",
@@ -69,7 +75,7 @@ const GuessContainer = ({ guess = "" }: { guess?: string }) => {
     <LazyMotion features={domAnimation} strict>
       <div>
         <div className="relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
-          <HopperQueue />
+          <HopperQueue queue={queue} />
           <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
             {guessLetters.map((letter, index) => (
               <GuessLetter key={index} letter={letter} />

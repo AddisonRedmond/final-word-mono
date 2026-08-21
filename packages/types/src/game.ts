@@ -1,3 +1,5 @@
+export type TargetTypes = "first" | "last" | "random" | (string & {})
+ 
 export type PlayerDisplay = {
   name: string;
   fullMatches?: number[];

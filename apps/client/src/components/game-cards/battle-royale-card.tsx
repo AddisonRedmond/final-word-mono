@@ -8,7 +8,7 @@ const BattleRoyalCard:React.FC<BattleRoyalCardProps> = ({handlePlay}) => {
   return (
     <GameCard
       title="Battle Royale"
-      desc="100 players. One word. Last solver standing wins."
+      desc="100 players. Last solver standing wins."
       badge="Live"
       badgeVariant="green"
       onPlay={handlePlay}
