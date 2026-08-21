@@ -109,12 +109,32 @@ io.on("connection", (socket) => {
     }
 
     const game = games.get(roomId);
-    const player = game?.players.get(userId);
-    if (!game || !player) {
+    if (!game || !game.players.has(userId)) {
       return;
     }
 
-    player.isEliminated = true;
+    game.players.delete(userId);
+
+    const roomServerOnlyData = serverOnlyData.get(roomId);
+    if (roomServerOnlyData) {
+      delete roomServerOnlyData.playerData[userId];
+      if (Object.keys(roomServerOnlyData.playerData).length === 0) {
+        if (roomServerOnlyData.timers.startTimer) {
+          clearTimeout(roomServerOnlyData.timers.startTimer);
+        }
+        if (roomServerOnlyData.timers.gameTimer) {
+          clearInterval(roomServerOnlyData.timers.gameTimer);
+        }
+        serverOnlyData.delete(roomId);
+      }
+    }
+
+    if (game.players.size === 0) {
+      games.delete(roomId);
+      serverOnlyData.delete(roomId);
+      return;
+    }
+
     io.to(roomId).emit("lobby:update", {
       ...game,
       players: Object.fromEntries(game.players),
@@ -171,16 +191,16 @@ io.on("connection", (socket) => {
 
   socket.on("join", () => {
     const { userId, name } = socket.data;
-    console.log(`${name} connected`)
-    const game = getOrCreateGame(games, Max_Players);
-    const roomId = game.room.lobbyId;
-    //
-    let roomServerOnlyData = serverOnlyData.get(roomId);
-    //
-    socket.data.roomId = roomId;
+    console.log(`${name} connected`);
+
     if (userAlreadyJoined(games, userId)) {
       return;
     }
+
+    const game = getOrCreateGame(games, Max_Players);
+    const roomId = game.room.lobbyId;
+    let roomServerOnlyData = serverOnlyData.get(roomId);
+    socket.data.roomId = roomId;
     game.players.set(userId, {
       name,
       isEliminated: false,

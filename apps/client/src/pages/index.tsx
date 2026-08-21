@@ -9,12 +9,15 @@ import { createClient } from "@/utils/supabase/client";
 import { io, type Socket } from "socket.io-client";
 import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import BattleRoyale from "@/components/games/battle-royale";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import { useAuthStore } from "@/state/auth-store";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const user = useAuthStore((state) => state.user);
 
+  console.log(user);
   useEffect(() => {
     return () => {
       socketRef.current?.disconnect();
@@ -98,7 +101,7 @@ export default function Home() {
           <div>
             <AnimatePresence>
               {isPlaying ? (
-                <BattleRoyale socketRef={socketRef} />
+                <BattleRoyale socketRef={socketRef} userId={user?.id} />
               ) : (
                 <div>
                   <BattleRoyalCard handlePlay={handlePlay} />

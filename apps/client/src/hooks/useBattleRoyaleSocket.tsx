@@ -5,11 +5,11 @@ import {
   type SetStateAction,
 } from "react";
 import type { Socket } from "socket.io-client";
-import type { Game } from "@/types/game";
+import type { ClientGame } from "@/types/game";
 
 type UseBattleRoyaleSocketProps = {
   socketRef: RefObject<Socket | null>;
-  setLobby: Dispatch<SetStateAction<Game | undefined>>;
+  setLobby: Dispatch<SetStateAction<ClientGame | undefined>>;
 };
 
 export const useBattleRoyaleSocket = ({
@@ -27,11 +27,11 @@ export const useBattleRoyaleSocket = ({
       console.log(JSON.stringify(payload));
     };
 
-    const handleJoinAck = (payload: Game) => {
+    const handleJoinAck = (payload: ClientGame) => {
       setLobby(payload);
     };
 
-    const handleLobbyUpdate = (payload: Game) => {
+    const handleLobbyUpdate = (payload: ClientGame) => {
       setLobby(payload);
     };
 

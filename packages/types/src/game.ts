@@ -33,3 +33,8 @@ export type Game = {
   room: Room;
   players: Map<string, PlayerDisplay>;
 };
+
+export type ClientGame = {
+  room: Room;
+  players: Record<string, PlayerDisplay>;
+};

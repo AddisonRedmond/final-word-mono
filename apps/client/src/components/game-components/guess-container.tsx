@@ -16,7 +16,10 @@ const HopperQueue = memo(() => {
   return (
     <>
       {Array.from({ length: 4 }).map((_, i) => (
-        <div className="flex gap-x-1 justify-between my-1 text-lg font-semibold" key={i}>
+        <div
+          className="flex gap-x-1 px-2 justify-between my-1 text-lg font-semibold"
+          key={i}
+        >
           <GuessLetter letter="C" variant="hopper" />
           <GuessLetter letter="" variant="hopper" />
           <GuessLetter letter="A" variant="hopper" />
@@ -57,19 +60,19 @@ const GuessLetter = memo(function GuessLetter({
 const GUESS_LENGTH = 5;
 
 const GuessContainer = ({ guess = "" }: { guess?: string }) => {
-  const guessLetters = Array.from({ length: GUESS_LENGTH }, (_, i) => ({
-    letter: guess[i],
-  }));
+  const guessLetters = Array.from(
+    { length: GUESS_LENGTH },
+    (_, index) => guess.at(index) ?? "",
+  );
 
   return (
     <LazyMotion features={domAnimation} strict>
       <div>
         <div className="relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
-          <div className="pointer-events-none absolute inset-0 rounded-md bg-linear-to-br from-white/40 via-white/5 to-transparent" />
           <HopperQueue />
           <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
-            {guessLetters.map((tile, i) => (
-              <GuessLetter key={i} {...tile} />
+            {guessLetters.map((letter, index) => (
+              <GuessLetter key={index} letter={letter} />
             ))}
           </div>
         </div>
