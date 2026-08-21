@@ -21,6 +21,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   const [target, setTarget] = useState<TargetTypes>("random");
   useBattleRoyaleSocket({ socketRef, setLobby });
 
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Backspace") {

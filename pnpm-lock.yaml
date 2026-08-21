@@ -47,6 +47,9 @@ importers:
       '@trpc/server':
         specifier: ^11.18.0
         version: 11.18.0(typescript@6.0.3)
+      dictionary-en:
+        specifier: ^4.0.0
+        version: 4.0.0
       lucide:
         specifier: ^1.31.0
         version: 1.31.0
@@ -74,6 +77,9 @@ importers:
       superjson:
         specifier: ^2.2.6
         version: 2.2.6
+      typo-js:
+        specifier: ^1.3.2
+        version: 1.3.2
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -1251,6 +1257,9 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+  dictionary-en@4.0.0:
+    resolution: {integrity: sha512-3NHnE1uq33ZE/CIwaZ6gqxa4BnglHnxeAcTM0GJ7cmtRGcvX9InMK/IqLtYcUMFCUpUNgybH+DzkqdgAo3F1zg==}
+
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
@@ -2291,6 +2300,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typo-js@1.3.2:
+    resolution: {integrity: sha512-Z1YkJ7IIYNrFeOxAlHUercY4Q2I+PhYD/3VkWpJGy/Oqudy3bFpNcQxnv6Oa9fTSXCHPGz1eDoX1bZYm2Z891A==}
+
   unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
@@ -3238,6 +3250,8 @@ snapshots:
       object-keys: 1.1.1
 
   detect-libc@2.1.2: {}
+
+  dictionary-en@4.0.0: {}
 
   doctrine@2.1.0:
     dependencies:
@@ -4468,6 +4482,8 @@ snapshots:
   typescript@5.9.3: {}
 
   typescript@6.0.3: {}
+
+  typo-js@1.3.2: {}
 
   unbox-primitive@1.1.0:
     dependencies:

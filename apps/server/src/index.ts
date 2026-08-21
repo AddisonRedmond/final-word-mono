@@ -237,6 +237,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("guess", (payload) => {
+    console.log(payload);
     socket.emitWithAck("guess:ack", {
       userId: socket.data.userId,
     });
