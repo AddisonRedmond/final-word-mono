@@ -1,9 +1,9 @@
-export type TargetTypes = "first" | "last" | "random" | (string & {})
- 
+export type TargetTypes = "first" | "last" | "random" | (string & {});
+
 export type PlayerDisplay = {
   name: string;
-  fullMatches?: number[];
-  partialMatches?: number[];
+  fullMatches?: string[];
+  partialMatches?: string[];
   noMatch?: string[];
   queue?: string[];
   endTimeStamp?: number;

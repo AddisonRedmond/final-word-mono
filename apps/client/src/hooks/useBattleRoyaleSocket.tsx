@@ -22,10 +22,7 @@ export const useBattleRoyaleSocket = ({
       return;
     }
 
-    const handleGuessAck = (payload: Record<string, unknown>) => {
-      console.log("EMITTED");
-      console.log(JSON.stringify(payload));
-    };
+    const handleGuessAck = (payload: Record<string, unknown>) => {};
 
     const handleJoinAck = (payload: ClientGame) => {
       setLobby(payload);

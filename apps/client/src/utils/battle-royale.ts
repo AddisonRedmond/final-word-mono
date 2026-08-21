@@ -5,6 +5,12 @@ import SpellCheckWords from "@/utils/spell-check-words";
 
 export type SocketRef = RefObject<Socket | null>;
 
+type GuessArgs = {
+  guess: string;
+  target: TargetTypes;
+  socketRef: SocketRef;
+};
+
 const validGuessWords = new Set(SpellCheckWords);
 
 const normalizeGuess = (word: string): string => word.trim().toUpperCase();
@@ -19,23 +25,19 @@ const isValidGuess = (word: string): boolean => {
   return validGuessWords.has(normalizedWord);
 };
 
-export const sendGuess = (
-  word: string,
-  target: TargetTypes,
-  socketRef: SocketRef,
-): void => {
+export const sendGuess = ({ guess, target, socketRef }: GuessArgs): void => {
   const socket = socketRef.current;
   if (!socket || !socket.connected) {
     console.warn("Cannot send guess: socket is not connected");
     return;
   }
 
-  if (!isValidGuess(word)) {
+  if (!isValidGuess(guess)) {
     console.warn("Cannot send guess: invalid word");
     return;
   }
 
-  socket.emit("guess", { word: normalizeGuess(word), target });
+  socket.emit("guess", { word: normalizeGuess(guess), target });
 };
 
 export const sendJoin = (socketRef: SocketRef) => {
