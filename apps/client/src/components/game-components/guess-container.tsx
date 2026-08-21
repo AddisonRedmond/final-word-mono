@@ -1,4 +1,4 @@
-import { memo, useId } from "react";
+import { memo } from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 
 type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
@@ -23,9 +23,13 @@ const HopperQueue: React.FC<{ queue?: string[] }> = memo(({ queue }) => {
           className="flex gap-x-1 px-2 justify-between my-1 text-lg font-semibold"
           key={i}
         >
-          {item.split("").map((letter) => {
+          {item.split("").map((letter, letterIndex) => {
             return (
-              <GuessLetter key={useId()} letter={letter} variant="hopper" />
+              <GuessLetter
+                key={`${i}-${letterIndex}`}
+                letter={letter}
+                variant="hopper"
+              />
             );
           })}
         </div>
