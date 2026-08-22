@@ -63,6 +63,8 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleBackspace, handleEnter, handleLetter]);
+
+  console.log(lobby)
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
@@ -94,7 +96,8 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
             onBackspace={handleBackspace}
             onEnter={handleEnter}
             disabled={!lobby?.room.isStarted}
-            fullMatch={lobby?.players[userId]?.fullMatches}
+            guess={guess}
+            fullMatch={lobby?.players[userId]?.revealed_letters}
             partialMatch={lobby?.players[userId]?.partialMatches}
             noMatch={lobby?.players[userId]?.noMatch}
           />

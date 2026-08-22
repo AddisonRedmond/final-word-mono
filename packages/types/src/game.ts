@@ -2,13 +2,15 @@ export type TargetTypes = "first" | "last" | "random" | (string & {});
 
 export type PlayerDisplay = {
   name: string;
-  fullMatches?: string[];
+  revealed_letters?: Record<number, string>;
   partialMatches?: string[];
   noMatch?: string[];
   queue?: string[];
   endTimeStamp?: number;
   isEliminated: boolean;
   life: number;
+  totalGuesses: number;
+  currentWordGuesses: number;
 };
 
 export type ServerOnlyData = Map<

@@ -8,7 +8,7 @@ type KeyboardProps = {
   onBackspace?: () => void;
   disabled?: boolean;
   className?: string;
-  fullMatch?: string[];
+  fullMatch?: Record<number, string>;
   partialMatch?: string[];
   noMatch?: string[];
 };
@@ -30,9 +30,9 @@ const variantClasses = {
   absent: "border-stone-500 bg-stone-400 text-white hover:bg-stone-400",
 };
 
-const asLetterSet = (values?: string[]): Set<string> => {
+const toLetterSet = (values: string[] | undefined): Set<string> => {
   const letters = values
-    ?.flatMap((value) => value.toUpperCase().split(""))
+    ?.map((letter) => letter.toUpperCase())
     .filter((char) => /^[A-Z]$/.test(char));
 
   return new Set(letters);
@@ -72,9 +72,9 @@ const Keyboard = ({
   partialMatch,
   noMatch,
 }: KeyboardProps) => {
-  const fullMatchSet = asLetterSet(fullMatch);
-  const partialMatchSet = asLetterSet(partialMatch);
-  const noMatchSet = asLetterSet(noMatch);
+  const fullMatchSet = toLetterSet(Object.values(fullMatch ?? {}));
+  const partialMatchSet = toLetterSet(partialMatch);
+  const noMatchSet = toLetterSet(noMatch);
 
   const getLetterStateClass = (letter: string): string => {
     if (fullMatchSet.has(letter)) {

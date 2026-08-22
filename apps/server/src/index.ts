@@ -8,8 +8,14 @@ import {
   handleStartGame,
   handleStartLobbyTimer,
   findGameForUser,
+  checkWord,
+  lifeMap,
 } from "../utils/battle-royale.js";
-import type { Game, ServerOnlyData } from "../../../packages/types/src/game.js";
+import type {
+  Game,
+  PlayerDisplay,
+  ServerOnlyData,
+} from "../../../packages/types/src/game.js";
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -59,6 +65,62 @@ const io = new Server(server, {
     origin: "*",
   },
 });
+
+const emitLobbyUpdate = (roomId: string, game: Game) => {
+  io.to(roomId).emit("lobby:update", {
+    ...game,
+    players: Object.fromEntries(game.players),
+  });
+};
+
+type ServerOnlyRoomData =
+  ServerOnlyData extends Map<string, infer TValue> ? TValue : never;
+
+const getGuessContext = (roomId: string, userId: string, payload: unknown) => {
+  const game = games.get(roomId);
+  const roomServerOnlyData = serverOnlyData.get(roomId);
+  const player = game?.players.get(userId);
+  const targetWord = roomServerOnlyData?.playerData[userId];
+  const guessedWord =
+    typeof payload === "object" &&
+    payload !== null &&
+    "word" in payload &&
+    typeof payload.word === "string"
+      ? payload.word
+      : undefined;
+
+  return {
+    game,
+    roomServerOnlyData,
+    player,
+    targetWord,
+    guessedWord,
+  };
+};
+
+const applyCorrectGuessReward = ({
+  player,
+  userId,
+  roomServerOnlyData,
+}: {
+  player: PlayerDisplay;
+  userId: string;
+  roomServerOnlyData: ServerOnlyRoomData;
+}) => {
+  const guessCount = Math.min(
+    Math.max(player.currentWordGuesses, 1),
+    7,
+  ) as keyof typeof lifeMap;
+  const bonusLife = lifeMap[guessCount];
+  const now = Date.now();
+  const maxLifeExpiry = now + 3 * 60 * 1000;
+  const currentLife = Math.max(player.life, now);
+  player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+
+  player.currentWordGuesses = 0;
+
+  roomServerOnlyData.playerData[userId] = GetRandomWord();
+};
 
 io.use(async (socket, next) => {
   const authToken =
@@ -115,10 +177,7 @@ io.on("connection", (socket) => {
 
     // Keep the player and their private game data so an accidental disconnect
     // can reconnect to the same game. Explicit leave removes them below.
-    io.to(roomId).emit("lobby:update", {
-      ...game,
-      players: Object.fromEntries(game.players),
-    });
+    emitLobbyUpdate(roomId, game);
   });
 
   socket.on("leave", (ack?: (response: { ok: boolean }) => void) => {
@@ -203,6 +262,8 @@ io.on("connection", (socket) => {
       name,
       isEliminated: false,
       life: 0,
+      totalGuesses: 0,
+      currentWordGuesses: 0,
     });
 
     if (!roomServerOnlyData) {
@@ -237,9 +298,50 @@ io.on("connection", (socket) => {
   });
 
   socket.on("guess", (payload) => {
-    console.log(payload);
-    socket.emitWithAck("guess:ack", {
-      userId: socket.data.userId,
-    });
+    const roomId = socket.data.roomId as string | undefined;
+    const userId = socket.data.userId as string | undefined;
+
+    if (!roomId || !userId) {
+      return;
+    }
+
+    const { game, roomServerOnlyData, player, targetWord, guessedWord } =
+      getGuessContext(roomId, userId, payload);
+
+    if (
+      !game ||
+      !roomServerOnlyData ||
+      !player ||
+      !targetWord ||
+      !guessedWord
+    ) {
+      return;
+    }
+
+    player.totalGuesses += 1;
+    player.currentWordGuesses += 1;
+
+    const result = checkWord(guessedWord, targetWord);
+
+    if (result.isMatch) {
+      applyCorrectGuessReward({
+        player,
+        userId,
+        roomServerOnlyData,
+      });
+    } else {
+      player.revealed_letters = result.fullMatches;
+      player.partialMatches = [
+        ...new Set([
+          ...(player.partialMatches ?? []),
+          ...result.partialMatches,
+        ]),
+      ];
+      player.partialMatches = [
+        ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
+      ];
+    }
+
+    emitLobbyUpdate(roomId, game);
   });
 });

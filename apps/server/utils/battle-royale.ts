@@ -73,3 +73,60 @@ export const findGameForUser = (
 ): Game | undefined => {
   return Array.from(games.values()).find((game) => game.players.has(userId));
 };
+
+export const lifeMap = {
+  1: 60 * 1000,
+  2: 60 * 1000,
+  3: 45 * 1000,
+  4: 30 * 1000,
+  5: 30 * 1000,
+  6: 20 * 1000,
+  7: 15 * 1000,
+};
+
+const calculateMatchObj = (word: string, guess: string) => {
+  const fullMatches: Record<number, string> = {};
+  const partialMatches: string[] = [];
+  const noMatch: string[] = [];
+
+  for (let index = 0; index < guess.length; index += 1) {
+    const guessedLetter = guess[index];
+
+    if (!guessedLetter) {
+      continue;
+    }
+
+    if (word[index] === guessedLetter) {
+      fullMatches[index] = guessedLetter;
+      continue;
+    }
+
+    if (word.includes(guessedLetter)) {
+      partialMatches.push(guessedLetter);
+      continue;
+    }
+
+    noMatch.push(guessedLetter);
+  }
+
+  return {
+    fullMatches,
+    partialMatches,
+    noMatch,
+  };
+};
+
+export const checkWord = (guess: string, word: string) => {
+  const normalizedGuess = guess.trim().toUpperCase();
+  const normalizedWord = word.trim().toUpperCase();
+  const matchObj = calculateMatchObj(normalizedWord, normalizedGuess);
+  const isMatch =
+    normalizedGuess.length > 0 && normalizedGuess === normalizedWord;
+
+  return {
+    isMatch,
+    fullMatches: matchObj.fullMatches,
+    partialMatches: matchObj.partialMatches,
+    noMatch: matchObj.noMatch,
+  };
+};

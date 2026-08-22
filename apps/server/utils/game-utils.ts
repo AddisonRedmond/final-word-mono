@@ -33,10 +33,3 @@ export const GetRandomWord = () => {
   const randomIndex = Math.floor(Math.random() * words.length);
   return words[randomIndex] ?? "PLAYER";
 };
-
-export const checkWord = (guess: string, word: string) => {
-  // get partial matches,
-  // get full matches,
-  // get no matches
-  // return object
-};
