@@ -42,6 +42,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     }
 
     br.sendGuess({ guess, target, socketRef });
+    setGuess("")
   }, [guess, lobby?.room.isStarted, socketRef, target]);
 
   useEffect(() => {

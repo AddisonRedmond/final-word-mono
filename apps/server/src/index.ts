@@ -118,7 +118,9 @@ const applyCorrectGuessReward = ({
   player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
 
   player.currentWordGuesses = 0;
-
+  player.revealed_letters = {};
+  player.noMatch = [];
+  player.partialMatches = [];
   roomServerOnlyData.playerData[userId] = GetRandomWord();
 };
 
@@ -186,7 +188,7 @@ io.on("connection", (socket) => {
       ack?.({ ok: false });
       return;
     }
- 
+
     const game = games.get(roomId);
     if (!game) {
       ack?.({ ok: false });
@@ -318,31 +320,34 @@ io.on("connection", (socket) => {
       return;
     }
 
-    console.log(roomServerOnlyData.playerData)
+    console.log(roomServerOnlyData.playerData);
 
     player.totalGuesses += 1;
     player.currentWordGuesses += 1;
 
     const result = checkWord(guessedWord, targetWord);
-
     if (result.isMatch) {
-      applyCorrectGuessReward({ 
+      applyCorrectGuessReward({
         player,
         userId,
         roomServerOnlyData,
       });
     } else {
-      player.revealed_letters = result.fullMatches;
+      player.revealed_letters = {
+        ...(player.revealed_letters ?? {}),
+        ...result.fullMatches,
+      };
+
       player.partialMatches = [
         ...new Set([
           ...(player.partialMatches ?? []),
           ...result.partialMatches,
         ]),
       ];
-      player.partialMatches = [
+
+      player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
       ];
-      
     }
 
     emitLobbyUpdate(roomId, game);
