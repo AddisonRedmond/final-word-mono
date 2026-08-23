@@ -186,7 +186,7 @@ io.on("connection", (socket) => {
       ack?.({ ok: false });
       return;
     }
-
+ 
     const game = games.get(roomId);
     if (!game) {
       ack?.({ ok: false });
@@ -318,13 +318,15 @@ io.on("connection", (socket) => {
       return;
     }
 
+    console.log(roomServerOnlyData.playerData)
+
     player.totalGuesses += 1;
     player.currentWordGuesses += 1;
 
     const result = checkWord(guessedWord, targetWord);
 
     if (result.isMatch) {
-      applyCorrectGuessReward({
+      applyCorrectGuessReward({ 
         player,
         userId,
         roomServerOnlyData,
@@ -340,6 +342,7 @@ io.on("connection", (socket) => {
       player.partialMatches = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
       ];
+      
     }
 
     emitLobbyUpdate(roomId, game);

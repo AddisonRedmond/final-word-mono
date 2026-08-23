@@ -89,6 +89,13 @@ const calculateMatchObj = (word: string, guess: string) => {
   const partialMatches: string[] = [];
   const noMatch: string[] = [];
 
+  // Count letters in the target word
+  const letterCounts: Record<string, number> = {};
+
+  for (const letter of word) {
+    letterCounts[letter] = (letterCounts[letter] ?? 0) + 1;
+  }
+
   for (let index = 0; index < guess.length; index += 1) {
     const guessedLetter = guess[index];
 
@@ -96,16 +103,21 @@ const calculateMatchObj = (word: string, guess: string) => {
       continue;
     }
 
+    // Exact match
     if (word[index] === guessedLetter) {
       fullMatches[index] = guessedLetter;
+      letterCounts[guessedLetter] -= 1;
       continue;
     }
 
-    if (word.includes(guessedLetter)) {
+    // Partial match
+    if ((letterCounts[guessedLetter] ?? 0) > 0) {
       partialMatches.push(guessedLetter);
+      letterCounts[guessedLetter] -= 1;
       continue;
     }
 
+    // No match
     noMatch.push(guessedLetter);
   }
 
@@ -116,7 +128,15 @@ const calculateMatchObj = (word: string, guess: string) => {
   };
 };
 
-export const checkWord = (guess: string, word: string) => {
+export const checkWord = (
+  guess: string,
+  word: string,
+  currentMatches: {
+    revealed_letters?: Record<number, string>;
+    partialMatches?: string[];
+    noMatch?: string[];
+  },
+) => {
   const normalizedGuess = guess.trim().toUpperCase();
   const normalizedWord = word.trim().toUpperCase();
   const matchObj = calculateMatchObj(normalizedWord, normalizedGuess);

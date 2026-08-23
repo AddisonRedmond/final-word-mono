@@ -1,3 +1,5 @@
+import { number } from "zod";
+
 const TOP_ROW = "QWERTYUIOP";
 const MIDDLE_ROW = "ASDFGHJKL";
 const BOTTOM_ROW = "ZXCVBNM";
@@ -17,51 +19,64 @@ type KeyboardRowProps = {
   letters: string;
   onLetter: (letter: string) => void;
   disabled?: boolean;
-  getLetterStateClass: (letter: string) => string;
+  fullMatch?: Record<number, string>;
+  partialMatch?: string[];
+  noMatch?: string[];
 };
 
 const keyBaseClass =
-  "min-w-9 rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur-sm transition hover:bg-white/20 active:scale-95";
+  "min-w-9 rounded-md px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition active:scale-95";
 
 const variantClasses = {
-  default: "border-white/20 bg-white/10 text-white hover:bg-white/20",
-  correct: "border-emerald-600 bg-emerald-500 text-white hover:bg-emerald-500",
-  present: "border-amber-500 bg-amber-400 text-white hover:bg-amber-400",
-  absent: "border-stone-500 bg-stone-400 text-white hover:bg-stone-400",
-};
-
-const toLetterSet = (values: string[] | undefined): Set<string> => {
-  const letters = values
-    ?.map((letter) => letter.toUpperCase())
-    .filter((char) => /^[A-Z]$/.test(char));
-
-  return new Set(letters);
+  default: "border border-white/20 bg-white/10 text-white hover:bg-white/20",
+  correct:
+    "border border-emerald-600 bg-emerald-500 text-white hover:bg-emerald-500",
+  present: "border border-amber-500 bg-amber-400 text-white hover:bg-amber-400",
+  absent: "border border-stone-500 bg-stone-400 text-white hover:bg-stone-400",
 };
 
 const KeyboardRow = ({
   letters,
   onLetter,
   disabled,
-  getLetterStateClass,
+  fullMatch,
+  partialMatch,
+  noMatch,
 }: KeyboardRowProps) => {
   return (
     <div className="flex items-center justify-center gap-1.5">
-      {letters.split("").map((letter) => (
-        <button
-          key={letter}
-          type="button"
-          onClick={() => onLetter(letter)}
-          disabled={disabled}
-          className={`${keyBaseClass} ${getLetterStateClass(letter)} ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
-          aria-label={`Type ${letter}`}
-        >
-          {letter}
-        </button>
-      ))}
+      {letters.split("").map((letter) => {
+        let variant: keyof typeof variantClasses = "default";
+
+        if (
+          typeof fullMatch === "object" &&
+          Object.values(fullMatch).includes(letter)
+        ) {
+          variant = "correct";
+        } else if (partialMatch?.includes(letter)) {
+          variant = "present";
+        } else if (noMatch?.includes(letter)) {
+          variant = "absent";
+        }
+
+        return (
+          <button
+            key={letter}
+            type="button"
+            onClick={() => onLetter(letter)}
+            disabled={disabled}
+            className={`${keyBaseClass} ${variantClasses[variant]} ${
+              disabled ? "cursor-not-allowed opacity-40" : ""
+            }`}
+            aria-label={`Type ${letter}`}
+          >
+            {letter}
+          </button>
+        );
+      })}
     </div>
   );
 };
-
 const Keyboard = ({
   onLetter,
   onEnter,
@@ -72,26 +87,7 @@ const Keyboard = ({
   partialMatch,
   noMatch,
 }: KeyboardProps) => {
-  const fullMatchSet = toLetterSet(Object.values(fullMatch ?? {}));
-  const partialMatchSet = toLetterSet(partialMatch);
-  const noMatchSet = toLetterSet(noMatch);
-
-  const getLetterStateClass = (letter: string): string => {
-    if (fullMatchSet.has(letter)) {
-      return variantClasses.correct;
-    }
-
-    if (partialMatchSet.has(letter)) {
-      return variantClasses.present;
-    }
-
-    if (noMatchSet.has(letter)) {
-      return variantClasses.absent;
-    }
-
-    return variantClasses.default;
-  };
-
+  // console.log(Object.values(fullMatch));
   return (
     <div
       className={`flex w-full max-w-2xl flex-col gap-1.5 rounded-lg border border-white/15 bg-black/20 p-2 ${className}`}
@@ -99,16 +95,19 @@ const Keyboard = ({
       aria-label="On-screen keyboard"
     >
       <KeyboardRow
+        fullMatch={fullMatch}
         letters={TOP_ROW}
         onLetter={onLetter}
         disabled={disabled}
-        getLetterStateClass={getLetterStateClass}
+        partialMatch={partialMatch}
+        noMatch={noMatch}
       />
       <KeyboardRow
         letters={MIDDLE_ROW}
         onLetter={onLetter}
         disabled={disabled}
-        getLetterStateClass={getLetterStateClass}
+        partialMatch={partialMatch}
+        noMatch={noMatch}
       />
       <div className="flex items-center justify-center gap-1.5">
         <button
@@ -123,7 +122,8 @@ const Keyboard = ({
           letters={BOTTOM_ROW}
           onLetter={onLetter}
           disabled={disabled}
-          getLetterStateClass={getLetterStateClass}
+          partialMatch={partialMatch}
+          noMatch={noMatch}
         />
         <button
           type="button"

@@ -90,13 +90,14 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
 
         <GuessContainer guess={guess} queue={lobby?.players[userId]?.queue} />
 
-        {!lobby?.players[userId]?.isEliminated && (
+        {
+        // !lobby?.players[userId]?.isEliminated && 
+        (
           <Keyboard
             onLetter={handleLetter}
             onBackspace={handleBackspace}
             onEnter={handleEnter}
             disabled={!lobby?.room.isStarted}
-            guess={guess}
             fullMatch={lobby?.players[userId]?.revealed_letters}
             partialMatch={lobby?.players[userId]?.partialMatches}
             noMatch={lobby?.players[userId]?.noMatch}
