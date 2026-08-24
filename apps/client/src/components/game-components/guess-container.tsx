@@ -5,6 +5,7 @@ type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
 type GuessContainerProps = {
   guess: string;
   queue?: string[];
+  fullMatches?: Record<number, string>;
 };
 const variantClasses: Record<TileVariant, string> = {
   default: "bg-amber-50 text-stone-800 border border-amber-200/60",
@@ -41,17 +42,25 @@ const HopperQueue: React.FC<{ queue?: string[] }> = memo(({ queue }) => {
 const GuessLetter = memo(function GuessLetter({
   letter,
   variant = "default",
+  match,
 }: {
   letter?: string;
   variant?: TileVariant;
+  match?: string;
 }) {
   return (
     <div
-      className={`grid size-14 place-content-center rounded-md ${variantClasses[variant]}`}
+      className={`grid size-14 place-content-center rounded-md relative ${variantClasses[variant]}`}
     >
       <AnimatePresence>
+        {
+          <m.p key="match" className="absolute text-xs top-0.5 right-0.5">
+            {match}
+          </m.p>
+        }
         {letter && (
           <m.p
+            key="letter"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
@@ -69,6 +78,7 @@ const GUESS_LENGTH = 5;
 const GuessContainer: React.FC<GuessContainerProps> = ({
   guess = "",
   queue,
+  fullMatches,
 }) => {
   const guessLetters = Array.from(
     { length: GUESS_LENGTH },
@@ -82,7 +92,11 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
           <HopperQueue queue={queue} />
           <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
             {guessLetters.map((letter, index) => (
-              <GuessLetter key={index} letter={letter} />
+              <GuessLetter
+                key={index}
+                letter={letter}
+                match={fullMatches?.[index]}
+              />
             ))}
           </div>
         </div>

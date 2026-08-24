@@ -237,6 +237,7 @@ io.on("connection", (socket) => {
     const existingGame = findGameForUser(games, userId);
     const existingPlayer = existingGame?.players.get(userId);
 
+    // TODO: user clean up
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
         socket.emit("join:error", {
@@ -333,6 +334,8 @@ io.on("connection", (socket) => {
         roomServerOnlyData,
       });
     } else {
+      const fullLetters = Object.values(result.fullMatches);
+
       player.revealed_letters = {
         ...(player.revealed_letters ?? {}),
         ...result.fullMatches,
@@ -343,11 +346,15 @@ io.on("connection", (socket) => {
           ...(player.partialMatches ?? []),
           ...result.partialMatches,
         ]),
-      ];
+      ].filter((letter) => !fullLetters.includes(letter));
 
       player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
-      ];
+      ].filter(
+        (letter) =>
+          !fullLetters.includes(letter) &&
+          !player.partialMatches?.includes(letter),
+      );
     }
 
     emitLobbyUpdate(roomId, game);

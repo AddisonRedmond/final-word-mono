@@ -8,6 +8,7 @@ import { motion } from "motion/react";
 import GuessContainer from "../game-components/guess-container";
 import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
+import Eliminated from "../game-components/eliminated";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -26,7 +27,6 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     if (!/^[A-Z]$/.test(letter)) {
       return;
     }
-
     setGuess((prev) =>
       prev.length < GUESS_LENGTH ? prev + letter.toUpperCase() : prev,
     );
@@ -42,7 +42,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     }
 
     br.sendGuess({ guess, target, socketRef });
-    setGuess("")
+    setGuess("");
   }, [guess, lobby?.room.isStarted, socketRef, target]);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleBackspace, handleEnter, handleLetter]);
 
-  console.log(lobby)
+  console.log(lobby);
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
@@ -89,11 +89,17 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           )
         )}
 
-        <GuessContainer guess={guess} queue={lobby?.players[userId]?.queue} />
+        {lobby?.players[userId]?.isEliminated && (
+          <Eliminated playerdata={lobby.players[userId]} />
+        )}
 
-        {
-        // !lobby?.players[userId]?.isEliminated && 
-        (
+        <GuessContainer
+          fullMatches={lobby?.players[userId]?.revealed_letters}
+          guess={guess}
+          queue={lobby?.players[userId]?.queue}
+        />
+
+        {!lobby?.players[userId]?.isEliminated && (
           <Keyboard
             onLetter={handleLetter}
             onBackspace={handleBackspace}

@@ -48,10 +48,7 @@ const KeyboardRow = ({
       {letters.split("").map((letter) => {
         let variant: keyof typeof variantClasses = "default";
 
-        if (
-          typeof fullMatch === "object" &&
-          Object.values(fullMatch).includes(letter)
-        ) {
+        if (Object.values(fullMatch ?? {}).includes(letter)) {
           variant = "correct";
         } else if (partialMatch?.includes(letter)) {
           variant = "present";
@@ -103,6 +100,7 @@ const Keyboard = ({
         noMatch={noMatch}
       />
       <KeyboardRow
+        fullMatch={fullMatch}
         letters={MIDDLE_ROW}
         onLetter={onLetter}
         disabled={disabled}
@@ -119,6 +117,7 @@ const Keyboard = ({
           Enter
         </button>
         <KeyboardRow
+          fullMatch={fullMatch}
           letters={BOTTOM_ROW}
           onLetter={onLetter}
           disabled={disabled}
