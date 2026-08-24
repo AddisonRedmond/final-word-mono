@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
+import type { RevealedLetters } from "@/types/game";
 
 type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
 type GuessContainerProps = {
   guess: string;
-  queue?: string[];
+  queue?: RevealedLetters[];
   fullMatches?: Record<number, string>;
 };
 const variantClasses: Record<TileVariant, string> = {
@@ -16,28 +17,39 @@ const variantClasses: Record<TileVariant, string> = {
 };
 
 // static content, never re-renders when guess changes
-const HopperQueue: React.FC<{ queue?: string[] }> = memo(({ queue }) => {
-  return (
-    <>
-      {queue?.map((item, i) => (
-        <div
-          className="flex gap-x-1 px-2 justify-between my-1 text-lg font-semibold"
-          key={i}
-        >
-          {item.split("").map((letter, letterIndex) => {
-            return (
-              <GuessLetter
-                key={`${i}-${letterIndex}`}
-                letter={letter}
-                variant="hopper"
-              />
-            );
-          })}
-        </div>
-      ))}
-    </>
-  );
-});
+const HopperQueue: React.FC<{ queue?: RevealedLetters[] }> = memo(
+  ({ queue }) => {
+    return (
+      <>
+        {queue?.map((item, i) => {
+          const hopperWord = Array.from(
+            { length: GUESS_LENGTH },
+            (_, index) => {
+              return item?.[index] ?? "";
+            },
+          );
+
+          return (
+            <div
+              className="flex gap-x-1 px-2 justify-between my-1 text-lg font-semibold"
+              key={Object.values(item).join("")}
+            >
+              {hopperWord.map((letter, letterIndex) => {
+                return (
+                  <GuessLetter
+                    key={`${letterIndex}`}
+                    letter={letter}
+                    variant="hopper"
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </>
+    );
+  },
+);
 
 const GuessLetter = memo(function GuessLetter({
   letter,

@@ -2,15 +2,33 @@ export type TargetTypes = "first" | "last" | "random" | (string & {});
 
 export type PlayerDisplay = {
   name: string;
-  revealed_letters?: Record<number, string>;
+  revealed_letters?: RevealedLetters;
   partialMatches?: string[];
   noMatch?: string[];
-  queue?: string[];
+  display_queue?: RevealedLetters[];
   endTimeStamp?: number;
   isEliminated: boolean;
   life: number;
   totalGuesses: number;
   currentWordGuesses: number;
+};
+
+export type RevealedLetters = Record<number, string>;
+
+// this will be the server only queue
+const queueExample = ["APPLE", "GUEST"];
+
+// this will be the display_queue
+const queueMatchesExample = [
+  { 0: "A", 4: "E" },
+  { 0: "G", 1: "U" },
+];
+
+export type ServerPlayerData = {
+  [keyof: string]: {
+    word: string;
+    queue: string[];
+  };
 };
 
 export type ServerOnlyData = Map<
