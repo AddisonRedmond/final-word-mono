@@ -1,6 +1,6 @@
 export type TargetTypes = "first" | "last" | "random" | (string & {});
 
-export type PlayerDisplay = {
+export interface PlayerDisplay {
   name: string;
   revealed_letters?: RevealedLetters;
   partialMatches?: string[];
@@ -12,6 +12,7 @@ export type PlayerDisplay = {
   totalGuesses: number;
   currentWordGuesses: number;
 };
+
 
 export type RevealedLetters = Record<number, string>;
 

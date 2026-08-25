@@ -1,7 +1,10 @@
-import type { Game } from "../../../packages/types/src/game.js";
+import type { Game } from "../../../packages/types/src/game";
 import type { Server } from "socket.io";
+import { randomUUID } from "node:crypto";
+import words from "./words.js";
 
 const initialTimer = 120 * 1000;
+const Max_Wait_Time = 45 * 1000; //Seconds
 
 type GameTimers = {
   startTimer?: ReturnType<typeof setTimeout>;
@@ -10,14 +13,25 @@ type GameTimers = {
 
 export const crownWinnerAndCleanUp = () => {};
 
+const handleAddBots = () => {
+  // add bots to a bot object so they can be tracked
+  //
+};
+
 export const handleStartGame = (
   game: Game,
   io: Server,
   timers: GameTimers,
+  maxPlayers?: number,
 ): void => {
+  const totalJoinedPlayers = game.players.size;
+
+  if (maxPlayers && totalJoinedPlayers < maxPlayers) {
+    // build bots
+  }
+
   game.room.isStarted = true;
   const lifeExpiry = Date.now() + initialTimer;
-
   for (const player of game.players.values()) {
     player.life = lifeExpiry;
   }
@@ -59,6 +73,7 @@ export const handleStartLobbyTimer = (
   if (game.room.isStarted) {
     return;
   }
+  const totalPlayerJoined = game.players.size;
 
   handleStartGame(game, io, gameTimers);
   io.to(game.room.lobbyId).emit("lobby:update", {
@@ -129,4 +144,34 @@ export const checkWord = (guess: string, word: string) => {
     isMatch,
     ...matchObj,
   };
+};
+
+export const getOrCreateGame = (
+  games: Map<string, Game>,
+  maxPlayers: number,
+): Game => {
+  for (const game of games.values()) {
+    if (!game.room.isStarted && game.players.size < maxPlayers) {
+      return game;
+    }
+  }
+
+  const lobbyId = randomUUID();
+  const game: Game = {
+    room: {
+      lobbyId,
+      startTime: Date.now() + Max_Wait_Time,
+      createdAt: Date.now(),
+      isStarted: false,
+    },
+    players: new Map(),
+  };
+
+  games.set(lobbyId, game);
+  return game;
+};
+
+export const GetRandomWord = () => {
+  const randomIndex = Math.floor(Math.random() * words.length);
+  return words[randomIndex] ?? "PLAYER";
 };

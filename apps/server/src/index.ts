@@ -3,13 +3,14 @@ import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import "dotenv/config";
-import { getOrCreateGame, GetRandomWord } from "../utils/game-utils.js";
 import {
   handleStartGame,
   handleStartLobbyTimer,
   findGameForUser,
   checkWord,
   lifeMap,
+  getOrCreateGame,
+  GetRandomWord,
 } from "../utils/battle-royale.js";
 import type {
   Game,
@@ -21,10 +22,11 @@ const app = new Hono();
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const Max_Players = 50;
+const Max_Players = 99;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
+const serverOnlyBotData: ServerOnlyData = new Map();
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing Supabase environment variables for WebSocket auth");
@@ -277,6 +279,7 @@ io.on("connection", (socket) => {
       serverOnlyData.set(roomId, roomServerOnlyData);
 
       const timers = roomServerOnlyData.timers;
+
       const startTimer = setTimeout(
         () => handleStartLobbyTimer(game, io, timers),
         Math.max(game.room.startTime - Date.now(), 0),
