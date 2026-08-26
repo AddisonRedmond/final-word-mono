@@ -1,6 +1,6 @@
 export type TargetTypes = "first" | "last" | "random" | (string & {});
 
-export interface PlayerDisplay {
+export type PlayerDisplay = {
   name: string;
   revealed_letters?: RevealedLetters;
   partialMatches?: string[];
@@ -11,7 +11,7 @@ export interface PlayerDisplay {
   life: number;
   totalGuesses: number;
   currentWordGuesses: number;
-}
+};
 
 export type RevealedLetters = Record<number, string>;
 
@@ -24,22 +24,21 @@ const queueMatchesExample = [
   { 0: "G", 1: "U" },
 ];
 
-export interface PlayerData {
-  word: string;
-  queue: string[];
-}
+export type ServerPlayerData = {
+  [keyof: string]: {
+    word: string;
+    queue: string[];
+  };
+};
 
-export interface BotData extends PlayerData {
-  level: 1 | 2 | 3 | 4 | 5;
-}
-
-export interface ServerPlayerData {
-  [key: string]: PlayerData;
-}
-
-export interface ServerBotData {
-  [key: string]: BotData;
-}
+export type ServerBotData = Map<
+  string,
+  {
+    word: string;
+    queue: string[];
+    level: 1 | 2 | 3 | 4 | 5;
+  }
+>;
 
 export type ServerOnlyData = Map<
   string,
@@ -48,6 +47,7 @@ export type ServerOnlyData = Map<
     timers: {
       startTimer?: ReturnType<typeof setTimeout>;
       gameTimer?: ReturnType<typeof setInterval>;
+      botTicker?: ReturnType<typeof setInterval>;
     };
   }
 >;

@@ -10,12 +10,15 @@ import {
   checkWord,
   lifeMap,
   getOrCreateGame,
-  GetRandomWord,
+  getRandomWord,
+  handleAddBots,
 } from "../utils/battle-royale.js";
 import type {
   Game,
   PlayerDisplay,
   ServerOnlyData,
+  ServerBotData,
+  TargetTypes,
 } from "../../../packages/types/src/game.js";
 const app = new Hono();
 
@@ -26,7 +29,7 @@ const Max_Players = 99;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
-const serverOnlyBotData: ServerOnlyData = new Map();
+const serverOnlyBotData = new Map<string, ServerBotData>();
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing Supabase environment variables for WebSocket auth");
@@ -78,18 +81,16 @@ const emitLobbyUpdate = (roomId: string, game: Game) => {
 type ServerOnlyRoomData =
   ServerOnlyData extends Map<string, infer TValue> ? TValue : never;
 
-const getGuessContext = (roomId: string, userId: string, payload: unknown) => {
+const getGuessContext = (
+  roomId: string,
+  userId: string,
+  payload: { word: string; targetType: TargetTypes },
+) => {
   const game = games.get(roomId);
   const roomServerOnlyData = serverOnlyData.get(roomId);
   const player = game?.players.get(userId);
   const targetWord = roomServerOnlyData?.playerData[userId];
-  const guessedWord =
-    typeof payload === "object" &&
-    payload !== null &&
-    "word" in payload &&
-    typeof payload.word === "string"
-      ? payload.word
-      : undefined;
+  const guessedWord = payload?.word;
 
   return {
     game,
@@ -123,7 +124,7 @@ const applyCorrectGuessReward = ({
   player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
-  roomServerOnlyData.playerData[userId] = GetRandomWord();
+  roomServerOnlyData.playerData[userId] = getRandomWord();
 };
 
 io.use(async (socket, next) => {
@@ -281,13 +282,27 @@ io.on("connection", (socket) => {
       const timers = roomServerOnlyData.timers;
 
       const startTimer = setTimeout(
-        () => handleStartLobbyTimer(game, io, timers),
+        () => {
+          const totalPlayersJoined = game.players.size;
+          if (Max_Players > totalPlayersJoined) {
+            const numberOfBotsToAdd = Max_Players - totalPlayersJoined;
+            const { botsDisplayData, botsServerData } =
+              handleAddBots(numberOfBotsToAdd);
+            serverOnlyBotData.set(roomId, botsServerData);
+            botsDisplayData.forEach((bot) => {
+              game.players.set(bot.name, bot);
+            });
+          }
+          handleStartLobbyTimer(game, io, timers);
+          // create a bot guess ticker and add it to the serverOnlyData.room 
+          // create and run a bot guessing interval function
+        },
         Math.max(game.room.startTime - Date.now(), 0),
       );
       timers.startTimer = startTimer;
     }
 
-    roomServerOnlyData.playerData[userId] = GetRandomWord();
+    roomServerOnlyData.playerData[userId] = getRandomWord();
     socket.join(roomId);
 
     if (game.players.size >= Max_Players) {
@@ -303,7 +318,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("guess", (payload) => {
+  socket.on("guess", (payload: { word: string; targetType: TargetTypes }) => {
     const roomId = socket.data.roomId as string | undefined;
     const userId = socket.data.userId as string | undefined;
 

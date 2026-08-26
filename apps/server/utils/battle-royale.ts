@@ -1,4 +1,8 @@
-import type { Game } from "../../../packages/types/src/game";
+import type {
+  Game,
+  PlayerDisplay,
+  ServerBotData,
+} from "../../../packages/types/src/game.js";
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
@@ -13,23 +17,41 @@ type GameTimers = {
 
 export const crownWinnerAndCleanUp = () => {};
 
-const handleAddBots = () => {
-  // add bots to a bot object so they can be tracked
-  //
+export const handleAddBots = (numberOfBotsToAdd: number) => {
+  const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
+    return (Math.floor(Math.random() * 5) + 1) as 1 | 2 | 3 | 4 | 5;
+  };
+
+  const botsServerData: ServerBotData = new Map();
+  const botsDisplayData = new Map<string, PlayerDisplay>();
+  const lifeExpiry = Date.now() + initialTimer;
+
+  for (let i = 0; i < numberOfBotsToAdd; i++) {
+    // add bots to a bot object so they can be tracked
+    const botNameForNow = `bot${i}`;
+
+    botsServerData.set(botNameForNow, {
+      word: getRandomWord(),
+      queue: [],
+      level: getRandomLevel(),
+    });
+
+    botsDisplayData.set(botNameForNow, {
+      name: botNameForNow,
+      life: lifeExpiry,
+      isEliminated: false,
+      totalGuesses: 0,
+      currentWordGuesses: 0,
+    });
+  }
+  return { botsServerData, botsDisplayData };
 };
 
 export const handleStartGame = (
   game: Game,
   io: Server,
   timers: GameTimers,
-  maxPlayers?: number,
 ): void => {
-  const totalJoinedPlayers = game.players.size;
-
-  if (maxPlayers && totalJoinedPlayers < maxPlayers) {
-    // build bots
-  }
-
   game.room.isStarted = true;
   const lifeExpiry = Date.now() + initialTimer;
   for (const player of game.players.values()) {
@@ -73,7 +95,6 @@ export const handleStartLobbyTimer = (
   if (game.room.isStarted) {
     return;
   }
-  const totalPlayerJoined = game.players.size;
 
   handleStartGame(game, io, gameTimers);
   io.to(game.room.lobbyId).emit("lobby:update", {
@@ -171,7 +192,7 @@ export const getOrCreateGame = (
   return game;
 };
 
-export const GetRandomWord = () => {
+export const getRandomWord = () => {
   const randomIndex = Math.floor(Math.random() * words.length);
   return words[randomIndex] ?? "PLAYER";
 };
