@@ -93,7 +93,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         {lobby?.players[userId]?.isEliminated && (
           <Eliminated playerdata={lobby.players[userId]} />
         )}
-        <AttackPicker />
+        <AttackPicker target={target} setTarget={setTarget} />
         <GuessContainer
           fullMatches={lobby?.players[userId]?.revealed_letters}
           guess={guess}

@@ -218,7 +218,7 @@ io.on("connection", (socket) => {
       ack?.({ ok: false });
       return;
     }
-
+ 
     // might have to change this, to a different flag so eliminated users dont unrender
     game.players.delete(userId);
 
