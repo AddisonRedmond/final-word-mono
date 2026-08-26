@@ -9,6 +9,7 @@ import GuessContainer from "../game-components/guess-container";
 import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
 import Eliminated from "../game-components/eliminated";
+import AttackPicker from "../game-components/attack-picker";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -92,11 +93,11 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         {lobby?.players[userId]?.isEliminated && (
           <Eliminated playerdata={lobby.players[userId]} />
         )}
-
+        <AttackPicker />
         <GuessContainer
           fullMatches={lobby?.players[userId]?.revealed_letters}
           guess={guess}
-          queue={lobby?.players[userId]?.queue}
+          queue={lobby?.players[userId]?.display_queue}
         />
 
         {!lobby?.players[userId]?.isEliminated && (

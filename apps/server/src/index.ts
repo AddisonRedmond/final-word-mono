@@ -243,6 +243,7 @@ io.on("connection", (socket) => {
     if (game.players.size === 0) {
       games.delete(roomId);
       serverOnlyData.delete(roomId);
+      serverOnlyBotData.delete(roomId);
     } else {
       io.to(roomId).emit("lobby:update", {
         ...game,
@@ -372,9 +373,10 @@ io.on("connection", (socket) => {
         userId,
         roomServerOnlyData,
       });
-    }
-    // TODO: maybe apply punishment if player fails to guess to times in a row
-    else {
+    } else {
+      // TODO: maybe apply punishment if player fails to guess to times in a row
+      // TODO: if the word has double letters, even if the index of one of the double letters is correct, it should still be yellow
+      // until they get both of the double letters
       const fullLetters = Object.values(result.fullMatches);
 
       player.revealed_letters = {
