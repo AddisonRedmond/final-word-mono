@@ -112,7 +112,7 @@ const applyCorrectGuessReward = ({
 }) => {
   const guessCount = Math.min(
     Math.max(player.currentWordGuesses, 1),
-    7,
+    10,
   ) as keyof typeof lifeMap;
   const bonusLife = lifeMap[guessCount];
   const now = Date.now();
@@ -124,6 +124,27 @@ const applyCorrectGuessReward = ({
   player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
+  roomServerOnlyData.playerData[userId] = getRandomWord();
+};
+
+const applyInorrectGuessFailure = ({
+  player,
+  userId,
+  roomServerOnlyData,
+}: {
+  player: PlayerDisplay;
+  userId: string;
+  roomServerOnlyData: ServerOnlyRoomData;
+}) => {
+  const now = Date.now();
+  const currentLife = Math.max(player.life, now);
+  player.life = Math.max(currentLife - 10_000, now);
+
+  player.currentWordGuesses = 0;
+  player.revealed_letters = {};
+  player.noMatch = [];
+  player.partialMatches = [];
+
   roomServerOnlyData.playerData[userId] = getRandomWord();
 };
 
@@ -294,7 +315,7 @@ io.on("connection", (socket) => {
             });
           }
           handleStartLobbyTimer(game, io, timers);
-          // create a bot guess ticker and add it to the serverOnlyData.room 
+          // create a bot guess ticker and add it to the serverOnlyData.room
           // create and run a bot guessing interval function
         },
         Math.max(game.room.startTime - Date.now(), 0),
@@ -351,7 +372,9 @@ io.on("connection", (socket) => {
         userId,
         roomServerOnlyData,
       });
-    } else {
+    }
+    // TODO: maybe apply punishment if player fails to guess to times in a row
+    else {
       const fullLetters = Object.values(result.fullMatches);
 
       player.revealed_letters = {
