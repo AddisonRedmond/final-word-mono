@@ -25,7 +25,7 @@ const TargetButton: React.FC<TargetButtonProps> = ({
           transition-all duration-150 ease-in-out
           ${
             selected
-              ? "translate-y-0 bg-zinc-700"
+              ? "translate-y-0 bg-zinc-800"
               : "-translate-y-full bg-zinc-500 group-hover:translate-y-0"
           }`}
       />
