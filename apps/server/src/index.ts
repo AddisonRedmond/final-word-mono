@@ -227,7 +227,7 @@ io.on("connection", (socket) => {
       // TODO: extract into utils folder
       delete roomServerOnlyData.playerData[userId];
       if (Object.keys(roomServerOnlyData.playerData).length === 0) {
-        if (roomServerOnlyData.timers.startTimer) {
+        if (roomServerOnlyData.timers.startTimer) { 
           clearTimeout(roomServerOnlyData.timers.startTimer);
         }
         if (roomServerOnlyData.timers.gameTimer) {
@@ -256,6 +256,8 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join", () => {
+    // TODO: if i mess up the front  end data, i click join, it connects and disconnects immediately
+    // need figure it out and fix
     const { userId, name } = socket.data;
     console.log(`${name} connected`);
 

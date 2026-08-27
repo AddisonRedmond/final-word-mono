@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
-import type { ClientGame, TargetTypes } from "@/types/game";
+import type { ClientGame, PlayerDisplay, TargetTypes } from "@/types/game";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion } from "motion/react";
@@ -10,6 +10,7 @@ import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
 import Eliminated from "../game-components/eliminated";
 import AttackPicker from "../game-components/attack-picker";
+import Opponents from "../game-components/opponents";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -66,16 +67,35 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleBackspace, handleEnter, handleLetter]);
 
-  console.log(lobby);
+  const splitOpponents = (
+    parity: "even" | "odd",
+    players?: Record<string, PlayerDisplay>,
+  ) => {
+    if (!players) return [];
+
+    return Object.entries(players).reduce<PlayerDisplay[]>(
+      (opponents, [id, player], index) => {
+        if (
+          id !== userId &&
+          (parity === "even" ? index % 2 === 0 : index % 2 !== 0)
+        ) {
+          opponents.push(player);
+        }
+
+        return opponents;
+      },
+      [],
+    );
+  };
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 100 }}
       exit={{ scale: 0, opacity: 0 }}
-      className="flex"
+      className="flex w-full grow py-5"
     >
-      <div>OPponents</div>
-      <div className="flex flex-col items-center gap-3 w-full grow">
+      <Opponents opponents={splitOpponents("odd", lobby?.players)} />
+      <div className="flex flex-col items-center gap-3 mx-5 justify-center">
         <div className="flex gap-2">
           <button onClick={() => br.leave(socketRef)}>Leave</button>
         </div>
@@ -116,7 +136,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           {JSON.stringify(lobby, null, 2)}
         </pre> */}
       </div>
-      <div>OPponents</div>
+      <Opponents opponents={splitOpponents("even", lobby?.players)} />
     </motion.div>
   );
 };

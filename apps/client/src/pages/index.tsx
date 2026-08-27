@@ -97,17 +97,16 @@ export default function Home() {
               variant="present"
             />
           </div>
-          <div>
-            <AnimatePresence>
-              {isPlaying && user?.id ? (
-                <BattleRoyale socketRef={socketRef} userId={user.id} />
-              ) : (
-                <div>
-                  <BattleRoyalCard handlePlay={handlePlay} />
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
+
+          <AnimatePresence>
+            {isPlaying && user?.id ? (
+              <BattleRoyale socketRef={socketRef} userId={user.id} />
+            ) : (
+              <div>
+                <BattleRoyalCard handlePlay={handlePlay} />
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
     </>
