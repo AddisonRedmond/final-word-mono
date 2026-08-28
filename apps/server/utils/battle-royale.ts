@@ -1,6 +1,7 @@
 import type {
   Game,
   PlayerDisplay,
+  RoomTimers,
   ServerBotData,
 } from "../../../packages/types/src/game.js";
 import type { Server } from "socket.io";
@@ -9,11 +10,6 @@ import words from "./words.js";
 
 const initialTimer = 120 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
-
-type GameTimers = {
-  startTimer?: ReturnType<typeof setTimeout>;
-  gameTimer?: ReturnType<typeof setInterval>;
-};
 
 export const crownWinnerAndCleanUp = () => {};
 
@@ -34,6 +30,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       word: getRandomWord(),
       queue: [],
       level: getRandomLevel(),
+      target: "random",
     });
 
     botsDisplayData.set(botNameForNow, {
@@ -50,7 +47,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
 export const handleStartGame = (
   game: Game,
   io: Server,
-  timers: GameTimers,
+  timers: RoomTimers,
 ): void => {
   game.room.isStarted = true;
   const lifeExpiry = Date.now() + initialTimer;
@@ -90,12 +87,12 @@ export const handleStartGame = (
 export const handleStartLobbyTimer = (
   game: Game,
   io: Server,
-  gameTimers: GameTimers,
+  gameTimers: RoomTimers,
 ) => {
   if (game.room.isStarted) {
     return;
   }
-
+  
   handleStartGame(game, io, gameTimers);
   io.to(game.room.lobbyId).emit("lobby:update", {
     ...game,

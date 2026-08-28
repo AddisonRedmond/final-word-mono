@@ -37,18 +37,22 @@ export type ServerBotData = Map<
     word: string;
     queue: string[];
     level: 1 | 2 | 3 | 4 | 5;
+    target: TargetTypes,
+    guessTimeStamp?: number;
   }
 >;
+
+export type RoomTimers = {
+  startTimer?: ReturnType<typeof setTimeout>;
+  gameTimer?: ReturnType<typeof setInterval>;
+  botTicker?: ReturnType<typeof setInterval>;
+};
 
 export type ServerOnlyData = Map<
   string,
   {
     playerData: Record<string, string>;
-    timers: {
-      startTimer?: ReturnType<typeof setTimeout>;
-      gameTimer?: ReturnType<typeof setInterval>;
-      botTicker?: ReturnType<typeof setInterval>;
-    };
+    timers: RoomTimers;
   }
 >;
 

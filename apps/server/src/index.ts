@@ -326,9 +326,8 @@ io.on("connection", (socket) => {
           const lobbyStarted = handleStartLobbyTimer(game, io, timers);
           if (lobbyStarted) {
             const bots = serverOnlyBotData.get(roomId);
-
             if (bots?.size) {
-              runBots(bots);
+              timers.botTicker = runBots(bots);
             }
           }
         },
