@@ -1,6 +1,7 @@
 import type { PlayerDisplay } from "@/types/game";
 import CircularTimer from "./opponent-timer";
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 type OpponentsProps = {
   opponents: PlayerDisplay[];
@@ -16,6 +17,9 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
     width: 0,
     height: 0,
   });
+
+  // One shared clock for all opponent timers.
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!ref.current) return;
@@ -36,13 +40,17 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
     return () => observer.disconnect();
   }, []);
 
+  // One interval drives every opponent timer.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const { width, height } = size;
 
-  /*
-   * Find the number of columns that gives us the
-   * largest possible opponent while still fitting
-   * everything inside the container.
-   */
   let opponentWidth = 0;
 
   for (let cols = 1; cols <= opponents.length; cols++) {
@@ -61,28 +69,58 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
   }
 
   return (
-    <div ref={ref} className="grow overflow-hidden">
+    <motion.div ref={ref} className="grow overflow-hidden">
       <div className="flex flex-wrap content-start justify-evenly gap-2">
-        {opponents.map((opponent) => (
-          <div
-            key={opponent.name}
-            className="flex flex-col items-center justify-between rounded-lg bg-zinc-100 shadow-md"
-            style={{
-              width: opponentWidth,
-              height: opponentWidth / ASPECT_RATIO,
-            }}
-          >
-            <div className="size-5">
-              <CircularTimer initials="B" duration={120} remaining={60} />
-            </div>
+        <AnimatePresence>
+          {opponents.map((opponent) => (
+            <motion.div
+              key={opponent.name}
+              layout
+              initial={{
+                opacity: 0,
+                scale: 0.7,
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.7,
+              }}
+              transition={{
+                layout: {
+                  duration: 0.3,
+                  ease: "easeInOut",
+                },
+                opacity: {
+                  duration: 0.2,
+                },
+                scale: {
+                  duration: 0.25,
+                  ease: "easeOut",
+                },
+              }}
+              className="flex flex-col items-center justify-between rounded-lg bg-zinc-100 shadow-md"
+              style={{
+                width: opponentWidth,
+                height: opponentWidth / ASPECT_RATIO,
+              }}
+            >
+              <div className="size-5">
+                <CircularTimer
+                  initials="B"
+                  duration={180_000}
+                  remaining={Math.max(0, opponent.life - now)}
+                />
+              </div>
 
-            <span>{opponent.name}</span>
-
-            {/* opponent data goes here */}
-          </div>
-        ))}
+              <span>{opponent.name}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

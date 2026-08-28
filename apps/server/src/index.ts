@@ -20,6 +20,7 @@ import type {
   ServerBotData,
   TargetTypes,
 } from "../../../packages/types/src/game.js";
+import { runBots } from "../utils/battle-royale-bots.js";
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -218,7 +219,7 @@ io.on("connection", (socket) => {
       ack?.({ ok: false });
       return;
     }
- 
+
     // might have to change this, to a different flag so eliminated users dont unrender
     game.players.delete(userId);
 
@@ -227,7 +228,7 @@ io.on("connection", (socket) => {
       // TODO: extract into utils folder
       delete roomServerOnlyData.playerData[userId];
       if (Object.keys(roomServerOnlyData.playerData).length === 0) {
-        if (roomServerOnlyData.timers.startTimer) { 
+        if (roomServerOnlyData.timers.startTimer) {
           clearTimeout(roomServerOnlyData.timers.startTimer);
         }
         if (roomServerOnlyData.timers.gameTimer) {
@@ -308,18 +309,28 @@ io.on("connection", (socket) => {
       const startTimer = setTimeout(
         () => {
           const totalPlayersJoined = game.players.size;
+
           if (Max_Players > totalPlayersJoined) {
             const numberOfBotsToAdd = Max_Players - totalPlayersJoined;
+
             const { botsDisplayData, botsServerData } =
               handleAddBots(numberOfBotsToAdd);
+
             serverOnlyBotData.set(roomId, botsServerData);
+
             botsDisplayData.forEach((bot) => {
               game.players.set(bot.name, bot);
             });
           }
-          handleStartLobbyTimer(game, io, timers);
-          // create a bot guess ticker and add it to the serverOnlyData.room
-          // create and run a bot guessing interval function
+
+          const lobbyStarted = handleStartLobbyTimer(game, io, timers);
+          if (lobbyStarted) {
+            const bots = serverOnlyBotData.get(roomId);
+
+            if (bots?.size) {
+              runBots(bots);
+            }
+          }
         },
         Math.max(game.room.startTime - Date.now(), 0),
       );

@@ -91,7 +91,7 @@ export const handleStartLobbyTimer = (
   game: Game,
   io: Server,
   gameTimers: GameTimers,
-): void => {
+) => {
   if (game.room.isStarted) {
     return;
   }
@@ -101,6 +101,8 @@ export const handleStartLobbyTimer = (
     ...game,
     players: Object.fromEntries(game.players),
   });
+
+  return true;
 };
 
 export const findGameForUser = (

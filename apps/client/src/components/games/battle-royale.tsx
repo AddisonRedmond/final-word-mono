@@ -87,6 +87,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       [],
     );
   };
+  console.log(lobby?.players)
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}

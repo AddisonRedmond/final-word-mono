@@ -9,7 +9,7 @@ import { createClient } from "@/utils/supabase/client";
 import { io, type Socket } from "socket.io-client";
 import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import BattleRoyale from "@/components/games/battle-royale";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useAuthStore } from "@/state/auth-store";
 
 export default function Home() {
@@ -83,21 +83,29 @@ export default function Home() {
       <main className="flex flex-col h-screen">
         <Navbar />
         <div className="flex flex-col grow items-center justify-center gap-y-5">
-          <div className="flex flex-col items-center gap-y-2">
-            <Tile
-              revealed={true}
-              size={isPlaying ? "sm" : "lg"}
-              word="FINAL"
-              variant="correct"
-            />
-            <Tile
-              revealed={true}
-              word="WORD"
-              size={isPlaying ? "sm" : "md"}
-              variant="present"
-            />
-          </div>
-
+          <AnimatePresence>
+            {!isPlaying && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="flex flex-col items-center gap-y-2"
+              >
+                <Tile
+                  revealed={true}
+                  size={isPlaying ? "sm" : "lg"}
+                  word="FINAL"
+                  variant="correct"
+                />
+                <Tile
+                  revealed={true}
+                  word="WORD"
+                  size={isPlaying ? "sm" : "md"}
+                  variant="present"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
           <AnimatePresence>
             {isPlaying && user?.id ? (
               <BattleRoyale socketRef={socketRef} userId={user.id} />
