@@ -31,6 +31,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       queue: [],
       level: getRandomLevel(),
       target: "random",
+      botGuesses: 0,
     });
 
     botsDisplayData.set(botNameForNow, {
@@ -92,7 +93,7 @@ export const handleStartLobbyTimer = (
   if (game.room.isStarted) {
     return;
   }
-  
+
   handleStartGame(game, io, gameTimers);
   io.to(game.room.lobbyId).emit("lobby:update", {
     ...game,
