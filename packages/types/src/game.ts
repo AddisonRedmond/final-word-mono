@@ -37,8 +37,9 @@ export type ServerBotData = Map<
     word: string;
     queue: string[];
     level: 1 | 2 | 3 | 4 | 5;
-    target: TargetTypes,
+    target: TargetTypes;
     guessTimeStamp?: number;
+    botGuesses: number;
   }
 >;
 
