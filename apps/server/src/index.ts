@@ -18,7 +18,9 @@ import type {
   PlayerDisplay,
   ServerOnlyData,
   ServerBotData,
-  TargetTypes,
+  TargetType,
+  ServerPlayerData,
+  RoomServerData,
 } from "../../../packages/types/src/game.js";
 import { runBots } from "../utils/battle-royale-bots.js";
 const app = new Hono();
@@ -30,7 +32,7 @@ const Max_Players = 99;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
-const serverOnlyBotData = new Map<string, ServerBotData>();
+const serverOnlyBotData: ServerBotData = new Map();
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing Supabase environment variables for WebSocket auth");
@@ -79,18 +81,15 @@ const emitLobbyUpdate = (roomId: string, game: Game) => {
   });
 };
 
-type ServerOnlyRoomData =
-  ServerOnlyData extends Map<string, infer TValue> ? TValue : never;
-
 const getGuessContext = (
   roomId: string,
   userId: string,
-  payload: { word: string; targetType: TargetTypes },
+  payload: { word: string; targetType: TargetType },
 ) => {
   const game = games.get(roomId);
   const roomServerOnlyData = serverOnlyData.get(roomId);
   const player = game?.players.get(userId);
-  const targetWord = roomServerOnlyData?.playerData[userId];
+  const targetWord = roomServerOnlyData?.playerData[userId].word;
   const guessedWord = payload?.word;
 
   return {
@@ -109,7 +108,7 @@ const applyCorrectGuessReward = ({
 }: {
   player: PlayerDisplay;
   userId: string;
-  roomServerOnlyData: ServerOnlyRoomData;
+  roomServerOnlyData: RoomServerData;
 }) => {
   const guessCount = Math.min(
     Math.max(player.currentWordGuesses, 1),
@@ -125,28 +124,7 @@ const applyCorrectGuessReward = ({
   player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
-  roomServerOnlyData.playerData[userId] = getRandomWord();
-};
-
-const applyInorrectGuessFailure = ({
-  player,
-  userId,
-  roomServerOnlyData,
-}: {
-  player: PlayerDisplay;
-  userId: string;
-  roomServerOnlyData: ServerOnlyRoomData;
-}) => {
-  const now = Date.now();
-  const currentLife = Math.max(player.life, now);
-  player.life = Math.max(currentLife - 10_000, now);
-
-  player.currentWordGuesses = 0;
-  player.revealed_letters = {};
-  player.noMatch = [];
-  player.partialMatches = [];
-
-  roomServerOnlyData.playerData[userId] = getRandomWord();
+  roomServerOnlyData.playerData[userId].word = getRandomWord();
 };
 
 io.use(async (socket, next) => {
@@ -336,7 +314,7 @@ io.on("connection", (socket) => {
       timers.startTimer = startTimer;
     }
 
-    roomServerOnlyData.playerData[userId] = getRandomWord();
+    roomServerOnlyData.playerData[userId].word = getRandomWord();
     socket.join(roomId);
 
     if (game.players.size >= Max_Players) {
@@ -352,7 +330,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("guess", (payload: { word: string; targetType: TargetTypes }) => {
+  socket.on("guess", (payload: { word: string; targetType: TargetType }) => {
     const roomId = socket.data.roomId as string | undefined;
     const userId = socket.data.userId as string | undefined;
 

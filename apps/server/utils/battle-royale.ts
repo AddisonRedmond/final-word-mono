@@ -3,6 +3,7 @@ import type {
   PlayerDisplay,
   RoomTimers,
   ServerBotData,
+  ServerOnlyData,
 } from "../../../packages/types/src/game.js";
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
@@ -198,4 +199,30 @@ export const getOrCreateGame = (
 export const getRandomWord = () => {
   const randomIndex = Math.floor(Math.random() * words.length);
   return words[randomIndex] ?? "PLAYER";
+};
+
+const applyCorrectGuessReward = ({
+  player,
+  userId,
+  roomServerOnlyData,
+}: {
+  player: PlayerDisplay;
+  userId: string;
+  roomServerOnlyData: ServerOnlyData;
+}) => {
+  const guessCount = Math.min(
+    Math.max(player.currentWordGuesses, 1),
+    10,
+  ) as keyof typeof lifeMap;
+  const bonusLife = lifeMap[guessCount];
+  const now = Date.now();
+  const maxLifeExpiry = now + 3 * 60 * 1000;
+  const currentLife = Math.max(player.life, now);
+  player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+
+  player.currentWordGuesses = 0;
+  player.revealed_letters = {};
+  player.noMatch = [];
+  player.partialMatches = [];
+  roomServerOnlyData.playerData[userId] = getRandomWord();
 };
