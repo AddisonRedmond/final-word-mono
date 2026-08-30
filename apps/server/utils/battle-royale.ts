@@ -1,4 +1,5 @@
 import type {
+  BotServerData,
   Game,
   PlayerDisplay,
   RoomTimers,
@@ -19,7 +20,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
     return (Math.floor(Math.random() * 5) + 1) as 1 | 2 | 3 | 4 | 5;
   };
 
-  const botsServerData: ServerBotData = new Map();
+  const roomBotServerData: { [botId: string]: BotServerData } = {};
   const botsDisplayData = new Map<string, PlayerDisplay>();
   const lifeExpiry = Date.now() + initialTimer;
 
@@ -27,13 +28,13 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
     // add bots to a bot object so they can be tracked
     const botNameForNow = `bot${i}`;
 
-    botsServerData.set(botNameForNow, {
+    roomBotServerData[botNameForNow] = {
       word: getRandomWord(),
       queue: [],
       level: getRandomLevel(),
       target: "random",
       botGuesses: 0,
-    });
+    };
 
     botsDisplayData.set(botNameForNow, {
       name: botNameForNow,
