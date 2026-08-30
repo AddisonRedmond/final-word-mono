@@ -2,6 +2,7 @@ import type {
   BotServerData,
   Game,
   PlayerDisplay,
+  RoomServerData,
   RoomTimers,
   ServerBotData,
   ServerOnlyData,
@@ -44,7 +45,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       currentWordGuesses: 0,
     });
   }
-  return { botsServerData, botsDisplayData };
+  return { roomBotServerData, botsDisplayData };
 };
 
 export const handleStartGame = (
@@ -202,14 +203,14 @@ export const getRandomWord = () => {
   return words[randomIndex] ?? "PLAYER";
 };
 
-const applyCorrectGuessReward = ({
+export const applyCorrectGuessReward = ({
   player,
   userId,
   roomServerOnlyData,
 }: {
   player: PlayerDisplay;
   userId: string;
-  roomServerOnlyData: ServerOnlyData;
+  roomServerOnlyData: RoomServerData;
 }) => {
   const guessCount = Math.min(
     Math.max(player.currentWordGuesses, 1),
@@ -225,5 +226,5 @@ const applyCorrectGuessReward = ({
   player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
-  roomServerOnlyData.playerData[userId] = getRandomWord();
+  roomServerOnlyData.playerData[userId].word = getRandomWord();
 };

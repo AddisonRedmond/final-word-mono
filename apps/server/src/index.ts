@@ -8,10 +8,10 @@ import {
   handleStartLobbyTimer,
   findGameForUser,
   checkWord,
-  lifeMap,
   getOrCreateGame,
   getRandomWord,
   handleAddBots,
+  applyCorrectGuessReward,
 } from "../utils/battle-royale.js";
 import type {
   Game,
@@ -19,10 +19,10 @@ import type {
   ServerOnlyData,
   ServerBotData,
   TargetType,
-  ServerPlayerData,
   RoomServerData,
 } from "../../../packages/types/src/game.js";
 import { runBots } from "../utils/battle-royale-bots.js";
+
 const app = new Hono();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -81,6 +81,30 @@ const emitLobbyUpdate = (roomId: string, game: Game) => {
   });
 };
 
+const cleanupGame = (roomId: string) => {
+  const roomServerOnlyData = serverOnlyData.get(roomId);
+
+  if (roomServerOnlyData) {
+    const { startTimer, gameTimer, botTicker } = roomServerOnlyData.timers;
+
+    if (startTimer) {
+      clearTimeout(startTimer);
+    }
+
+    if (gameTimer) {
+      clearInterval(gameTimer);
+    }
+
+    if (botTicker) {
+      clearInterval(botTicker);
+    }
+  }
+
+  games.delete(roomId);
+  serverOnlyData.delete(roomId);
+  serverOnlyBotData.delete(roomId);
+};
+
 const getGuessContext = (
   roomId: string,
   userId: string,
@@ -89,7 +113,7 @@ const getGuessContext = (
   const game = games.get(roomId);
   const roomServerOnlyData = serverOnlyData.get(roomId);
   const player = game?.players.get(userId);
-  const targetWord = roomServerOnlyData?.playerData[userId].word;
+  const targetWord = roomServerOnlyData?.playerData[userId]?.word;
   const guessedWord = payload?.word;
 
   return {
@@ -99,32 +123,6 @@ const getGuessContext = (
     targetWord,
     guessedWord,
   };
-};
-
-const applyCorrectGuessReward = ({
-  player,
-  userId,
-  roomServerOnlyData,
-}: {
-  player: PlayerDisplay;
-  userId: string;
-  roomServerOnlyData: RoomServerData;
-}) => {
-  const guessCount = Math.min(
-    Math.max(player.currentWordGuesses, 1),
-    10,
-  ) as keyof typeof lifeMap;
-  const bonusLife = lifeMap[guessCount];
-  const now = Date.now();
-  const maxLifeExpiry = now + 3 * 60 * 1000;
-  const currentLife = Math.max(player.life, now);
-  player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
-
-  player.currentWordGuesses = 0;
-  player.revealed_letters = {};
-  player.noMatch = [];
-  player.partialMatches = [];
-  roomServerOnlyData.playerData[userId].word = getRandomWord();
 };
 
 io.use(async (socket, next) => {
@@ -168,7 +166,7 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   socket.on("disconnect", () => {
-    const { roomId, userId, name } = socket.data;
+    const { roomId, name } = socket.data;
     console.log(`${name} disconnected`);
 
     if (!roomId) {
@@ -176,6 +174,8 @@ io.on("connection", (socket) => {
     }
 
     const game = games.get(roomId);
+    const userId = socket.data.userId;
+
     if (!game || !game.players.has(userId)) {
       return;
     }
@@ -187,12 +187,14 @@ io.on("connection", (socket) => {
 
   socket.on("leave", (ack?: (response: { ok: boolean }) => void) => {
     const { roomId, userId, name } = socket.data;
+
     if (!roomId) {
       ack?.({ ok: false });
       return;
     }
 
     const game = games.get(roomId);
+
     if (!game) {
       ack?.({ ok: false });
       return;
@@ -202,32 +204,18 @@ io.on("connection", (socket) => {
     game.players.delete(userId);
 
     const roomServerOnlyData = serverOnlyData.get(roomId);
+
     if (roomServerOnlyData) {
-      // TODO: extract into utils folder
       delete roomServerOnlyData.playerData[userId];
-      if (Object.keys(roomServerOnlyData.playerData).length === 0) {
-        if (roomServerOnlyData.timers.startTimer) {
-          clearTimeout(roomServerOnlyData.timers.startTimer);
-        }
-        if (roomServerOnlyData.timers.gameTimer) {
-          clearInterval(roomServerOnlyData.timers.gameTimer);
-        }
-        serverOnlyData.delete(roomId);
-      }
     }
 
     socket.data.roomId = undefined;
     socket.leave(roomId);
 
     if (game.players.size === 0) {
-      games.delete(roomId);
-      serverOnlyData.delete(roomId);
-      serverOnlyBotData.delete(roomId);
+      cleanupGame(roomId);
     } else {
-      io.to(roomId).emit("lobby:update", {
-        ...game,
-        players: Object.fromEntries(game.players),
-      });
+      emitLobbyUpdate(roomId, game);
     }
 
     console.log(`${name} left ${roomId}`);
@@ -235,15 +223,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join", () => {
-    // TODO: if i mess up the front  end data, i click join, it connects and disconnects immediately
-    // need figure it out and fix
     const { userId, name } = socket.data;
     console.log(`${name} connected`);
 
     const existingGame = findGameForUser(games, userId);
     const existingPlayer = existingGame?.players.get(userId);
 
-    // TODO: user clean up
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
         socket.emit("join:error", {
@@ -254,19 +239,25 @@ io.on("connection", (socket) => {
       }
 
       const roomId = existingGame.room.lobbyId;
+
       socket.data.roomId = roomId;
       socket.join(roomId);
+
       socket.emit("join:ack", {
         ...existingGame,
         players: Object.fromEntries(existingGame.players),
       });
+
       return;
     }
 
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
+
     let roomServerOnlyData = serverOnlyData.get(roomId);
+
     socket.data.roomId = roomId;
+
     game.players.set(userId, {
       name,
       isEliminated: false,
@@ -280,6 +271,7 @@ io.on("connection", (socket) => {
         playerData: {},
         timers: {},
       };
+
       serverOnlyData.set(roomId, roomServerOnlyData);
 
       const timers = roomServerOnlyData.timers;
@@ -291,10 +283,10 @@ io.on("connection", (socket) => {
           if (Max_Players > totalPlayersJoined) {
             const numberOfBotsToAdd = Max_Players - totalPlayersJoined;
 
-            const { botsDisplayData, botsServerData } =
+            const { botsDisplayData, roomBotServerData } =
               handleAddBots(numberOfBotsToAdd);
 
-            serverOnlyBotData.set(roomId, botsServerData);
+            serverOnlyBotData.set(roomId, roomBotServerData);
 
             botsDisplayData.forEach((bot) => {
               game.players.set(bot.name, bot);
@@ -302,8 +294,10 @@ io.on("connection", (socket) => {
           }
 
           const lobbyStarted = handleStartLobbyTimer(game, io, timers);
+
           if (lobbyStarted) {
             const bots = serverOnlyBotData.get(roomId);
+
             if (bots?.size) {
               timers.botTicker = runBots(bots, game.players);
             }
@@ -311,23 +305,26 @@ io.on("connection", (socket) => {
         },
         Math.max(game.room.startTime - Date.now(), 0),
       );
+
       timers.startTimer = startTimer;
     }
 
-    roomServerOnlyData.playerData[userId].word = getRandomWord();
+    roomServerOnlyData.playerData[userId] = {
+      word: getRandomWord(),
+      queue: [],
+    };
+
     socket.join(roomId);
 
     if (game.players.size >= Max_Players) {
       if (roomServerOnlyData.timers.startTimer) {
         clearTimeout(roomServerOnlyData.timers.startTimer);
       }
+
       handleStartGame(game, io, roomServerOnlyData.timers);
     }
 
-    io.to(roomId).emit("lobby:update", {
-      ...game,
-      players: Object.fromEntries(game.players),
-    });
+    emitLobbyUpdate(roomId, game);
   });
 
   socket.on("guess", (payload: { word: string; targetType: TargetType }) => {
@@ -357,6 +354,7 @@ io.on("connection", (socket) => {
     player.currentWordGuesses += 1;
 
     const result = checkWord(guessedWord, targetWord);
+
     if (result.isMatch) {
       applyCorrectGuessReward({
         player,
@@ -367,6 +365,7 @@ io.on("connection", (socket) => {
       // TODO: maybe apply punishment if player fails to guess to times in a row
       // TODO: if the word has double letters, even if the index of one of the double letters is correct, it should still be yellow
       // until they get both of the double letters
+
       const fullLetters = Object.values(result.fullMatches);
 
       player.revealed_letters = {

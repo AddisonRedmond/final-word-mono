@@ -1,6 +1,7 @@
 import type {
   ServerBotData,
   PlayerDisplay,
+  BotServerData,
 } from "../../../packages/types/src/game.js";
 
 type BotGuessResult =
@@ -67,8 +68,7 @@ const getBotGuessResult = ({
   }
 
   if (roll < correctChance + baseRevealChance) {
-    const amount =
-      Math.random() * 100 < revealTwoChance ? 2 : 1;
+    const amount = Math.random() * 100 < revealTwoChance ? 2 : 1;
 
     return {
       type: "reveal",
@@ -81,9 +81,7 @@ const getBotGuessResult = ({
   };
 };
 
-const getBotThinkTime = (
-  level: 1 | 2 | 3 | 4 | 5,
-) => {
+const getBotThinkTime = (level: 1 | 2 | 3 | 4 | 5) => {
   const thinkTimes = {
     1: [4000, 7000],
     2: [3000, 6000],
@@ -98,13 +96,15 @@ const getBotThinkTime = (
 };
 
 export const runBots = (
-  serverOnlyBotdata: ServerBotData,
+  serverOnlyBotdata: {
+    [botId: string]: BotServerData;
+  },
   playerData: Map<string, PlayerDisplay>,
 ) => {
   return setInterval(() => {
     const now = Date.now();
 
-    for (const [botId, botServerData] of serverOnlyBotdata) {
+    for (const [botId, botServerData] of Object.entries(serverOnlyBotdata)) {
       const botDisplayData = playerData.get(botId);
 
       if (!botDisplayData) {
@@ -121,10 +121,7 @@ export const runBots = (
       }
 
       // The bot is still thinking.
-      if (
-        botServerData.guessTimeStamp &&
-        now < botServerData.guessTimeStamp
-      ) {
+      if (botServerData.guessTimeStamp && now < botServerData.guessTimeStamp) {
         continue;
       }
 
@@ -159,8 +156,7 @@ export const runBots = (
       }
 
       // Schedule the bot's next guess.
-      botServerData.guessTimeStamp =
-        now + getBotThinkTime(botServerData.level);
+      botServerData.guessTimeStamp = now + getBotThinkTime(botServerData.level);
     }
   }, 250);
 };
