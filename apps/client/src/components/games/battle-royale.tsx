@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
-import type { ClientGame, PlayerDisplay, TargetTypes } from "@/types/game";
+import type { ClientGame, PlayerDisplay, TargetType } from "@/types/game";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion } from "motion/react";
@@ -22,7 +22,7 @@ const GUESS_LENGTH = 5;
 const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
   const [guess, setGuess] = useState("");
-  const [target, setTarget] = useState<TargetTypes>("random");
+  const [target, setTarget] = useState<TargetType>("random");
   useBattleRoyaleSocket({ socketRef, setLobby });
 
   const handleLetter = useCallback((letter: string) => {
@@ -67,27 +67,33 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleBackspace, handleEnter, handleLetter]);
 
-  const splitOpponents = (
-    parity: "even" | "odd",
-    players?: Record<string, PlayerDisplay>,
-  ) => {
-    if (!players) return [];
+  const { oddOpponents, evenOpponents } = useMemo(() => {
+    const oddOpponents: PlayerDisplay[] = [];
+    const evenOpponents: PlayerDisplay[] = [];
 
-    return Object.entries(players).reduce<PlayerDisplay[]>(
-      (opponents, [id, player], index) => {
-        if (
-          id !== userId &&
-          (parity === "even" ? index % 2 === 0 : index % 2 !== 0)
-        ) {
-          opponents.push(player);
-        }
+    if (!lobby?.players) {
+      return {
+        oddOpponents,
+        evenOpponents,
+      };
+    }
 
-        return opponents;
-      },
-      [],
-    );
-  };
-  console.log(lobby?.players)
+    Object.entries(lobby.players).forEach(([id, player], index) => {
+      if (id === userId) return;
+
+      if (index % 2 === 0) {
+        evenOpponents.push(player);
+      } else {
+        oddOpponents.push(player);
+      }
+    });
+
+    return {
+      oddOpponents,
+      evenOpponents,
+    };
+  }, [lobby?.players, userId]);
+  console.log(lobby?.players);
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
@@ -95,7 +101,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       exit={{ scale: 0, opacity: 0 }}
       className="flex w-full grow py-5"
     >
-      <Opponents opponents={splitOpponents("odd", lobby?.players)} />
+      <Opponents opponents={evenOpponents} />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
         <div className="flex gap-2">
           <button onClick={() => br.leave(socketRef)}>Leave</button>
@@ -140,7 +146,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           {JSON.stringify(lobby, null, 2)}
         </pre> */}
       </div>
-      <Opponents opponents={splitOpponents("even", lobby?.players)} />
+      <Opponents opponents={oddOpponents} />
     </motion.div>
   );
 };

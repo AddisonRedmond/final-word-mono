@@ -1,6 +1,6 @@
 import type { PlayerDisplay } from "@/types/game";
 import CircularTimer from "./opponent-timer";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 type OpponentsProps = {
@@ -10,16 +10,13 @@ type OpponentsProps = {
 const GAP = 8;
 const ASPECT_RATIO = 1 / 2;
 
-const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
+const Opponents = memo(({ opponents }: OpponentsProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
   const [size, setSize] = useState({
     width: 0,
     height: 0,
   });
-
-  // One shared clock for all opponent timers.
-  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!ref.current) return;
@@ -38,15 +35,6 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
     observer.observe(ref.current);
 
     return () => observer.disconnect();
-  }, []);
-
-  // One interval drives every opponent timer.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 100);
-
-    return () => clearInterval(interval);
   }, []);
 
   const { width, height } = size;
@@ -111,7 +99,7 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
                 <CircularTimer
                   initials="B"
                   duration={180_000}
-                  remaining={Math.max(0, opponent.life - now)}
+                  expiryTimestamp={opponent.life}
                 />
               </div>
 
@@ -122,6 +110,7 @@ const Opponents: React.FC<OpponentsProps> = ({ opponents }) => {
       </div>
     </motion.div>
   );
-};
+});
+
 
 export default Opponents;

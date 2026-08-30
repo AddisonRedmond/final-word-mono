@@ -1,8 +1,7 @@
-// Flipper.tsx
 "use client";
 
 import { motion } from "motion/react";
-import { useEffect, useState, useMemo } from "react";
+import { memo, useEffect, useState } from "react";
 
 const WORD_LIST = [
   "FINAL",
@@ -28,86 +27,115 @@ const WORD_LIST = [
   "ASSAULT",
   "THRIVE",
   "CONQUER",
-];
+] as const;
 
-// Helper: n unique random indexes
+const ACTIVE_WORD_COUNT = 3;
+const FLIP_INTERVAL = 5000;
+
+// Returns a set of unique random word indexes.
 const getRandomIndexes = (max: number, count: number) => {
   const indexes = new Set<number>();
+
   while (indexes.size < count) {
     indexes.add(Math.floor(Math.random() * max));
   }
-  return Array.from(indexes);
+
+  return indexes;
 };
 
-// Memoized Tile
-// Tile.tsx
-const Tile = ({
-  letter,
-  active,
-  delay,
-}: {
+type TileProps = {
   letter: string;
   active: boolean;
   delay: number;
-}) => {
+};
+
+const Tile = memo(({ letter, active, delay }: TileProps) => {
   return (
-    <div style={{ perspective: "1000px" }} className="w-[5vw] aspect-square">
+    <div
+      className="aspect-square w-[5vw]"
+      style={{ perspective: "1000px" }}
+    >
       <motion.div
         animate={{ rotateY: active ? 0 : 180 }}
-        transition={{ duration: 0.6, ease: "easeInOut", delay }}
-        className="relative w-full h-full"
+        transition={{
+          duration: 0.6,
+          ease: "easeInOut",
+          delay,
+        }}
+        className="relative size-full will-change-transform"
         style={{ transformStyle: "preserve-3d" }}
       >
-        {/* FRONT */}
         <div
-          className="absolute inset-0 grid place-content-center rounded-md outline-[0.5px] outline-stone-300 text-black bg-white"
+          className="absolute inset-0 grid place-content-center rounded-md bg-white text-black outline-[0.5px] outline-stone-300"
           style={{ backfaceVisibility: "hidden" }}
         >
-          <p className="text-[2vw] font-bold">{letter}</p>
+          <span className="text-[2vw] font-bold">{letter}</span>
         </div>
 
-        {/* BACK */}
         <div
-          className="absolute inset-0 grid place-content-center rounded-md bg-stone-100"
-          style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
+          className="absolute inset-0 rounded-md bg-stone-100"
+          style={{
+            transform: "rotateY(180deg)",
+            backfaceVisibility: "hidden",
+          }}
         />
       </motion.div>
     </div>
   );
+});
+
+Tile.displayName = "Tile";
+
+type WordProps = {
+  word: string;
+  active: boolean;
 };
 
-// Memoized Word
-const Word = ({ word, active }: { word: string; active: boolean }) => {
-  const letters = useMemo(() => word.split(""), [word]);
+const Word = memo(({ word, active }: WordProps) => {
   return (
     <div className="flex gap-2">
-      {letters.map((letter, i) => (
-        <Tile key={i} letter={letter} active={active} delay={i * 0.07} />
+      {word.split("").map((letter, index) => (
+        <Tile
+          key={`${word}-${index}`}
+          letter={letter}
+          active={active}
+          delay={index * 0.07}
+        />
       ))}
     </div>
   );
-};
+});
 
-// Flipper.tsx
+Word.displayName = "Word";
+
 const Flipper = () => {
-  const [activeWords, setActiveWords] = useState<number[]>([]);
+  const [activeWords, setActiveWords] = useState<Set<number>>(
+    () => getRandomIndexes(WORD_LIST.length, ACTIVE_WORD_COUNT),
+  );
 
   useEffect(() => {
-    setActiveWords(getRandomIndexes(WORD_LIST.length, 3));
+    const interval = window.setInterval(() => {
+      setActiveWords(
+        getRandomIndexes(WORD_LIST.length, ACTIVE_WORD_COUNT),
+      );
+    }, FLIP_INTERVAL);
 
-    const interval = setInterval(() => {
-      setActiveWords(getRandomIndexes(WORD_LIST.length, 3));
-    }, 5000);
-
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, []);
 
   return (
-    <div className="blur-[6px] fixed inset-0 -z-10 pointer-events-none flex flex-wrap justify-center items-center gap-[1vw] p-[2vw]">
-      {WORD_LIST.map((word, i) => (
-        <Word key={i} word={word} active={activeWords.includes(i)} />
-      ))}
+    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+      <div className="flex size-full flex-wrap items-center justify-center gap-[1vw] p-[2vw] blur-[6px]">
+        {WORD_LIST.map((word, index) => (
+          <Word
+            key={word}
+            word={word}
+            active={activeWords.has(index)}
+          />
+        ))}
+      </div>
     </div>
   );
 };
+
 export default Flipper;
