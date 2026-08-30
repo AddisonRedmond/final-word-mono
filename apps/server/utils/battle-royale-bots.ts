@@ -117,9 +117,9 @@ export const runBots = (
     [botId: string]: BotServerData;
   },
   playerData: Map<string, PlayerDisplay>,
+  onUpdate: () => void,
 ) => {
   return setInterval(() => {
-    console.log("RUNNINGBOTS");
     const now = Date.now();
 
     for (const [botId, botServerData] of Object.entries(serverOnlyBotdata)) {
@@ -152,12 +152,13 @@ export const runBots = (
 
       switch (result.type) {
         case "correct": {
-          // Bot correctly guesses botServerData.word
           applyCorrectGuessReward({
             player: botDisplayData,
             userId: botId,
             roomServerOnlyData: serverOnlyBotdata,
           });
+
+          onUpdate();
 
           break;
         }
@@ -169,18 +170,18 @@ export const runBots = (
             botServerData.word,
           );
 
-          console.log("revealed");
           botDisplayData.revealed_letters = updatedReveal;
-          // Reveal result.amount letters
-          // Use botServerData.word to determine
-          // which letters are available to reveal.
+
+          onUpdate();
 
           break;
         }
 
         case "incorrect": {
-          // Incorrect guess
+          // Incorrect guess.
           // For now, no additional information gained.
+
+          onUpdate();
 
           break;
         }

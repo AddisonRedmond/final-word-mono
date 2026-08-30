@@ -29,6 +29,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const Max_Players = 99;
+const Game_Update_Delay = 250;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
@@ -81,11 +82,30 @@ const emitLobbyUpdate = (roomId: string, game: Game) => {
   });
 };
 
+const scheduleLobbyUpdate = (roomId: string, game: Game) => {
+  const roomServerOnlyData = serverOnlyData.get(roomId);
+
+  if (!roomServerOnlyData) {
+    return;
+  }
+
+  if (roomServerOnlyData.timers.updateTicker) {
+    return;
+  }
+
+  roomServerOnlyData.timers.updateTicker = setTimeout(() => {
+    roomServerOnlyData.timers.updateTicker = undefined;
+
+    emitLobbyUpdate(roomId, game);
+  }, Game_Update_Delay);
+};
+
 const cleanupGame = (roomId: string) => {
   const roomServerOnlyData = serverOnlyData.get(roomId);
 
   if (roomServerOnlyData) {
-    const { startTimer, gameTimer, botTicker } = roomServerOnlyData.timers;
+    const { startTimer, gameTimer, botTicker, updateTicker } =
+      roomServerOnlyData.timers;
 
     if (startTimer) {
       clearTimeout(startTimer);
@@ -97,6 +117,10 @@ const cleanupGame = (roomId: string) => {
 
     if (botTicker) {
       clearInterval(botTicker);
+    }
+
+    if (updateTicker) {
+      clearTimeout(updateTicker);
     }
   }
 
@@ -182,7 +206,7 @@ io.on("connection", (socket) => {
 
     // Keep the player and their private game data so an accidental disconnect
     // can reconnect to the same game. Explicit leave removes them below.
-    emitLobbyUpdate(roomId, game);
+    scheduleLobbyUpdate(roomId, game);
   });
 
   socket.on("leave", (ack?: (response: { ok: boolean }) => void) => {
@@ -215,7 +239,7 @@ io.on("connection", (socket) => {
     if (game.players.size === 0) {
       cleanupGame(roomId);
     } else {
-      emitLobbyUpdate(roomId, game);
+      scheduleLobbyUpdate(roomId, game);
     }
 
     console.log(`${name} left ${roomId}`);
@@ -232,7 +256,7 @@ io.on("connection", (socket) => {
 
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
-        // clean up user from game so they can join anothe game
+        // clean up user from game so they can join another game
         socket.emit("join:error", {
           code: "ELIMINATED",
           message: "Eliminated players cannot rejoin this game.",
@@ -302,7 +326,9 @@ io.on("connection", (socket) => {
             const bots = serverOnlyBotData.get(roomId);
 
             if (bots) {
-              timers.botTicker = runBots(bots, game.players);
+              timers.botTicker = runBots(bots, game.players, () => {
+                scheduleLobbyUpdate(roomId, game);
+              });
             }
           }
         },
@@ -365,10 +391,6 @@ io.on("connection", (socket) => {
         roomServerOnlyData: roomServerOnlyData.playerData,
       });
     } else {
-      // TODO: maybe apply punishment if player fails to guess to times in a row
-      // TODO: if the word has double letters, even if the index of one of the double letters is correct, it should still be yellow
-      // until they get both of the double letters
-
       const fullLetters = Object.values(result.fullMatches);
 
       player.revealed_letters = {
@@ -392,6 +414,6 @@ io.on("connection", (socket) => {
       );
     }
 
-    emitLobbyUpdate(roomId, game);
+    scheduleLobbyUpdate(roomId, game);
   });
 });

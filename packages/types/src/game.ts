@@ -41,6 +41,7 @@ export type RoomTimers = {
   startTimer?: ReturnType<typeof setTimeout>;
   gameTimer?: ReturnType<typeof setInterval>;
   botTicker?: ReturnType<typeof setInterval>;
+  updateTicker?: ReturnType<typeof setTimeout>;
 };
 
 export type Room = {
