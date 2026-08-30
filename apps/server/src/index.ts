@@ -230,7 +230,6 @@ io.on("connection", (socket) => {
     const existingGame = findGameForUser(games, userId);
     const existingPlayer = existingGame?.players.get(userId);
 
-    
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
         // clean up user from game so they can join anothe game
@@ -302,7 +301,7 @@ io.on("connection", (socket) => {
           if (lobbyStarted) {
             const bots = serverOnlyBotData.get(roomId);
 
-            if (bots?.size) {
+            if (bots) {
               timers.botTicker = runBots(bots, game.players);
             }
           }

@@ -21,6 +21,22 @@ const getRandomInt = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+const revealRandom = (
+  numberToReveal: number,
+  oldReveal: number[],
+  word: string,
+) => {
+  const available = [0, 1, 2, 3, 4].filter(
+    (number) => !oldReveal.includes(number),
+  );
+
+  const shuffled = [...available].sort(() => Math.random() - 0.5);
+
+  const reveal = [...oldReveal, ...shuffled.slice(0, numberToReveal)];
+
+  return Object.fromEntries(reveal.map((index) => [index, word[index]]));
+};
+
 const getBotGuessResult = ({
   level,
   botGuesses,
@@ -103,6 +119,7 @@ export const runBots = (
   playerData: Map<string, PlayerDisplay>,
 ) => {
   return setInterval(() => {
+    console.log("RUNNINGBOTS");
     const now = Date.now();
 
     for (const [botId, botServerData] of Object.entries(serverOnlyBotdata)) {
@@ -137,8 +154,8 @@ export const runBots = (
         case "correct": {
           // Bot correctly guesses botServerData.word
           applyCorrectGuessReward({
-            player:botDisplayData,
-            userId:botId,
+            player: botDisplayData,
+            userId: botId,
             roomServerOnlyData: serverOnlyBotdata,
           });
 
@@ -146,6 +163,14 @@ export const runBots = (
         }
 
         case "reveal": {
+          const updatedReveal = revealRandom(
+            result.amount,
+            Object.keys(botDisplayData.revealed_letters ?? {}).map(Number),
+            botServerData.word,
+          );
+
+          console.log("revealed");
+          botDisplayData.revealed_letters = updatedReveal;
           // Reveal result.amount letters
           // Use botServerData.word to determine
           // which letters are available to reveal.
