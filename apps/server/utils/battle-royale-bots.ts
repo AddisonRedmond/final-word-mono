@@ -3,6 +3,7 @@ import type {
   PlayerDisplay,
   BotServerData,
 } from "../../../packages/types/src/game.js";
+import { applyCorrectGuessReward } from "./battle-royale.js";
 
 type BotGuessResult =
   | {
@@ -135,6 +136,11 @@ export const runBots = (
       switch (result.type) {
         case "correct": {
           // Bot correctly guesses botServerData.word
+          applyCorrectGuessReward({
+            player:botDisplayData,
+            userId:botId,
+            roomServerOnlyData: serverOnlyBotdata,
+          });
 
           break;
         }

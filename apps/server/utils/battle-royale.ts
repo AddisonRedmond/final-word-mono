@@ -6,6 +6,7 @@ import type {
   RoomTimers,
   ServerBotData,
   ServerOnlyData,
+  ServerPlayerData,
 } from "../../../packages/types/src/game.js";
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
@@ -210,7 +211,7 @@ export const applyCorrectGuessReward = ({
 }: {
   player: PlayerDisplay;
   userId: string;
-  roomServerOnlyData: RoomServerData;
+  roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
 }) => {
   const guessCount = Math.min(
     Math.max(player.currentWordGuesses, 1),
@@ -226,5 +227,5 @@ export const applyCorrectGuessReward = ({
   player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
-  roomServerOnlyData.playerData[userId].word = getRandomWord();
+  roomServerOnlyData[userId].word = getRandomWord();
 };

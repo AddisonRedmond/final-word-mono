@@ -226,11 +226,14 @@ io.on("connection", (socket) => {
     const { userId, name } = socket.data;
     console.log(`${name} connected`);
 
+    // reconnect logic:start
     const existingGame = findGameForUser(games, userId);
     const existingPlayer = existingGame?.players.get(userId);
 
+    
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
+        // clean up user from game so they can join anothe game
         socket.emit("join:error", {
           code: "ELIMINATED",
           message: "Eliminated players cannot rejoin this game.",
@@ -250,6 +253,7 @@ io.on("connection", (socket) => {
 
       return;
     }
+    // reconnect logic:end
 
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
@@ -359,7 +363,7 @@ io.on("connection", (socket) => {
       applyCorrectGuessReward({
         player,
         userId,
-        roomServerOnlyData,
+        roomServerOnlyData: roomServerOnlyData.playerData,
       });
     } else {
       // TODO: maybe apply punishment if player fails to guess to times in a row
