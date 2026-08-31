@@ -5,7 +5,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { Socket } from "socket.io-client";
-import type { ClientGame } from "@/types/game";
+import type { ClientGame } from "@/types/battle-royale.types";
 
 type UseBattleRoyaleSocketProps = {
   socketRef: RefObject<Socket | null>;

@@ -1,4 +1,4 @@
-import type { PlayerDisplay } from "@/types/game";
+import type { PlayerDisplay } from "@/types/battle-royale.types";
 import CircularTimer from "./opponent-timer";
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";

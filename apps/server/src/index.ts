@@ -12,6 +12,7 @@ import {
   getRandomWord,
   handleAddBots,
   applyCorrectGuessReward,
+  applyAttack,
 } from "../utils/battle-royale.js";
 import type {
   Game,
@@ -20,7 +21,7 @@ import type {
   ServerBotData,
   TargetType,
   RoomServerData,
-} from "../../../packages/types/src/game.js";
+} from "../../../packages/types/src/battle-royale.types.js";
 import { runBots } from "../utils/battle-royale-bots.js";
 
 const app = new Hono();
@@ -132,7 +133,7 @@ const cleanupGame = (roomId: string) => {
 const getGuessContext = (
   roomId: string,
   userId: string,
-  payload: { word: string; targetType: TargetType },
+  payload: { word: string; target: string },
 ) => {
   const game = games.get(roomId);
   const roomServerOnlyData = serverOnlyData.get(roomId);
@@ -256,7 +257,7 @@ io.on("connection", (socket) => {
 
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
-        // clean up user from game so they can join another game
+        //TODO:clean up user from game so they can join another game
         socket.emit("join:error", {
           code: "ELIMINATED",
           message: "Eliminated players cannot rejoin this game.",
@@ -293,6 +294,7 @@ io.on("connection", (socket) => {
       currentWordGuesses: 0,
     });
 
+    // start: if there isn't existing roomServerData build it
     if (!roomServerOnlyData) {
       roomServerOnlyData = {
         playerData: {},
@@ -337,7 +339,7 @@ io.on("connection", (socket) => {
 
       timers.startTimer = startTimer;
     }
-
+    // end: if there isn't existing roomServerData build it
     roomServerOnlyData.playerData[userId] = {
       word: getRandomWord(),
       queue: [],
@@ -356,7 +358,7 @@ io.on("connection", (socket) => {
     emitLobbyUpdate(roomId, game);
   });
 
-  socket.on("guess", (payload: { word: string; targetType: TargetType }) => {
+  socket.on("guess", (payload: { word: string; target: string }) => {
     const roomId = socket.data.roomId as string | undefined;
     const userId = socket.data.userId as string | undefined;
 
@@ -390,6 +392,7 @@ io.on("connection", (socket) => {
         userId,
         roomServerOnlyData: roomServerOnlyData.playerData,
       });
+      applyAttack();
     } else {
       const fullLetters = Object.values(result.fullMatches);
 

@@ -1,4 +1,4 @@
-import type { PlayerDisplay } from "@/types/game";
+import type { PlayerDisplay } from "@/types/battle-royale.types";
 
 type PlayerStats = { playerdata: PlayerDisplay };
 

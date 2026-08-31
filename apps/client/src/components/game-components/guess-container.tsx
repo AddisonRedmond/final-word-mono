@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
-import type { RevealedLetters } from "@/types/game";
+import type { RevealedLetters } from "@/types/battle-royale.types";
 
 type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
 type GuessContainerProps = {

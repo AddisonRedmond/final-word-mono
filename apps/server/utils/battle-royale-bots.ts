@@ -2,7 +2,7 @@ import type {
   ServerBotData,
   PlayerDisplay,
   BotServerData,
-} from "../../../packages/types/src/game.js";
+} from "../../../packages/types/src/battle-royale.types.js";
 import { applyCorrectGuessReward } from "./battle-royale.js";
 
 type BotGuessResult =

@@ -7,7 +7,8 @@ import type {
   ServerBotData,
   ServerOnlyData,
   ServerPlayerData,
-} from "../../../packages/types/src/game.js";
+  TargetType,
+} from "../../../packages/types/src/battle-royale.types.js";
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
@@ -228,4 +229,8 @@ export const applyCorrectGuessReward = ({
   player.noMatch = [];
   player.partialMatches = [];
   roomServerOnlyData[userId].word = getRandomWord();
+};
+
+export const applyAttack = (userToAttack: string, attackingPlayerDisplayData: PlayerDisplay ) => {
+  
 };

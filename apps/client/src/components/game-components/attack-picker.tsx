@@ -1,9 +1,9 @@
-import type { TargetTypes } from "@/types/game";
+import type { TargetType } from "@/types/battle-royale.types";
 import type { Dispatch, SetStateAction } from "react";
 
 type AttackPickerProps = {
-  target: TargetTypes;
-  setTarget: Dispatch<SetStateAction<TargetTypes>>;
+  target: TargetType;
+  setTarget: Dispatch<SetStateAction<TargetType>>;
 };
 
 type TargetButtonProps = {
@@ -36,11 +36,7 @@ const TargetButton: React.FC<TargetButtonProps> = ({
         onClick={onClick}
         className={`z-10 col-span-full row-span-full cursor-pointer p-2
           transition-colors duration-150 ease-in-out
-          ${
-            selected
-              ? "text-white"
-              : "text-black group-hover:text-white"
-          }`}
+          ${selected ? "text-white" : "text-black group-hover:text-white"}`}
       >
         {label}
       </button>
@@ -48,10 +44,7 @@ const TargetButton: React.FC<TargetButtonProps> = ({
   );
 };
 
-const AttackPicker: React.FC<AttackPickerProps> = ({
-  target,
-  setTarget,
-}) => {
+const AttackPicker: React.FC<AttackPickerProps> = ({ target, setTarget }) => {
   return (
     <div className="flex gap-x-3 rounded-full px-4 py-2 font-semibold shadow-lg">
       <TargetButton

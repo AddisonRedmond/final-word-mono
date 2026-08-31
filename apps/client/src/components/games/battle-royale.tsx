@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type RefObject,
+} from "react";
 import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
-import type { ClientGame, PlayerDisplay, TargetType } from "@/types/game";
+import type {
+  ClientGame,
+  PlayerDisplay,
+  TargetType,
+} from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion } from "motion/react";
@@ -42,7 +52,8 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     if (!lobby?.room.isStarted) {
       return;
     }
-
+    // calculate target bafore sending
+    console.log(br.determineTarget(lobby.players, target));
     br.sendGuess({ guess, target, socketRef });
     setGuess("");
   }, [guess, lobby?.room.isStarted, socketRef, target]);
