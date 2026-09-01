@@ -1,5 +1,5 @@
 import type { PlayerDisplay } from "@/types/battle-royale.types";
-import CircularTimer from "./opponent-timer";
+import OpponentTimer from "./opponent-timer";
 import { memo, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -8,7 +8,8 @@ type OpponentsProps = {
 };
 
 const GAP = 8;
-const ASPECT_RATIO = 1 / 2;
+const ASPECT_RATIO = 8 / 5;
+const GUESS_LENGTH = 5;
 
 const Opponents = memo(({ opponents }: OpponentsProps) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -57,7 +58,7 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
   }
 
   return (
-    <motion.div ref={ref} className="grow overflow-hidden">
+    <motion.div ref={ref} className="grow overflow-y-auto overflow-x-hidden">
       <div className="flex flex-wrap content-start justify-evenly gap-2">
         <AnimatePresence>
           {opponents.map((opponent) => (
@@ -89,21 +90,43 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
                   ease: "easeOut",
                 },
               }}
-              className="flex flex-col items-center justify-between rounded-lg bg-zinc-100 shadow-md"
+              className="flex flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md"
               style={{
                 width: opponentWidth,
                 height: opponentWidth / ASPECT_RATIO,
               }}
             >
-              <div className="size-5">
-                <CircularTimer
-                  initials="B"
-                  duration={180_000}
-                  expiryTimestamp={opponent.life}
-                />
+              <OpponentTimer
+                initials="B"
+                duration={180_000}
+                expiryTimestamp={opponent.life}
+              />
+
+              <div className="flex flex-col items-center gap-y-0.5">
+                {opponent.display_queue?.map((item, queueIndex) => (
+                  <div key={queueIndex} className="flex gap-x-0.5">
+                    {Array.from({ length: GUESS_LENGTH }, (_, index) => (
+                      <div
+                        key={index}
+                        className="grid size-2 place-content-center rounded-sm bg-stone-300 text-[6px] font-semibold text-stone-700"
+                      >
+                        {item[index] ?? " "}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
 
-              <span>{opponent.name}</span>
+              <div className="flex gap-x-0.5">
+                {Array.from({ length: GUESS_LENGTH }, (_, index) => (
+                  <div
+                    key={index}
+                    className="grid size-3 place-content-center rounded-sm bg-emerald-500 text-[8px] font-semibold text-white"
+                  >
+                    {opponent?.revealed_letters?.[index] ?? " "}
+                  </div>
+                ))}
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -111,6 +134,5 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
     </motion.div>
   );
 });
-
 
 export default Opponents;

@@ -2,20 +2,19 @@
 
 import { memo, useEffect, useRef } from "react";
 
-type CircularTimerProps = {
+type OpponentTimerProps = {
   duration: number;
   expiryTimestamp: number;
   initials: string;
 };
 
 type Timer = {
-  circle: SVGCircleElement;
+  bar: HTMLDivElement;
   duration: number;
   expiryTimestamp: number;
-  circumference: number;
 };
 
-const timers = new Map<SVGCircleElement, Timer>();
+const timers = new Map<HTMLDivElement, Timer>();
 
 let animationFrameId: number | null = null;
 
@@ -25,14 +24,9 @@ const updateTimers = () => {
   for (const timer of timers.values()) {
     const remaining = Math.max(0, timer.expiryTimestamp - now);
 
-    const progress = Math.max(
-      0,
-      Math.min(1, remaining / timer.duration),
-    );
+    const progress = Math.max(0, Math.min(1, remaining / timer.duration));
 
-    timer.circle.style.strokeDashoffset = String(
-      timer.circumference * (1 - progress),
-    );
+    timer.bar.style.width = `${progress * 100}%`;
   }
 
   if (timers.size > 0) {
@@ -48,78 +42,48 @@ const startTimerLoop = () => {
   animationFrameId = requestAnimationFrame(updateTimers);
 };
 
-const CircularTimer = memo(
-  ({ duration, expiryTimestamp, initials }: CircularTimerProps) => {
-    const progressRef = useRef<SVGCircleElement>(null);
-
-    const radius = 45;
-    const circumference = 2 * Math.PI * radius;
+const OpponentTimer = memo(
+  ({ duration, expiryTimestamp, initials }: OpponentTimerProps) => {
+    const barRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-      const circle = progressRef.current;
+      const bar = barRef.current;
 
-      if (!circle) return;
+      if (!bar) return;
 
-      const timer: Timer = {
-        circle,
-        duration,
-        expiryTimestamp,
-        circumference,
-      };
+      const timer: Timer = { bar, duration, expiryTimestamp };
 
-      timers.set(circle, timer);
+      timers.set(bar, timer);
 
       startTimerLoop();
 
       return () => {
-        timers.delete(circle);
+        timers.delete(bar);
 
         if (timers.size === 0 && animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId);
           animationFrameId = null;
         }
       };
-    }, [circumference, duration, expiryTimestamp]);
+    }, [duration, expiryTimestamp]);
 
     return (
-      <div className="relative aspect-square w-full">
-        <svg
-          className="absolute inset-0 size-full -rotate-90"
-          viewBox="0 0 100 100"
-        >
-          <circle
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            className="text-zinc-200"
+      <div className="flex w-full items-center gap-x-1">
+        <span className="text-[9px] font-semibold leading-none">
+          {initials}
+        </span>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-200">
+          <div
+            ref={barRef}
+            className="h-full rounded-full bg-zinc-700"
+            style={{ width: "100%" }}
           />
-
-          <circle
-            ref={progressRef}
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            strokeLinecap="round"
-            className="text-zinc-700"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference}
-          />
-        </svg>
-
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-semibold">{initials}</span>
         </div>
       </div>
     );
   },
 );
 
-CircularTimer.displayName = "CircularTimer";
+OpponentTimer.displayName = "OpponentTimer";
 
-export default CircularTimer;
+export default OpponentTimer;
