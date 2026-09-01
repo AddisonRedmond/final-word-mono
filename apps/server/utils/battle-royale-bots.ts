@@ -2,8 +2,12 @@ import type {
   ServerBotData,
   PlayerDisplay,
   BotServerData,
-} from "../../../packages/types/src/battle-royale.types.js";
-import { applyCorrectGuessReward } from "./battle-royale.js";
+} from "types/battle-royale.types.js";
+import {
+  applyAttack,
+  applyCorrectGuessReward,
+  determineTarget,
+} from "./battle-royale.js";
 
 type BotGuessResult =
   | {
@@ -100,11 +104,11 @@ const getBotGuessResult = ({
 
 const getBotThinkTime = (level: 1 | 2 | 3 | 4 | 5) => {
   const thinkTimes = {
-    1: [4000, 7000],
-    2: [3000, 6000],
-    3: [2000, 5000],
-    4: [1500, 3500],
-    5: [1000, 2500],
+    1: [8000, 14000],
+    2: [6500, 12000],
+    3: [5000, 10000],
+    4: [3500, 7000],
+    5: [2500, 5000],
   } as const;
 
   const [min, max] = thinkTimes[level];
@@ -149,15 +153,28 @@ export const runBots = (
       });
 
       botServerData.botGuesses++;
+      botDisplayData.totalGuesses += 1;
+      botDisplayData.currentWordGuesses += 1;
 
       switch (result.type) {
         case "correct": {
+          const guessCount = botDisplayData.currentWordGuesses;
+          const guessedWord = botServerData.word;
+
           applyCorrectGuessReward({
             player: botDisplayData,
             userId: botId,
             roomServerOnlyData: serverOnlyBotdata,
           });
 
+          const targetId = determineTarget(
+            playerData,
+            botId,
+            botServerData.target,
+          );
+          const target = playerData.get(targetId);
+
+          applyAttack(guessedWord, guessCount, target);
           onUpdate();
 
           break;

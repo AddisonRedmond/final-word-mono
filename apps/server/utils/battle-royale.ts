@@ -2,13 +2,14 @@ import type {
   BotServerData,
   Game,
   PlayerDisplay,
+  RevealedLetters,
   RoomServerData,
   RoomTimers,
   ServerBotData,
   ServerOnlyData,
   ServerPlayerData,
   TargetType,
-} from "../../../packages/types/src/battle-royale.types.js";
+} from "types/battle-royale.types.js";
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
@@ -20,7 +21,17 @@ export const crownWinnerAndCleanUp = () => {};
 
 export const handleAddBots = (numberOfBotsToAdd: number) => {
   const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
-    return (Math.floor(Math.random() * 5) + 1) as 1 | 2 | 3 | 4 | 5;
+    // Average several uniform rolls to approximate a bell curve centered on level 3.
+    const rolls = 3;
+    const average =
+      Array.from({ length: rolls }, () => Math.random()).reduce(
+        (sum, value) => sum + value,
+        0,
+      ) / rolls;
+
+    const level = Math.floor(average * 5) + 1;
+
+    return Math.min(5, Math.max(1, level)) as 1 | 2 | 3 | 4 | 5;
   };
 
   const roomBotServerData: { [botId: string]: BotServerData } = {};
@@ -231,6 +242,112 @@ export const applyCorrectGuessReward = ({
   roomServerOnlyData[userId].word = getRandomWord();
 };
 
-export const applyAttack = (userToAttack: string, attackingPlayerDisplayData: PlayerDisplay ) => {
-  
+export const applyAttack = (
+  guessedWord: string,
+  guessCount: number,
+  target?: PlayerDisplay,
+) => {
+  if (!target || target.isEliminated || !guessedWord) {
+    return;
+  }
+
+  let lettersToReveal = 0;
+
+  if (guessCount <= 4) {
+    lettersToReveal = 3;
+  } else if (guessCount <= 6) {
+    lettersToReveal = 2;
+  } else if (guessCount >= 10) {
+    lettersToReveal = 1;
+  }
+
+  if (lettersToReveal === 0) {
+    return;
+  }
+
+  const queue = [...(target.display_queue ?? [])];
+
+  if (queue.length < 4) {
+    const word = guessedWord.toUpperCase();
+    const availableIndexes = word.split("").map((_, index) => index);
+
+    // Fisher-Yates shuffle so revealed letters are randomly positioned
+    for (let i = availableIndexes.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableIndexes[i], availableIndexes[j]] = [
+        availableIndexes[j],
+        availableIndexes[i],
+      ];
+    }
+
+    const revealedLetters: RevealedLetters = {};
+    for (const index of availableIndexes.slice(0, lettersToReveal)) {
+      revealedLetters[index] = word[index] as string;
+    }
+
+    queue.push(revealedLetters);
+    target.display_queue = queue;
+    return;
+  }
+
+  // Queue is already full: chip a letter off the fullest existing entries
+  // instead of shifting/pushing, so queue order and remaining letters stay put.
+  const entriesByLetterCount = queue
+    .map((entry, index) => ({ index, count: Object.keys(entry).length }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  for (const { index } of entriesByLetterCount.slice(0, lettersToReveal)) {
+    const entry = { ...queue[index] };
+    const keys = Object.keys(entry).map(Number);
+    const keyToRemove = keys[Math.floor(Math.random() * keys.length)];
+
+    if (keyToRemove !== undefined) {
+      delete entry[keyToRemove];
+    }
+
+    queue[index] = entry;
+  }
+
+  target.display_queue = queue;
+};
+
+export const determineTarget = (
+  players: Map<string, PlayerDisplay>,
+  selfId: string,
+  target: TargetType,
+): string => {
+  const activePlayers = Array.from(players.entries()).filter(
+    ([playerId, player]) => playerId !== selfId && !player.isEliminated,
+  );
+
+  if (activePlayers.length === 0) {
+    return "";
+  }
+
+  switch (target) {
+    case "first": {
+      return activePlayers.reduce((highest, current) =>
+        current[1].life > highest[1].life ? current : highest,
+      )[0];
+    }
+
+    case "last": {
+      return activePlayers.reduce((lowest, current) =>
+        current[1].life < lowest[1].life ? current : lowest,
+      )[0];
+    }
+
+    case "random": {
+      const randomIndex = Math.floor(Math.random() * activePlayers.length);
+
+      return activePlayers[randomIndex]?.[0] ?? "";
+    }
+
+    default:
+      // target is already a player id; fall back to random if they aren't targetable.
+      return activePlayers.some(([playerId]) => playerId === target)
+        ? target
+        : (activePlayers[Math.floor(Math.random() * activePlayers.length)]?.[0] ?? "");
+  }
 };

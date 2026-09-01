@@ -104,7 +104,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       evenOpponents,
     };
   }, [lobby?.players, userId]);
-  console.log(lobby?.players);
+  
   return (
     <motion.div
       initial={{ scale: 0, opacity: 0 }}
@@ -153,9 +153,9 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           />
         )}
 
-        {/* <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
-          {JSON.stringify(lobby, null, 2)}
-        </pre> */}
+        <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
+          {JSON.stringify(lobby?.players[userId], null, 2)}
+        </pre>
       </div>
       <Opponents opponents={oddOpponents} />
     </motion.div>

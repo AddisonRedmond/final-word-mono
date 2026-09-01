@@ -21,7 +21,7 @@ import type {
   ServerBotData,
   TargetType,
   RoomServerData,
-} from "../../../packages/types/src/battle-royale.types.js";
+} from "types/battle-royale.types.js";
 import { runBots } from "../utils/battle-royale-bots.js";
 
 const app = new Hono();
@@ -387,12 +387,14 @@ io.on("connection", (socket) => {
     const result = checkWord(guessedWord, targetWord);
 
     if (result.isMatch) {
+      const guessCount = player.currentWordGuesses;
       applyCorrectGuessReward({
         player,
         userId,
         roomServerOnlyData: roomServerOnlyData.playerData,
       });
-      applyAttack();
+      const target = game.players.get(payload.target);
+      applyAttack(targetWord, guessCount, target);
     } else {
       const fullLetters = Object.values(result.fullMatches);
 
