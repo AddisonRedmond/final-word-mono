@@ -16,11 +16,8 @@ import {
 } from "../utils/battle-royale.js";
 import type {
   Game,
-  PlayerDisplay,
   ServerOnlyData,
   ServerBotData,
-  TargetType,
-  RoomServerData,
 } from "types/battle-royale.types.js";
 import { runBots } from "../utils/battle-royale-bots.js";
 
@@ -296,12 +293,13 @@ io.on("connection", (socket) => {
 
     // start: if there isn't existing roomServerData build it
     if (!roomServerOnlyData) {
-      roomServerOnlyData = {
+      const newRoomServerOnlyData = {
         playerData: {},
         timers: {},
       };
+      roomServerOnlyData = newRoomServerOnlyData;
 
-      serverOnlyData.set(roomId, roomServerOnlyData);
+      serverOnlyData.set(roomId, newRoomServerOnlyData);
 
       const timers = roomServerOnlyData.timers;
 
@@ -328,9 +326,14 @@ io.on("connection", (socket) => {
             const bots = serverOnlyBotData.get(roomId);
 
             if (bots) {
-              timers.botTicker = runBots(bots, game.players, () => {
-                scheduleLobbyUpdate(roomId, game);
-              });
+              timers.botTicker = runBots(
+                bots,
+                game.players,
+                newRoomServerOnlyData.playerData,
+                () => {
+                  scheduleLobbyUpdate(roomId, game);
+                },
+              );
             }
           }
         },
@@ -379,8 +382,6 @@ io.on("connection", (socket) => {
       return;
     }
 
-    console.log(roomServerOnlyData.playerData);
-
     player.totalGuesses += 1;
     player.currentWordGuesses += 1;
 
@@ -394,7 +395,10 @@ io.on("connection", (socket) => {
         roomServerOnlyData: roomServerOnlyData.playerData,
       });
       const target = game.players.get(payload.target);
-      applyAttack(targetWord, guessCount, target);
+      const targetServerData =
+        roomServerOnlyData.playerData[payload.target] ??
+        serverOnlyBotData.get(roomId)?.[payload.target];
+      applyAttack(targetWord, guessCount, target, targetServerData);
     } else {
       const fullLetters = Object.values(result.fullMatches);
 
@@ -418,7 +422,6 @@ io.on("connection", (socket) => {
           !player.partialMatches?.includes(letter),
       );
     }
-
     scheduleLobbyUpdate(roomId, game);
   });
 });

@@ -2,11 +2,9 @@ import type {
   BotServerData,
   Game,
   PlayerDisplay,
+  PlayerServerData,
   RevealedLetters,
-  RoomServerData,
   RoomTimers,
-  ServerBotData,
-  ServerOnlyData,
   ServerPlayerData,
   TargetType,
 } from "types/battle-royale.types.js";
@@ -236,19 +234,30 @@ export const applyCorrectGuessReward = ({
   player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
 
   player.currentWordGuesses = 0;
-  player.revealed_letters = {};
   player.noMatch = [];
   player.partialMatches = [];
-  roomServerOnlyData[userId].word = getRandomWord();
+
+  // the display_queue is kept in step with serverData.queue, so the reveal for
+  // the word that's about to become active moves into revealed_letters with it.
+  player.revealed_letters = player.display_queue?.shift() ?? {};
+
+  const serverData = roomServerOnlyData[userId];
+  const nextWord = serverData.queue.shift();
+  serverData.word = nextWord ?? getRandomWord();
 };
 
 export const applyAttack = (
   guessedWord: string,
   guessCount: number,
   target?: PlayerDisplay,
+  targetServerData?: PlayerServerData | BotServerData,
 ) => {
   if (!target || target.isEliminated || !guessedWord) {
     return;
+  }
+
+  if (targetServerData) {
+    targetServerData.queue.push(guessedWord.toUpperCase());
   }
 
   let lettersToReveal = 0;
@@ -265,11 +274,14 @@ export const applyAttack = (
     return;
   }
 
-  const queue = [...(target.display_queue ?? [])];
+  const queue = target.display_queue ?? (target.display_queue = []);
 
   if (queue.length < 4) {
     const word = guessedWord.toUpperCase();
-    const availableIndexes = word.split("").map((_, index) => index);
+    const availableIndexes = Array.from(
+      { length: word.length },
+      (_, index) => index,
+    );
 
     // Fisher-Yates shuffle so revealed letters are randomly positioned
     for (let i = availableIndexes.length - 1; i > 0; i -= 1) {
@@ -286,30 +298,29 @@ export const applyAttack = (
     }
 
     queue.push(revealedLetters);
-    target.display_queue = queue;
     return;
   }
 
   // Queue is already full: chip a letter off the fullest existing entries
   // instead of shifting/pushing, so queue order and remaining letters stay put.
-  const entriesByLetterCount = queue
-    .map((entry, index) => ({ index, count: Object.keys(entry).length }))
-    .filter((entry) => entry.count > 0)
-    .sort((a, b) => b.count - a.count);
+  const entriesByLetterCount: { index: number; count: number }[] = [];
+  for (let index = 0; index < queue.length; index += 1) {
+    const count = Object.keys(queue[index] as RevealedLetters).length;
+    if (count > 0) {
+      entriesByLetterCount.push({ index, count });
+    }
+  }
+  entriesByLetterCount.sort((a, b) => b.count - a.count);
 
   for (const { index } of entriesByLetterCount.slice(0, lettersToReveal)) {
-    const entry = { ...queue[index] };
+    const entry = queue[index] as RevealedLetters;
     const keys = Object.keys(entry).map(Number);
     const keyToRemove = keys[Math.floor(Math.random() * keys.length)];
 
     if (keyToRemove !== undefined) {
       delete entry[keyToRemove];
     }
-
-    queue[index] = entry;
   }
-
-  target.display_queue = queue;
 };
 
 export const determineTarget = (
@@ -317,37 +328,54 @@ export const determineTarget = (
   selfId: string,
   target: TargetType,
 ): string => {
-  const activePlayers = Array.from(players.entries()).filter(
-    ([playerId, player]) => playerId !== selfId && !player.isEliminated,
-  );
+  // single pass over the map instead of building/filtering an entries array
+  const activeIds: string[] = [];
+  let firstId = "";
+  let firstLife = -Infinity;
+  let lastId = "";
+  let lastLife = Infinity;
+  let targetIsActive = false;
 
-  if (activePlayers.length === 0) {
+  for (const [playerId, player] of players) {
+    if (playerId === selfId || player.isEliminated) {
+      continue;
+    }
+
+    activeIds.push(playerId);
+
+    if (player.life > firstLife) {
+      firstLife = player.life;
+      firstId = playerId;
+    }
+
+    if (player.life < lastLife) {
+      lastLife = player.life;
+      lastId = playerId;
+    }
+
+    if (playerId === target) {
+      targetIsActive = true;
+    }
+  }
+
+  if (activeIds.length === 0) {
     return "";
   }
 
   switch (target) {
-    case "first": {
-      return activePlayers.reduce((highest, current) =>
-        current[1].life > highest[1].life ? current : highest,
-      )[0];
-    }
+    case "first":
+      return firstId;
 
-    case "last": {
-      return activePlayers.reduce((lowest, current) =>
-        current[1].life < lowest[1].life ? current : lowest,
-      )[0];
-    }
+    case "last":
+      return lastId;
 
-    case "random": {
-      const randomIndex = Math.floor(Math.random() * activePlayers.length);
-
-      return activePlayers[randomIndex]?.[0] ?? "";
-    }
+    case "random":
+      return activeIds[Math.floor(Math.random() * activeIds.length)] ?? "";
 
     default:
       // target is already a player id; fall back to random if they aren't targetable.
-      return activePlayers.some(([playerId]) => playerId === target)
+      return targetIsActive
         ? target
-        : (activePlayers[Math.floor(Math.random() * activePlayers.length)]?.[0] ?? "");
+        : (activeIds[Math.floor(Math.random() * activeIds.length)] ?? "");
   }
 };

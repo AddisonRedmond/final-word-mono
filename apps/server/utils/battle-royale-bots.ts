@@ -2,6 +2,7 @@ import type {
   ServerBotData,
   PlayerDisplay,
   BotServerData,
+  ServerPlayerData,
 } from "types/battle-royale.types.js";
 import {
   applyAttack,
@@ -25,20 +26,45 @@ const getRandomInt = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
+const ALL_LETTER_INDEXES = [0, 1, 2, 3, 4];
+
+// hoisted so these lookup tables aren't re-allocated on every bot tick
+const BASE_CORRECT_CHANCE = { 1: 2, 2: 4, 3: 7, 4: 11, 5: 16 } as const;
+const BASE_REVEAL_CHANCE = { 1: 20, 2: 25, 3: 30, 4: 35, 5: 40 } as const;
+const REVEAL_TWO_CHANCE = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 40 } as const;
+const THINK_TIMES = {
+  1: [8000, 14000],
+  2: [6500, 12000],
+  3: [5000, 10000],
+  4: [3500, 7000],
+  5: [2500, 5000],
+} as const;
+
 const revealRandom = (
   numberToReveal: number,
   oldReveal: number[],
   word: string,
 ) => {
-  const available = [0, 1, 2, 3, 4].filter(
+  const available = ALL_LETTER_INDEXES.filter(
     (number) => !oldReveal.includes(number),
   );
 
-  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  // Fisher-Yates instead of a random-comparator sort (which is biased and
+  // allocates an extra copy via the leading spread).
+  for (let i = available.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
 
-  const reveal = [...oldReveal, ...shuffled.slice(0, numberToReveal)];
+  const reveal: Record<number, string> = {};
+  for (const index of oldReveal) {
+    reveal[index] = word[index] as string;
+  }
+  for (const index of available.slice(0, numberToReveal)) {
+    reveal[index] = word[index] as string;
+  }
 
-  return Object.fromEntries(reveal.map((index) => [index, word[index]]));
+  return reveal;
 };
 
 const getBotGuessResult = ({
@@ -53,34 +79,8 @@ const getBotGuessResult = ({
   // The bot gets better the longer it has been guessing.
   const progressBonus = Math.min(botGuesses * 2, 20);
 
-  // Base chance to correctly guess the entire word.
-  const baseCorrectChance = {
-    1: 2,
-    2: 4,
-    3: 7,
-    4: 11,
-    5: 16,
-  }[level];
-
-  // Chance to get a useful reveal.
-  const baseRevealChance = {
-    1: 20,
-    2: 25,
-    3: 30,
-    4: 35,
-    5: 40,
-  }[level];
-
-  const correctChance = baseCorrectChance + progressBonus;
-
-  // Higher-level bots have a greater chance of revealing two letters.
-  const revealTwoChance = {
-    1: 5,
-    2: 10,
-    3: 20,
-    4: 30,
-    5: 40,
-  }[level];
+  const correctChance = BASE_CORRECT_CHANCE[level] + progressBonus;
+  const baseRevealChance = BASE_REVEAL_CHANCE[level];
 
   if (roll < correctChance) {
     return {
@@ -89,7 +89,7 @@ const getBotGuessResult = ({
   }
 
   if (roll < correctChance + baseRevealChance) {
-    const amount = Math.random() * 100 < revealTwoChance ? 2 : 1;
+    const amount = Math.random() * 100 < REVEAL_TWO_CHANCE[level] ? 2 : 1;
 
     return {
       type: "reveal",
@@ -103,15 +103,7 @@ const getBotGuessResult = ({
 };
 
 const getBotThinkTime = (level: 1 | 2 | 3 | 4 | 5) => {
-  const thinkTimes = {
-    1: [8000, 14000],
-    2: [6500, 12000],
-    3: [5000, 10000],
-    4: [3500, 7000],
-    5: [2500, 5000],
-  } as const;
-
-  const [min, max] = thinkTimes[level];
+  const [min, max] = THINK_TIMES[level];
 
   return getRandomInt(min, max);
 };
@@ -121,12 +113,20 @@ export const runBots = (
     [botId: string]: BotServerData;
   },
   playerData: Map<string, PlayerDisplay>,
+  playerServerData: ServerPlayerData,
   onUpdate: () => void,
 ) => {
   return setInterval(() => {
     const now = Date.now();
 
-    for (const [botId, botServerData] of Object.entries(serverOnlyBotdata)) {
+    // avoid allocating an entries array every tick
+    for (const botId in serverOnlyBotdata) {
+      const botServerData = serverOnlyBotdata[botId];
+
+      if (!botServerData) {
+        continue;
+      }
+
       const botDisplayData = playerData.get(botId);
 
       if (!botDisplayData) {
@@ -173,8 +173,10 @@ export const runBots = (
             botServerData.target,
           );
           const target = playerData.get(targetId);
+          const targetServerData =
+            serverOnlyBotdata[targetId] ?? playerServerData[targetId];
 
-          applyAttack(guessedWord, guessCount, target);
+          applyAttack(guessedWord, guessCount, target, targetServerData);
           onUpdate();
 
           break;
