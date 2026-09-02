@@ -52,8 +52,6 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     if (!lobby?.room.isStarted) {
       return;
     }
-    // calculate target bafore sending
-    console.log(br.determineTarget(lobby.players, target));
     br.sendGuess({ guess, target, socketRef });
     setGuess("");
   }, [guess, lobby?.room.isStarted, socketRef, target]);
@@ -61,7 +59,6 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
-        console.log(lobby?.players[userId]);
         handleEnter();
         return;
       }
@@ -105,6 +102,10 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       evenOpponents,
     };
   }, [lobby?.players, userId]);
+
+  const targetUser = () => {
+    
+  }
 
   return (
     <motion.div

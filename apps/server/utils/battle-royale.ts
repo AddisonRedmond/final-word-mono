@@ -231,7 +231,13 @@ export const applyCorrectGuessReward = ({
   const now = Date.now();
   const maxLifeExpiry = now + 3 * 60 * 1000;
   const currentLife = Math.max(player.life, now);
-  player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+
+  const serverData = roomServerOnlyData[userId];
+  const nextWord = serverData.queue.shift();
+  // only reward bonus life for a fresh random word, not an incoming attack word
+  if (nextWord === undefined) {
+    player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+  }
 
   player.currentWordGuesses = 0;
   player.noMatch = [];
@@ -241,8 +247,6 @@ export const applyCorrectGuessReward = ({
   // the word that's about to become active moves into revealed_letters with it.
   player.revealed_letters = player.display_queue?.shift() ?? {};
 
-  const serverData = roomServerOnlyData[userId];
-  const nextWord = serverData.queue.shift();
   serverData.word = nextWord ?? getRandomWord();
 };
 

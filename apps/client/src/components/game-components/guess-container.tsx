@@ -64,12 +64,8 @@ const GuessLetter = memo(function GuessLetter({
     <div
       className={`grid size-14 place-content-center rounded-md relative ${variantClasses[variant]}`}
     >
+      <p className="absolute text-xs top-0.5 right-0.5">{match}</p>
       <AnimatePresence>
-        {
-          <m.p key="match" className="absolute text-xs top-0.5 right-0.5">
-            {match}
-          </m.p>
-        }
         {letter && (
           <m.p
             key="letter"
