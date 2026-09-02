@@ -234,9 +234,11 @@ export const applyCorrectGuessReward = ({
 
   const serverData = roomServerOnlyData[userId];
   const nextWord = serverData.queue.shift();
-  // only reward bonus life for a fresh random word, not an incoming attack word
+  const attackWordBonus = 10 * 1000;
   if (nextWord === undefined) {
     player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+  } else {
+    player.life = Math.min(currentLife + attackWordBonus, maxLifeExpiry);
   }
 
   player.currentWordGuesses = 0;

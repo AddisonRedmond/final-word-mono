@@ -142,8 +142,16 @@ export const runBots = (
         continue;
       }
 
+      // First tick since the bot was added/started: begin thinking instead of
+      // guessing immediately (guessTimeStamp is unset until after a guess).
+      if (botServerData.guessTimeStamp === undefined) {
+        botServerData.guessTimeStamp =
+          now + getBotThinkTime(botServerData.level);
+        continue;
+      }
+
       // The bot is still thinking.
-      if (botServerData.guessTimeStamp && now < botServerData.guessTimeStamp) {
+      if (now < botServerData.guessTimeStamp) {
         continue;
       }
 
