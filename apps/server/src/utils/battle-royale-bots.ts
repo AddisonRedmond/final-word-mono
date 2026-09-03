@@ -135,9 +135,7 @@ export const runBots = (
         continue;
       }
 
-      if (botDisplayData.isEliminated) {
-        logger.debug({ botId }, "Bot tick skipped: bot eliminated");
-        continue;
+      if (botDisplayData.isEliminated) {        continue;
       }
 
       // The bot's life timer expired.
@@ -188,7 +186,6 @@ export const runBots = (
             serverOnlyBotdata[targetId] ?? playerServerData[targetId];
 
           applyAttack(guessedWord, guessCount, target, targetServerData);
-          logger.debug({ botId, targetId, guessCount }, "Bot made correct guess");
           onUpdate();
 
           break;
@@ -203,11 +200,7 @@ export const runBots = (
 
           botDisplayData.revealed_letters = updatedReveal;
 
-          logger.debug({ botId, amount: result.amount }, "Bot revealed letters");
-
           onUpdate();
-
-          logger.debug({ botId }, "Bot made incorrect guess");
 
           break;
         }

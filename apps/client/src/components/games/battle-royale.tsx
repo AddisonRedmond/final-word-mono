@@ -9,7 +9,6 @@ import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
 import type {
   ClientGame,
-  PlayerDisplay,
   TargetType,
 } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
@@ -21,6 +20,7 @@ import Keyboard from "../game-components/keyboard";
 import Eliminated from "../game-components/eliminated";
 import AttackPicker from "../game-components/attack-picker";
 import Opponents from "../game-components/opponents";
+import type { OpponentWithId } from "../game-components/opponents";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -77,8 +77,8 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   }, [handleBackspace, handleEnter, handleLetter]);
 
   const { oddOpponents, evenOpponents } = useMemo(() => {
-    const oddOpponents: PlayerDisplay[] = [];
-    const evenOpponents: PlayerDisplay[] = [];
+    const oddOpponents: OpponentWithId[] = [];
+    const evenOpponents: OpponentWithId[] = [];
 
     if (!lobby?.players) {
       return {
@@ -91,9 +91,9 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       if (id === userId) return;
 
       if (index % 2 === 0) {
-        evenOpponents.push(player);
+        evenOpponents.push({ ...player, id });
       } else {
-        oddOpponents.push(player);
+        oddOpponents.push({ ...player, id });
       }
     });
 
@@ -103,9 +103,11 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     };
   }, [lobby?.players, userId]);
 
-  const targetUser = () => {
-    
-  }
+  useEffect(() => {
+    if (lobby?.players[userId]?.isEliminated) {
+      setTarget("first");
+    }
+  }, [lobby?.players, userId]);
 
   return (
     <motion.div
@@ -114,7 +116,11 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       exit={{ scale: 0, opacity: 0 }}
       className="flex w-full grow py-5"
     >
-      <Opponents opponents={evenOpponents} />
+      <Opponents
+        opponents={evenOpponents}
+        selectedId={target}
+        onSelect={setTarget}
+      />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
         <div className="flex gap-2">
           <button onClick={() => br.leave(socketRef)}>Leave</button>
@@ -159,7 +165,11 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           {JSON.stringify(lobby?.players[userId], null, 2)}
         </pre> */}
       </div>
-      <Opponents opponents={oddOpponents} />
+      <Opponents
+        opponents={oddOpponents}
+        selectedId={target}
+        onSelect={setTarget}
+      />
     </motion.div>
   );
 };

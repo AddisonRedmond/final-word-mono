@@ -6,16 +6,25 @@ import OpponentTimer from "./opponent-timer";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
+export type OpponentWithId = PlayerDisplay & { id: string };
+
 type OpponentsProps = {
-  opponents: PlayerDisplay[];
+  opponents: OpponentWithId[];
+  selectedId?: string;
+  onSelect: (id: string) => void;
 };
 
 const GAP = 8;
 const ASPECT_RATIO = 8 / 5;
 const GUESS_LENGTH = 5;
 
-const Opponents = memo(({ opponents }: OpponentsProps) => {
+const Opponents = memo(({ opponents, selectedId, onSelect }: OpponentsProps) => {
   const ref = useRef<HTMLDivElement>(null);
+
+  const activeOpponents = useMemo(
+    () => opponents.filter((opponent) => !opponent.isEliminated),
+    [opponents],
+  );
 
   const [size, setSize] = useState({
     width: 0,
@@ -46,8 +55,8 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
   const opponentWidth = useMemo(() => {
     let widest = 0;
 
-    for (let cols = 1; cols <= opponents.length; cols++) {
-      const rows = Math.ceil(opponents.length / cols);
+    for (let cols = 1; cols <= activeOpponents.length; cols++) {
+      const rows = Math.ceil(activeOpponents.length / cols);
 
       const availableWidth = (width - GAP * (cols - 1)) / cols;
       const availableHeight = (height - GAP * (rows - 1)) / rows;
@@ -62,17 +71,19 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
     }
 
     return widest;
-  }, [opponents.length, width, height]);
+  }, [activeOpponents.length, width, height]);
 
   return (
     <div ref={ref} className="grow overflow-y-auto overflow-x-hidden">
       <div className="flex flex-wrap content-start justify-evenly gap-2">
         <AnimatePresence>
-          {opponents.map((opponent) => (
+          {activeOpponents.map((opponent) => (
             <OpponentCard
-              key={opponent.name}
+              key={opponent.id}
               opponent={opponent}
               width={opponentWidth}
+              selected={opponent.id === selectedId}
+              onSelect={onSelect}
             />
           ))}
         </AnimatePresence>
@@ -84,8 +95,10 @@ const Opponents = memo(({ opponents }: OpponentsProps) => {
 Opponents.displayName = "Opponents";
 
 type OpponentCardProps = {
-  opponent: PlayerDisplay;
+  opponent: OpponentWithId;
   width: number;
+  selected: boolean;
+  onSelect: (id: string) => void;
 };
 
 // socket.io round-trips every player through JSON each tick, so the `opponent`
@@ -110,7 +123,9 @@ const areCardPropsEqual = (
   prev: OpponentCardProps,
   next: OpponentCardProps,
 ) => {
-  if (prev.width !== next.width) return false;
+  if (prev.width !== next.width || prev.selected !== next.selected) {
+    return false;
+  }
 
   const a = prev.opponent;
   const b = next.opponent;
@@ -123,7 +138,7 @@ const areCardPropsEqual = (
   );
 };
 
-const OpponentCard = memo(({ opponent, width }: OpponentCardProps) => {
+const OpponentCard = memo(({ opponent, width, selected, onSelect }: OpponentCardProps) => {
   return (
     <motion.div
       initial={{
@@ -147,7 +162,10 @@ const OpponentCard = memo(({ opponent, width }: OpponentCardProps) => {
           ease: "easeOut",
         },
       }}
-      className="flex flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md"
+      onClick={() => onSelect(opponent.id)}
+      className={`flex cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md transition-shadow ${
+        selected ? "ring-2 ring-emerald-500 ring-offset-1" : ""
+      }`}
       style={{
         width,
         height: width / ASPECT_RATIO,

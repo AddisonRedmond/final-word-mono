@@ -13,6 +13,7 @@ import {
   handleAddBots,
   applyCorrectGuessReward,
   applyAttack,
+  cleanupGame,
 } from "./utils/battle-royale.js";
 import type {
   Game,
@@ -96,44 +97,6 @@ const scheduleLobbyUpdate = (roomId: string, game: Game) => {
 
     emitLobbyUpdate(roomId, game);
   }, Game_Update_Delay);
-};
-
-const cleanupGame = (roomId: string) => {
-  const roomServerOnlyData = serverOnlyData.get(roomId);
-
-  logger.info(
-    {
-      roomId,
-      playerCount: games.get(roomId)?.players.size ?? 0,
-      hasServerData: Boolean(roomServerOnlyData),
-    },
-    "Cleaning up game",
-  );
-
-  if (roomServerOnlyData) {
-    const { startTimer, gameTimer, botTicker, updateTicker } =
-      roomServerOnlyData.timers;
-
-    if (startTimer) {
-      clearTimeout(startTimer);
-    }
-
-    if (gameTimer) {
-      clearInterval(gameTimer);
-    }
-
-    if (botTicker) {
-      clearInterval(botTicker);
-    }
-
-    if (updateTicker) {
-      clearTimeout(updateTicker);
-    }
-  }
-
-  games.delete(roomId);
-  serverOnlyData.delete(roomId);
-  serverOnlyBotData.delete(roomId);
 };
 
 const getGuessContext = (
@@ -271,7 +234,7 @@ io.on("connection", (socket) => {
     socket.leave(roomId);
 
     if (game.players.size === 0) {
-      cleanupGame(roomId);
+      cleanupGame(roomId, games, serverOnlyData, serverOnlyBotData);
     } else {
       scheduleLobbyUpdate(roomId, game);
     }
@@ -291,20 +254,31 @@ io.on("connection", (socket) => {
     const existingGame = findGameForUser(games, userId);
     const existingPlayer = existingGame?.players.get(userId);
 
-    if (existingGame && existingPlayer) {
-      if (existingPlayer.isEliminated) {
-        logger.warn(
-          { roomId: existingGame.room.lobbyId, userId },
-          "Eliminated player attempted to rejoin",
-        );
-        //TODO:clean up user from game so they can join another game
-        socket.emit("join:error", {
-          code: "ELIMINATED",
-          message: "Eliminated players cannot rejoin this game.",
-        });
-        return;
+    if (existingGame && existingPlayer && existingPlayer.isEliminated) {
+      const oldRoomId = existingGame.room.lobbyId;
+
+      existingGame.players.delete(userId);
+
+      const oldRoomServerOnlyData = serverOnlyData.get(oldRoomId);
+
+      if (oldRoomServerOnlyData) {
+        delete oldRoomServerOnlyData.playerData[userId];
       }
 
+      if (existingGame.players.size === 0) {
+        cleanupGame(oldRoomId, games, serverOnlyData, serverOnlyBotData);
+      } else {
+        scheduleLobbyUpdate(oldRoomId, existingGame);
+      }
+
+      logger.info(
+        { roomId: oldRoomId, userId },
+        "Removed eliminated player from old game, routing to new game",
+      );
+      // fall through so this socket joins/starts a fresh game below
+    }
+
+    if (existingGame && existingPlayer && !existingPlayer.isEliminated) {
       const roomId = existingGame.room.lobbyId;
 
       socket.data.roomId = roomId;
@@ -378,7 +352,14 @@ io.on("connection", (socket) => {
             });
           }
 
-          const lobbyStarted = handleStartLobbyTimer(game, io, timers);
+          const lobbyStarted = handleStartLobbyTimer(
+            game,
+            io,
+            timers,
+            games,
+            serverOnlyData,
+            serverOnlyBotData,
+          );
 
           if (lobbyStarted) {
             logger.info(
@@ -417,7 +398,14 @@ io.on("connection", (socket) => {
         clearTimeout(roomServerOnlyData.timers.startTimer);
       }
 
-      handleStartGame(game, io, roomServerOnlyData.timers);
+      handleStartGame(
+        game,
+        io,
+        roomServerOnlyData.timers,
+        games,
+        serverOnlyData,
+        serverOnlyBotData,
+      );
       logger.info(
         { roomId, playerCount: game.players.size },
         "Game started at player capacity",
@@ -442,6 +430,8 @@ io.on("connection", (socket) => {
       !game ||
       !roomServerOnlyData ||
       !player ||
+      game.room.isFinished ||
+      game.room.isDraw ||
       !targetWord ||
       !guessedWord
     ) {

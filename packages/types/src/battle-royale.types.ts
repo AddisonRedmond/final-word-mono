@@ -49,6 +49,9 @@ export type Room = {
   startTime: number;
   isStarted: boolean;
   createdAt: number;
+  isFinished: boolean;
+  winnerId?: string;
+  isDraw: boolean;
 };
 
 export type RoomServerData = {

@@ -5,6 +5,8 @@ import type {
   PlayerServerData,
   RevealedLetters,
   RoomTimers,
+  ServerBotData,
+  ServerOnlyData,
   ServerPlayerData,
   TargetType,
 } from "types/battle-royale.types.js";
@@ -16,7 +18,48 @@ import logger from "./logger.js";
 const initialTimer = 120 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
 
-export const crownWinnerAndCleanUp = () => {};
+export const cleanupGame = (
+  roomId: string,
+  games: Map<string, Game>,
+  serverOnlyData: ServerOnlyData,
+  serverOnlyBotData: ServerBotData,
+) => {
+  const roomServerOnlyData = serverOnlyData.get(roomId);
+
+  logger.info(
+    {
+      roomId,
+      playerCount: games.get(roomId)?.players.size ?? 0,
+      hasServerData: Boolean(roomServerOnlyData),
+    },
+    "Cleaning up game",
+  );
+
+  if (roomServerOnlyData) {
+    const { startTimer, gameTimer, botTicker, updateTicker } =
+      roomServerOnlyData.timers;
+
+    if (startTimer) {
+      clearTimeout(startTimer);
+    }
+
+    if (gameTimer) {
+      clearInterval(gameTimer);
+    }
+
+    if (botTicker) {
+      clearInterval(botTicker);
+    }
+
+    if (updateTicker) {
+      clearTimeout(updateTicker);
+    }
+  }
+
+  games.delete(roomId);
+  serverOnlyData.delete(roomId);
+  serverOnlyBotData.delete(roomId);
+};
 
 export const handleAddBots = (numberOfBotsToAdd: number) => {
   const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
@@ -65,7 +108,18 @@ export const handleStartGame = (
   game: Game,
   io: Server,
   timers: RoomTimers,
+  games: Map<string, Game>,
+  serverOnlyData: ServerOnlyData,
+  serverOnlyBotData: ServerBotData,
 ): void => {
+  if (game.room.isStarted || game.room.isFinished) {
+    logger.warn(
+      { roomId: game.room.lobbyId },
+      "Game start ignored: game has already started or finished",
+    );
+    return;
+  }
+
   logger.info(
     { roomId: game.room.lobbyId, playerCount: game.players.size },
     "Starting game",
@@ -77,39 +131,105 @@ export const handleStartGame = (
   }
 
   timers.gameTimer = setInterval(() => {
-    let changed = false;
     const now = Date.now();
+    const activePlayers = Array.from(game.players.entries()).filter(
+      ([, player]) => !player.isEliminated,
+    );
 
-    for (const player of game.players.values()) {
-      if (!player.isEliminated && player.life > 0 && now >= player.life) {
-        player.isEliminated = true;
-        logger.info(
-          { roomId: game.room.lobbyId, playerName: player.name },
-          "Player eliminated by timer",
-        );
-        changed = true;
-      }
+    if (activePlayers.length === 1) {
+      const [winnerId] = activePlayers[0] as [string, PlayerDisplay];
+      game.room.winnerId = winnerId;
+      game.room.isFinished = true;
+      logger.info(
+        { roomId: game.room.lobbyId, winnerId },
+        "Game ended: one player remains",
+      );
+      io.to(game.room.lobbyId).emit("lobby:update", {
+        ...game,
+        players: Object.fromEntries(game.players),
+      });
+      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
+      return;
     }
 
-    if (!changed) {
+    if (activePlayers.length === 0) {
+      game.room.isFinished = true;
+      game.room.isDraw = true;
+      logger.info(
+        { roomId: game.room.lobbyId },
+        "Game ended: no active players remain",
+      );
+      io.to(game.room.lobbyId).emit("lobby:update", {
+        ...game,
+        players: Object.fromEntries(game.players),
+      });
+      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
       return;
+    }
+
+    const expiringPlayers = activePlayers.filter(
+      ([, player]) => player.life > 0 && now >= player.life,
+    );
+
+    if (expiringPlayers.length === 0) {
+      return;
+    }
+
+    if (expiringPlayers.length === activePlayers.length) {
+      if (activePlayers.length === game.players.size) {
+        game.room.isFinished = true;
+        game.room.isDraw = true;
+        logger.info(
+          { roomId: game.room.lobbyId, playerCount: game.players.size },
+          "Game ended in a draw: all players expired simultaneously",
+        );
+      } else {
+        const [winnerId, winner] = expiringPlayers.reduce((best, current) =>
+          current[1].totalGuesses < best[1].totalGuesses ? current : best,
+        );
+        winner.isEliminated = false;
+        game.room.winnerId = winnerId;
+        game.room.isFinished = true;
+        logger.info(
+          {
+            roomId: game.room.lobbyId,
+            winnerId,
+            totalGuesses: winner.totalGuesses,
+            tiedPlayers: expiringPlayers.length,
+          },
+          "Game ended: fewest guesses won simultaneous expiration",
+        );
+      }
+
+      for (const [, player] of expiringPlayers) {
+        if (
+          !game.room.winnerId ||
+          player !== game.players.get(game.room.winnerId)
+        ) {
+          player.isEliminated = true;
+        }
+      }
+
+      io.to(game.room.lobbyId).emit("lobby:update", {
+        ...game,
+        players: Object.fromEntries(game.players),
+      });
+      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
+      return;
+    }
+
+    for (const [, player] of expiringPlayers) {
+      player.isEliminated = true;
+      logger.info(
+        { roomId: game.room.lobbyId, playerName: player.name },
+        "Player eliminated by timer",
+      );
     }
 
     io.to(game.room.lobbyId).emit("lobby:update", {
       ...game,
       players: Object.fromEntries(game.players),
     });
-
-    if (
-      !Array.from(game.players.values()).some((player) => !player.isEliminated)
-    ) {
-      clearInterval(timers.gameTimer);
-      timers.gameTimer = undefined;
-      logger.info(
-        { roomId: game.room.lobbyId },
-        "Game ended: all players eliminated",
-      );
-    }
   }, 1000);
 };
 
@@ -117,6 +237,9 @@ export const handleStartLobbyTimer = (
   game: Game,
   io: Server,
   gameTimers: RoomTimers,
+  games: Map<string, Game>,
+  serverOnlyData: ServerOnlyData,
+  serverOnlyBotData: ServerBotData,
 ) => {
   if (game.room.isStarted) {
     logger.warn(
@@ -126,7 +249,14 @@ export const handleStartLobbyTimer = (
     return;
   }
 
-  handleStartGame(game, io, gameTimers);
+  handleStartGame(
+    game,
+    io,
+    gameTimers,
+    games,
+    serverOnlyData,
+    serverOnlyBotData,
+  );
   io.to(game.room.lobbyId).emit("lobby:update", {
     ...game,
     players: Object.fromEntries(game.players),
@@ -219,6 +349,8 @@ export const getOrCreateGame = (
       startTime: Date.now() + Max_Wait_Time,
       createdAt: Date.now(),
       isStarted: false,
+      isFinished: false,
+      isDraw: false,
     },
     players: new Map(),
   };
@@ -273,9 +405,6 @@ export const applyCorrectGuessReward = ({
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];
-
-  // the display_queue is kept in step with serverData.queue, so the reveal for
-  // the word that's about to become active moves into revealed_letters with it.
   player.revealed_letters = player.display_queue?.shift() ?? {};
 
   serverData.word = nextWord ?? getRandomWord();
@@ -345,8 +474,6 @@ export const applyAttack = (
     return;
   }
 
-  // Queue is already full: chip a letter off the fullest existing entries
-  // instead of shifting/pushing, so queue order and remaining letters stay put.
   const entriesByLetterCount: { index: number; count: number }[] = [];
   for (let index = 0; index < queue.length; index += 1) {
     const count = Object.keys(queue[index] as RevealedLetters).length;
@@ -372,7 +499,6 @@ export const determineTarget = (
   selfId: string,
   target: TargetType,
 ): string => {
-  // single pass over the map instead of building/filtering an entries array
   const activeIds: string[] = [];
   let firstId = "";
   let firstLife = -Infinity;
