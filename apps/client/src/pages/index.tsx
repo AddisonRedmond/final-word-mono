@@ -82,7 +82,7 @@ export default function Home() {
       </Head>
       <main className="flex flex-col h-screen">
         <Navbar />
-        <div className="flex flex-col grow items-center justify-center gap-y-5">
+        <div className="flex min-h-0 flex-col grow items-center justify-center gap-y-5">
           <AnimatePresence>
             {!isPlaying && (
               <motion.div

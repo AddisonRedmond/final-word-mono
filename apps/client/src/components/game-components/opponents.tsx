@@ -74,9 +74,12 @@ const Opponents = memo(({ opponents, selectedId, onSelect }: OpponentsProps) => 
   }, [activeOpponents.length, width, height]);
 
   return (
-    <div ref={ref} className="grow overflow-y-auto overflow-x-hidden">
+    <div
+      ref={ref}
+      className="min-h-0 min-w-0 grow overflow-y-auto overflow-x-hidden"
+    >
       <div className="flex flex-wrap content-start justify-evenly gap-2">
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {activeOpponents.map((opponent) => (
             <OpponentCard
               key={opponent.id}
@@ -141,6 +144,7 @@ const areCardPropsEqual = (
 const OpponentCard = memo(({ opponent, width, selected, onSelect }: OpponentCardProps) => {
   return (
     <motion.div
+      layout
       initial={{
         opacity: 0,
         scale: 0.7,
@@ -158,6 +162,10 @@ const OpponentCard = memo(({ opponent, width, selected, onSelect }: OpponentCard
           duration: 0.2,
         },
         scale: {
+          duration: 0.25,
+          ease: "easeOut",
+        },
+        layout: {
           duration: 0.25,
           ease: "easeOut",
         },

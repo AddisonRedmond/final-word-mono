@@ -114,7 +114,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 100 }}
       exit={{ scale: 0, opacity: 0 }}
-      className="flex w-full grow py-5"
+      className="flex w-full min-h-0 grow py-5"
     >
       <Opponents
         opponents={evenOpponents}
