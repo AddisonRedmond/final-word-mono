@@ -20,6 +20,7 @@ import type {
   ServerBotData,
 } from "types/battle-royale.types.js";
 import { runBots } from "./utils/battle-royale-bots.js";
+import logger from "./utils/logger.js";
 
 const app = new Hono();
 
@@ -62,7 +63,7 @@ const server = serve(
     port,
   },
   (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
+    logger.info(`Server is running on http://localhost:${info.port}`);
   },
 );
 const io = new Server(server, {
@@ -99,6 +100,15 @@ const scheduleLobbyUpdate = (roomId: string, game: Game) => {
 
 const cleanupGame = (roomId: string) => {
   const roomServerOnlyData = serverOnlyData.get(roomId);
+
+  logger.info(
+    {
+      roomId,
+      playerCount: games.get(roomId)?.players.size ?? 0,
+      hasServerData: Boolean(roomServerOnlyData),
+    },
+    "Cleaning up game",
+  );
 
   if (roomServerOnlyData) {
     const { startTimer, gameTimer, botTicker, updateTicker } =
@@ -165,6 +175,10 @@ io.use(async (socket, next) => {
   const accessToken = authToken ?? queryToken ?? headerToken;
 
   if (!accessToken) {
+    logger.warn(
+      { socketId: socket.id },
+      "Socket authentication rejected: missing token",
+    );
     next(new Error("Unauthorized: missing access token"));
     return;
   }
@@ -175,6 +189,10 @@ io.use(async (socket, next) => {
   } = await supabaseAdmin.auth.getUser(accessToken);
 
   if (error || !user) {
+    logger.warn(
+      { socketId: socket.id, error: error?.message },
+      "Socket authentication rejected: invalid token",
+    );
     next(new Error("Unauthorized: invalid access token"));
     return;
   }
@@ -186,18 +204,29 @@ io.use(async (socket, next) => {
 });
 
 io.on("connection", (socket) => {
+  logger.info(
+    { socketId: socket.id, userId: socket.data.userId },
+    "Socket connected",
+  );
+
   socket.on("disconnect", () => {
-    const { roomId, name } = socket.data;
-    console.log(`${name} disconnected`);
+    const { roomId, name, userId } = socket.data;
+    logger.info(
+      { socketId: socket.id, roomId, userId, name },
+      "Socket disconnected",
+    );
 
     if (!roomId) {
       return;
     }
 
     const game = games.get(roomId);
-    const userId = socket.data.userId;
 
     if (!game || !game.players.has(userId)) {
+      logger.warn(
+        { roomId, userId },
+        "Disconnected socket was not present in game state",
+      );
       return;
     }
 
@@ -210,6 +239,10 @@ io.on("connection", (socket) => {
     const { roomId, userId, name } = socket.data;
 
     if (!roomId) {
+      logger.warn(
+        { socketId: socket.id, userId },
+        "Leave ignored: socket is not in a room",
+      );
       ack?.({ ok: false });
       return;
     }
@@ -217,6 +250,10 @@ io.on("connection", (socket) => {
     const game = games.get(roomId);
 
     if (!game) {
+      logger.warn(
+        { roomId, userId },
+        "Leave ignored: room state was not found",
+      );
       ack?.({ ok: false });
       return;
     }
@@ -239,13 +276,16 @@ io.on("connection", (socket) => {
       scheduleLobbyUpdate(roomId, game);
     }
 
-    console.log(`${name} left ${roomId}`);
+    logger.info(
+      { roomId, userId, name, remainingPlayers: game.players.size },
+      "Player left game",
+    );
     ack?.({ ok: true });
   });
 
   socket.on("join", () => {
     const { userId, name } = socket.data;
-    console.log(`${name} connected`);
+    logger.info({ socketId: socket.id, userId, name }, "Player joining game");
 
     // reconnect logic:start
     const existingGame = findGameForUser(games, userId);
@@ -253,6 +293,10 @@ io.on("connection", (socket) => {
 
     if (existingGame && existingPlayer) {
       if (existingPlayer.isEliminated) {
+        logger.warn(
+          { roomId: existingGame.room.lobbyId, userId },
+          "Eliminated player attempted to rejoin",
+        );
         //TODO:clean up user from game so they can join another game
         socket.emit("join:error", {
           code: "ELIMINATED",
@@ -271,12 +315,22 @@ io.on("connection", (socket) => {
         players: Object.fromEntries(existingGame.players),
       });
 
+      logger.info(
+        { roomId, userId, playerCount: existingGame.players.size },
+        "Player rejoined game",
+      );
+
       return;
     }
     // reconnect logic:end
 
     const game = getOrCreateGame(games, Max_Players);
     const roomId = game.room.lobbyId;
+
+    logger.info(
+      { roomId, userId, playerCount: game.players.size + 1 },
+      "Player added to game",
+    );
 
     let roomServerOnlyData = serverOnlyData.get(roomId);
 
@@ -312,6 +366,11 @@ io.on("connection", (socket) => {
             const { botsDisplayData, roomBotServerData } =
               handleAddBots(numberOfBotsToAdd);
 
+            logger.info(
+              { roomId, numberOfBotsToAdd },
+              "Adding bots to fill lobby",
+            );
+
             serverOnlyBotData.set(roomId, roomBotServerData);
 
             botsDisplayData.forEach((bot) => {
@@ -322,6 +381,10 @@ io.on("connection", (socket) => {
           const lobbyStarted = handleStartLobbyTimer(game, io, timers);
 
           if (lobbyStarted) {
+            logger.info(
+              { roomId, playerCount: game.players.size },
+              "Lobby timer started",
+            );
             const bots = serverOnlyBotData.get(roomId);
 
             if (bots) {
@@ -355,6 +418,10 @@ io.on("connection", (socket) => {
       }
 
       handleStartGame(game, io, roomServerOnlyData.timers);
+      logger.info(
+        { roomId, playerCount: game.players.size },
+        "Game started at player capacity",
+      );
     }
 
     emitLobbyUpdate(roomId, game);
@@ -378,6 +445,16 @@ io.on("connection", (socket) => {
       !targetWord ||
       !guessedWord
     ) {
+      logger.warn(
+        {
+          roomId,
+          userId,
+          hasGame: Boolean(game),
+          hasServerData: Boolean(roomServerOnlyData),
+          hasPlayer: Boolean(player),
+        },
+        "Guess ignored: incomplete game state",
+      );
       return;
     }
 
@@ -385,6 +462,17 @@ io.on("connection", (socket) => {
     player.currentWordGuesses += 1;
 
     const result = checkWord(guessedWord, targetWord);
+
+    logger.debug(
+      {
+        roomId,
+        userId,
+        targetId: payload.target,
+        isMatch: result.isMatch,
+        guessCount: player.currentWordGuesses,
+      },
+      "Guess processed",
+    );
 
     if (result.isMatch) {
       const guessCount = player.currentWordGuesses;
@@ -398,6 +486,16 @@ io.on("connection", (socket) => {
         roomServerOnlyData.playerData[payload.target] ??
         serverOnlyBotData.get(roomId)?.[payload.target];
       applyAttack(targetWord, guessCount, target, targetServerData);
+      logger.info(
+        {
+          roomId,
+          userId,
+          targetId: payload.target,
+          guessCount,
+          targetFound: Boolean(target),
+        },
+        "Correct guess applied",
+      );
     } else {
       const fullLetters = Object.values(result.fullMatches);
 

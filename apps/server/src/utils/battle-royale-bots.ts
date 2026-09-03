@@ -9,6 +9,7 @@ import {
   applyCorrectGuessReward,
   determineTarget,
 } from "./battle-royale.js";
+import logger from "./logger.js";
 
 type BotGuessResult =
   | {
@@ -116,6 +117,7 @@ export const runBots = (
   playerServerData: ServerPlayerData,
   onUpdate: () => void,
 ) => {
+  logger.info({ botCount: Object.keys(serverOnlyBotdata).length }, "Starting bot ticker");
   return setInterval(() => {
     const now = Date.now();
 
@@ -134,6 +136,7 @@ export const runBots = (
       }
 
       if (botDisplayData.isEliminated) {
+        logger.debug({ botId }, "Bot tick skipped: bot eliminated");
         continue;
       }
 
@@ -185,6 +188,7 @@ export const runBots = (
             serverOnlyBotdata[targetId] ?? playerServerData[targetId];
 
           applyAttack(guessedWord, guessCount, target, targetServerData);
+          logger.debug({ botId, targetId, guessCount }, "Bot made correct guess");
           onUpdate();
 
           break;
@@ -199,7 +203,11 @@ export const runBots = (
 
           botDisplayData.revealed_letters = updatedReveal;
 
+          logger.debug({ botId, amount: result.amount }, "Bot revealed letters");
+
           onUpdate();
+
+          logger.debug({ botId }, "Bot made incorrect guess");
 
           break;
         }

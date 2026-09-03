@@ -11,6 +11,7 @@ import type {
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
+import logger from "./logger.js";
 
 const initialTimer = 120 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
@@ -56,6 +57,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       currentWordGuesses: 0,
     });
   }
+  logger.info({ botCount: numberOfBotsToAdd }, "Bots prepared for lobby");
   return { roomBotServerData, botsDisplayData };
 };
 
@@ -64,6 +66,10 @@ export const handleStartGame = (
   io: Server,
   timers: RoomTimers,
 ): void => {
+  logger.info(
+    { roomId: game.room.lobbyId, playerCount: game.players.size },
+    "Starting game",
+  );
   game.room.isStarted = true;
   const lifeExpiry = Date.now() + initialTimer;
   for (const player of game.players.values()) {
@@ -77,6 +83,10 @@ export const handleStartGame = (
     for (const player of game.players.values()) {
       if (!player.isEliminated && player.life > 0 && now >= player.life) {
         player.isEliminated = true;
+        logger.info(
+          { roomId: game.room.lobbyId, playerName: player.name },
+          "Player eliminated by timer",
+        );
         changed = true;
       }
     }
@@ -95,6 +105,10 @@ export const handleStartGame = (
     ) {
       clearInterval(timers.gameTimer);
       timers.gameTimer = undefined;
+      logger.info(
+        { roomId: game.room.lobbyId },
+        "Game ended: all players eliminated",
+      );
     }
   }, 1000);
 };
@@ -105,6 +119,10 @@ export const handleStartLobbyTimer = (
   gameTimers: RoomTimers,
 ) => {
   if (game.room.isStarted) {
+    logger.warn(
+      { roomId: game.room.lobbyId },
+      "Lobby timer start ignored: game already started",
+    );
     return;
   }
 
@@ -206,6 +224,10 @@ export const getOrCreateGame = (
   };
 
   games.set(lobbyId, game);
+  logger.info(
+    { roomId: lobbyId, startTime: game.room.startTime },
+    "Created game lobby",
+  );
   return game;
 };
 
@@ -233,6 +255,13 @@ export const applyCorrectGuessReward = ({
   const currentLife = Math.max(player.life, now);
 
   const serverData = roomServerOnlyData[userId];
+  if (!serverData) {
+    logger.warn(
+      { userId },
+      "Correct guess reward skipped: player server data missing",
+    );
+    return;
+  }
   const nextWord = serverData.queue.shift();
   const attackWordBonus = 10 * 1000;
   if (nextWord === undefined) {
@@ -259,6 +288,14 @@ export const applyAttack = (
   targetServerData?: PlayerServerData | BotServerData,
 ) => {
   if (!target || target.isEliminated || !guessedWord) {
+    logger.warn(
+      {
+        targetFound: Boolean(target),
+        targetEliminated: target?.isEliminated,
+        hasGuessedWord: Boolean(guessedWord),
+      },
+      "Attack skipped",
+    );
     return;
   }
 
@@ -277,6 +314,7 @@ export const applyAttack = (
   }
 
   if (lettersToReveal === 0) {
+    logger.debug({ guessCount }, "Attack queued without letter reveal");
     return;
   }
 
