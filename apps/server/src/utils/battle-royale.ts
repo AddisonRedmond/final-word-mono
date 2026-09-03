@@ -104,6 +104,30 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
   return { roomBotServerData, botsDisplayData };
 };
 
+// shows the eliminated player the word they were guessing, without granting a correct-guess reward
+const revealEliminatedPlayerWord = (
+  player: PlayerDisplay,
+  playerId: string,
+  roomId: string,
+  serverOnlyData: ServerOnlyData,
+  serverOnlyBotData: ServerBotData,
+) => {
+  const word =
+    serverOnlyData.get(roomId)?.playerData[playerId]?.word ??
+    serverOnlyBotData.get(roomId)?.[playerId]?.word;
+
+  if (!word) {
+    return;
+  }
+
+  const revealed: RevealedLetters = {};
+  word.split("").forEach((letter, index) => {
+    revealed[index] = letter;
+  });
+
+  player.revealed_letters = revealed;
+};
+
 export const handleStartGame = (
   game: Game,
   io: Server,
@@ -201,12 +225,19 @@ export const handleStartGame = (
         );
       }
 
-      for (const [, player] of expiringPlayers) {
+      for (const [playerId, player] of expiringPlayers) {
         if (
           !game.room.winnerId ||
           player !== game.players.get(game.room.winnerId)
         ) {
           player.isEliminated = true;
+          revealEliminatedPlayerWord(
+            player,
+            playerId,
+            game.room.lobbyId,
+            serverOnlyData,
+            serverOnlyBotData,
+          );
         }
       }
 
@@ -218,8 +249,15 @@ export const handleStartGame = (
       return;
     }
 
-    for (const [, player] of expiringPlayers) {
+    for (const [playerId, player] of expiringPlayers) {
       player.isEliminated = true;
+      revealEliminatedPlayerWord(
+        player,
+        playerId,
+        game.room.lobbyId,
+        serverOnlyData,
+        serverOnlyBotData,
+      );
       logger.info(
         { roomId: game.room.lobbyId, playerName: player.name },
         "Player eliminated by timer",

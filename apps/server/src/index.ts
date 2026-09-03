@@ -433,7 +433,8 @@ io.on("connection", (socket) => {
       game.room.isFinished ||
       game.room.isDraw ||
       !targetWord ||
-      !guessedWord
+      !guessedWord ||
+      player?.isEliminated
     ) {
       logger.warn(
         {
