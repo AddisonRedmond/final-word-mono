@@ -39,10 +39,16 @@ const Opponents = memo(({ opponents, selectedId, onSelect }: OpponentsProps) => 
 
       if (!entry) return;
 
-      setSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      });
+      const nextWidth = Math.round(entry.contentRect.width);
+      const nextHeight = Math.round(entry.contentRect.height);
+
+      // bail when unchanged so a same-size ResizeObserver firing (e.g. a
+      // scrollbar flickering during layout animations) can't re-trigger a render
+      setSize((prev) =>
+        prev.width === nextWidth && prev.height === nextHeight
+          ? prev
+          : { width: nextWidth, height: nextHeight },
+      );
     });
 
     observer.observe(ref.current);
@@ -76,7 +82,7 @@ const Opponents = memo(({ opponents, selectedId, onSelect }: OpponentsProps) => 
   return (
     <div
       ref={ref}
-      className="min-h-0 min-w-0 grow overflow-y-auto overflow-x-hidden"
+      className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-gutter-stable"
     >
       <div className="flex flex-wrap content-start justify-evenly gap-2">
         <AnimatePresence mode="popLayout">
@@ -186,18 +192,28 @@ const OpponentCard = memo(({ opponent, width, selected, onSelect }: OpponentCard
       />
 
       <div className="flex flex-col items-center gap-y-0.5">
-        {opponent.display_queue?.map((item, queueIndex) => (
-          <div key={queueIndex} className="flex gap-x-0.5">
-            {Array.from({ length: GUESS_LENGTH }, (_, index) => (
-              <div
-                key={index}
-                className="grid size-2 place-content-center rounded-sm bg-stone-300 text-[6px] font-semibold text-stone-700"
-              >
-                {item[index] ?? " "}
-              </div>
-            ))}
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {opponent.display_queue?.map((item, queueIndex) => (
+            <motion.div
+              key={queueIndex}
+              layout
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.25, ease: "easeIn" }}
+              className="flex gap-x-0.5"
+            >
+              {Array.from({ length: GUESS_LENGTH }, (_, index) => (
+                <div
+                  key={index}
+                  className="grid size-2 place-content-center rounded-sm bg-stone-300 text-[6px] font-semibold text-stone-700"
+                >
+                  {item[index] ?? " "}
+                </div>
+              ))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       <div className="flex gap-x-0.5">
