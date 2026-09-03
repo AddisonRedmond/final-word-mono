@@ -55,17 +55,16 @@ const getBearerToken = (authorizationHeader: string | undefined) => {
 app.get("/", (c) => {
   return c.text("Hello Hono!");
 });
-
+const port = Number(process.env.PORT ?? 4200);
 const server = serve(
   {
     fetch: app.fetch,
-    port: 4200,
+    port,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);
   },
 );
-
 const io = new Server(server, {
   path: "/socket.io",
   cors: {
@@ -423,5 +422,6 @@ io.on("connection", (socket) => {
       );
     }
     scheduleLobbyUpdate(roomId, game);
+
   });
 });
