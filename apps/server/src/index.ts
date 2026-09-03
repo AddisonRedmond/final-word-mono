@@ -13,13 +13,13 @@ import {
   handleAddBots,
   applyCorrectGuessReward,
   applyAttack,
-} from "../utils/battle-royale.js";
+} from "./utils/battle-royale.js";
 import type {
   Game,
   ServerOnlyData,
   ServerBotData,
 } from "types/battle-royale.types.js";
-import { runBots } from "../utils/battle-royale-bots.js";
+import { runBots } from "./utils/battle-royale-bots.js";
 
 const app = new Hono();
 
@@ -422,6 +422,5 @@ io.on("connection", (socket) => {
       );
     }
     scheduleLobbyUpdate(roomId, game);
-
   });
 });
