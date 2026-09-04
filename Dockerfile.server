@@ -10,6 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy package manifests
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/types/package.json ./packages/types/package.json
+COPY packages/shared/package.json ./packages/shared/package.json
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -17,6 +18,7 @@ RUN pnpm install --frozen-lockfile
 # Copy the source code
 COPY apps/server ./apps/server
 COPY packages/types ./packages/types
+COPY packages/shared ./packages/shared
 
 # Build the server
 RUN pnpm --filter server build
