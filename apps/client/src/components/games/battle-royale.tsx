@@ -19,6 +19,8 @@ import AttackPicker from "../game-components/attack-picker";
 import Opponents from "../game-components/opponents";
 import type { OpponentWithId } from "../game-components/opponents";
 import Tile from "../tile";
+import MatchTimer from "../game-components/match-timer";
+import BonusPreview from "../game-components/bonus-preview";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -120,6 +122,10 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         onSelect={setTarget}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
+        {lobby?.room.isStarted && (
+          <MatchTimer expiryTimestamp={lobby.room.matchEndTime} />
+        )}
+
         {!lobby?.room.isStarted ? (
           <CountDownTimer
             expiryTimestamp={lobby?.room?.startTime}
@@ -145,6 +151,15 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           guess={guess}
           queue={lobby?.players[userId]?.display_queue}
         />
+
+        {!lobby?.players[userId]?.isEliminated && (
+          <BonusPreview
+            currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
+            hasQueuedAttack={
+              (lobby?.players[userId]?.display_queue?.length ?? 0) > 0
+            }
+          />
+        )}
 
         {!lobby?.players[userId]?.isEliminated && (
           <Keyboard

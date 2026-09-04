@@ -315,6 +315,7 @@ io.on("connection", (socket) => {
       isEliminated: false,
       life: 0,
       totalGuesses: 0,
+      correctGuesses: 0,
       currentWordGuesses: 0,
     });
 

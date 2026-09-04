@@ -12,6 +12,7 @@ export type PlayerDisplay = {
   isEliminated: boolean;
   life: number;
   totalGuesses: number;
+  correctGuesses: number;
   currentWordGuesses: number;
 };
 
@@ -42,6 +43,7 @@ export type RoomTimers = {
   gameTimer?: ReturnType<typeof setInterval>;
   botTicker?: ReturnType<typeof setInterval>;
   updateTicker?: ReturnType<typeof setTimeout>;
+  matchTimer?: ReturnType<typeof setTimeout>;
 };
 
 export type Room = {
@@ -52,6 +54,7 @@ export type Room = {
   isFinished: boolean;
   winnerId?: string;
   isDraw: boolean;
+  matchEndTime?: number;
 };
 
 export type RoomServerData = {

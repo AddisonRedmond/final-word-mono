@@ -14,6 +14,12 @@ import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
 import logger from "./logger.js";
+import { scheduleMatchTimeLimit } from "./match-timer.js";
+import {
+  ATTACK_WORD_BONUS_MS,
+  getGuessBonusMs,
+  MATCH_TIME_LIMIT_MS,
+} from "shared/battle-royale.js";
 
 const initialTimer = 120 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
@@ -36,7 +42,7 @@ export const cleanupGame = (
   );
 
   if (roomServerOnlyData) {
-    const { startTimer, gameTimer, botTicker, updateTicker } =
+    const { startTimer, gameTimer, botTicker, updateTicker, matchTimer } =
       roomServerOnlyData.timers;
 
     if (startTimer) {
@@ -53,6 +59,10 @@ export const cleanupGame = (
 
     if (updateTicker) {
       clearTimeout(updateTicker);
+    }
+
+    if (matchTimer) {
+      clearTimeout(matchTimer);
     }
   }
 
@@ -97,6 +107,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       life: lifeExpiry,
       isEliminated: false,
       totalGuesses: 0,
+      correctGuesses: 0,
       currentWordGuesses: 0,
     });
   }
@@ -149,6 +160,7 @@ export const handleStartGame = (
     "Starting game",
   );
   game.room.isStarted = true;
+  game.room.matchEndTime = Date.now() + MATCH_TIME_LIMIT_MS;
   const lifeExpiry = Date.now() + initialTimer;
   for (const player of game.players.values()) {
     player.life = lifeExpiry;
@@ -269,6 +281,16 @@ export const handleStartGame = (
       players: Object.fromEntries(game.players),
     });
   }, 1000);
+
+  timers.matchTimer = scheduleMatchTimeLimit({
+    game,
+    io,
+    games,
+    serverOnlyData,
+    serverOnlyBotData,
+    revealEliminatedPlayerWord,
+    cleanupGame,
+  });
 };
 
 export const handleStartLobbyTimer = (
@@ -308,19 +330,6 @@ export const findGameForUser = (
   userId: string,
 ): Game | undefined => {
   return Array.from(games.values()).find((game) => game.players.has(userId));
-};
-
-export const lifeMap = {
-  1: 60 * 1000,
-  2: 60 * 1000,
-  3: 45 * 1000,
-  4: 45 * 1000,
-  5: 30 * 1000,
-  6: 30 * 1000,
-  7: 15 * 1000,
-  8: 15 * 1000,
-  9: 10 * 1000,
-  10: 10 * 1000,
 };
 
 const calculateMatchObj = (word: string, guess: string) => {
@@ -415,11 +424,7 @@ export const applyCorrectGuessReward = ({
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
 }) => {
-  const guessCount = Math.min(
-    Math.max(player.currentWordGuesses, 1),
-    10,
-  ) as keyof typeof lifeMap;
-  const bonusLife = lifeMap[guessCount];
+  const bonusLife = getGuessBonusMs(player.currentWordGuesses);
   const now = Date.now();
   const maxLifeExpiry = now + 3 * 60 * 1000;
   const currentLife = Math.max(player.life, now);
@@ -433,13 +438,13 @@ export const applyCorrectGuessReward = ({
     return;
   }
   const nextWord = serverData.queue.shift();
-  const attackWordBonus = 10 * 1000;
   if (nextWord === undefined) {
     player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
   } else {
-    player.life = Math.min(currentLife + attackWordBonus, maxLifeExpiry);
+    player.life = Math.min(currentLife + ATTACK_WORD_BONUS_MS, maxLifeExpiry);
   }
 
+  player.correctGuesses += 1;
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];

@@ -30,7 +30,7 @@ const getRandomInt = (min: number, max: number) => {
 const ALL_LETTER_INDEXES = [0, 1, 2, 3, 4];
 
 // hoisted so these lookup tables aren't re-allocated on every bot tick
-const BASE_CORRECT_CHANCE = { 1: 2, 2: 4, 3: 7, 4: 11, 5: 16 } as const;
+const BASE_CORRECT_CHANCE = { 1: 1, 2: 2, 3: 4, 4: 7, 5: 11 } as const;
 const BASE_REVEAL_CHANCE = { 1: 20, 2: 25, 3: 30, 4: 35, 5: 40 } as const;
 const REVEAL_TWO_CHANCE = { 1: 5, 2: 10, 3: 20, 4: 30, 5: 40 } as const;
 const THINK_TIMES = {
@@ -78,7 +78,7 @@ const getBotGuessResult = ({
   const roll = Math.random() * 100;
 
   // The bot gets better the longer it has been guessing.
-  const progressBonus = Math.min(botGuesses * 2, 20);
+  const progressBonus = Math.min(botGuesses * 1.5, 15);
 
   const correctChance = BASE_CORRECT_CHANCE[level] + progressBonus;
   const baseRevealChance = BASE_REVEAL_CHANCE[level];

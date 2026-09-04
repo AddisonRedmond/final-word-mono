@@ -1,12 +1,23 @@
-import type {
-  PlayerDisplay,
-  RevealedLetters,
-} from "@/types/battle-royale.types";
+import type { PlayerDisplay } from "@/types/battle-royale.types";
 import OpponentTimer from "./opponent-timer";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import {
+  GAP,
+  GUESS_LENGTH,
+  HOPPER_FONT_RATIO,
+  HOPPER_TILE_RATIO,
+  REVEALED_FONT_RATIO,
+  REVEALED_TILE_RATIO,
+  getCardHeight,
+  getWidthForHeight,
+  isSameQueue,
+  isSameRevealedLetters,
+} from "@/utils/opponents";
 
-export type OpponentWithId = PlayerDisplay & { id: string };
+export type OpponentWithId = PlayerDisplay & {
+  id: string;
+};
 
 type OpponentsProps = {
   opponents: OpponentWithId[];
@@ -14,94 +25,10 @@ type OpponentsProps = {
   onSelect: (id: string) => void;
 };
 
-const GAP = 8;
-const ASPECT_RATIO = 8 / 5;
-const GUESS_LENGTH = 5;
-
-const Opponents = memo(({ opponents, selectedId, onSelect }: OpponentsProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const activeOpponents = useMemo(
-    () => opponents.filter((opponent) => !opponent.isEliminated),
-    [opponents],
-  );
-
-  const [size, setSize] = useState({
-    width: 0,
-    height: 0,
-  });
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-
-      if (!entry) return;
-
-      const nextWidth = Math.round(entry.contentRect.width);
-      const nextHeight = Math.round(entry.contentRect.height);
-
-      // bail when unchanged so a same-size ResizeObserver firing (e.g. a
-      // scrollbar flickering during layout animations) can't re-trigger a render
-      setSize((prev) =>
-        prev.width === nextWidth && prev.height === nextHeight
-          ? prev
-          : { width: nextWidth, height: nextHeight },
-      );
-    });
-
-    observer.observe(ref.current);
-
-    return () => observer.disconnect();
-  }, []);
-
-  const { width, height } = size;
-
-  const opponentWidth = useMemo(() => {
-    let widest = 0;
-
-    for (let cols = 1; cols <= activeOpponents.length; cols++) {
-      const rows = Math.ceil(activeOpponents.length / cols);
-
-      const availableWidth = (width - GAP * (cols - 1)) / cols;
-      const availableHeight = (height - GAP * (rows - 1)) / rows;
-
-      const widthFromHeight = availableHeight * ASPECT_RATIO;
-
-      const currentWidth = Math.min(availableWidth, widthFromHeight);
-
-      if (currentWidth > widest) {
-        widest = currentWidth;
-      }
-    }
-
-    return widest;
-  }, [activeOpponents.length, width, height]);
-
-  return (
-    <div
-      ref={ref}
-      className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-gutter-stable"
-    >
-      <div className="flex flex-wrap content-start justify-evenly gap-2">
-        <AnimatePresence mode="popLayout">
-          {activeOpponents.map((opponent) => (
-            <OpponentCard
-              key={opponent.id}
-              opponent={opponent}
-              width={opponentWidth}
-              selected={opponent.id === selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-});
-
-Opponents.displayName = "Opponents";
+type ContainerSize = {
+  width: number;
+  height: number;
+};
 
 type OpponentCardProps = {
   opponent: OpponentWithId;
@@ -110,125 +37,236 @@ type OpponentCardProps = {
   onSelect: (id: string) => void;
 };
 
-// socket.io round-trips every player through JSON each tick, so the `opponent`
-// object reference is never stable - compare rendered fields instead of identity
-// to let unaffected tiles skip re-rendering entirely.
-const isSameRevealedLetters = (a?: RevealedLetters, b?: RevealedLetters) => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  const aKeys = Object.keys(a);
-  if (aKeys.length !== Object.keys(b).length) return false;
-  return aKeys.every((key) => a[Number(key)] === b[Number(key)]);
-};
+const Opponents = memo(
+  ({ opponents, selectedId, onSelect }: OpponentsProps) => {
+    const ref = useRef<HTMLDivElement>(null);
 
-const isSameQueue = (a?: RevealedLetters[], b?: RevealedLetters[]) => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
-  return a.every((entry, index) => isSameRevealedLetters(entry, b[index]));
-};
+    const activeOpponents = useMemo(
+      () => opponents.filter((opponent) => !opponent.isEliminated),
+      [opponents],
+    );
+
+    const [containerSize, setContainerSize] = useState<ContainerSize>({
+      width: 0,
+      height: 0,
+    });
+
+    useEffect(() => {
+      const element = ref.current;
+
+      if (!element) return;
+
+      const observer = new ResizeObserver(([entry]) => {
+        if (!entry) return;
+
+        const width = Math.round(entry.contentRect.width);
+        const height = Math.round(entry.contentRect.height);
+
+        setContainerSize((previous) => {
+          if (previous.width === width && previous.height === height) {
+            return previous;
+          }
+
+          return {
+            width,
+            height,
+          };
+        });
+      });
+
+      observer.observe(element);
+
+      return () => observer.disconnect();
+    }, []);
+
+    const opponentWidth = useMemo(() => {
+      const count = activeOpponents.length;
+
+      if (!count || !containerSize.width || !containerSize.height) {
+        return 0;
+      }
+
+      let largestWidth = 0;
+
+      for (let columns = 1; columns <= count; columns++) {
+        const rows = Math.ceil(count / columns);
+
+        const availableWidth =
+          (containerSize.width - GAP * (columns - 1)) / columns;
+
+        const availableHeight =
+          (containerSize.height - GAP * (rows - 1)) / rows;
+
+        const maxWidthFromHeight = getWidthForHeight(availableHeight);
+
+        const cardWidth = Math.min(availableWidth, maxWidthFromHeight);
+
+        largestWidth = Math.max(largestWidth, cardWidth);
+      }
+
+      return Math.max(0, largestWidth);
+    }, [activeOpponents.length, containerSize.width, containerSize.height]);
+
+    return (
+      <div
+        ref={ref}
+        className="min-h-0 min-w-0 flex-1 overflow-auto scrollbar-gutter-stable"
+      >
+        <div className="flex flex-wrap content-start justify-evenly gap-2">
+          <AnimatePresence mode="popLayout">
+            {activeOpponents.map((opponent) => (
+              <OpponentCard
+                key={opponent.id}
+                opponent={opponent}
+                width={opponentWidth}
+                selected={opponent.id === selectedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      </div>
+    );
+  },
+);
+
+Opponents.displayName = "Opponents";
 
 const areCardPropsEqual = (
-  prev: OpponentCardProps,
+  previous: OpponentCardProps,
   next: OpponentCardProps,
 ) => {
-  if (prev.width !== next.width || prev.selected !== next.selected) {
+  if (previous.width !== next.width || previous.selected !== next.selected) {
     return false;
   }
 
-  const a = prev.opponent;
-  const b = next.opponent;
+  const previousOpponent = previous.opponent;
+  const nextOpponent = next.opponent;
+
+  if (previousOpponent === nextOpponent) {
+    return true;
+  }
 
   return (
-    a === b ||
-    (a.life === b.life &&
-      isSameRevealedLetters(a.revealed_letters, b.revealed_letters) &&
-      isSameQueue(a.display_queue, b.display_queue))
+    previousOpponent.life === nextOpponent.life &&
+    isSameRevealedLetters(
+      previousOpponent.revealed_letters,
+      nextOpponent.revealed_letters,
+    ) &&
+    isSameQueue(previousOpponent.display_queue, nextOpponent.display_queue)
   );
 };
 
-const OpponentCard = memo(({ opponent, width, selected, onSelect }: OpponentCardProps) => {
-  return (
-    <motion.div
-      layout
-      initial={{
-        opacity: 0,
-        scale: 0.7,
-      }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-      }}
-      exit={{
-        opacity: 0,
-        scale: 0.7,
-      }}
-      transition={{
-        opacity: {
-          duration: 0.2,
-        },
-        scale: {
-          duration: 0.25,
-          ease: "easeOut",
-        },
-        layout: {
-          duration: 0.25,
-          ease: "easeOut",
-        },
-      }}
-      onClick={() => onSelect(opponent.id)}
-      className={`flex cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md transition-shadow ${
-        selected ? "ring-2 ring-emerald-500 ring-offset-1" : ""
-      }`}
-      style={{
-        width,
-        height: width / ASPECT_RATIO,
-      }}
-    >
-      <OpponentTimer
-        initials="B"
-        duration={180_000}
-        expiryTimestamp={opponent.life}
-      />
+const OpponentCard = memo(
+  ({ opponent, width, selected, onSelect }: OpponentCardProps) => {
+    const hopperTileSize = width * HOPPER_TILE_RATIO;
+    const revealedTileSize = width * REVEALED_TILE_RATIO;
 
-      <div className="flex flex-col items-center gap-y-0.5">
-        <AnimatePresence initial={false}>
-          {opponent.display_queue?.map((item, queueIndex) => (
-            <motion.div
-              key={queueIndex}
-              layout
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              transition={{ duration: 0.25, ease: "easeIn" }}
-              className="flex gap-x-0.5"
+    return (
+      <motion.div
+        layout
+        initial={{
+          opacity: 0,
+          scale: 0.7,
+        }}
+        animate={{
+          opacity: 1,
+          scale: 1,
+        }}
+        exit={{
+          opacity: 0,
+          scale: 0.7,
+        }}
+        transition={{
+          opacity: {
+            duration: 0.2,
+          },
+          scale: {
+            duration: 0.25,
+            ease: "easeOut",
+          },
+          layout: {
+            duration: 0.25,
+            ease: "easeOut",
+          },
+        }}
+        onClick={() => onSelect(opponent.id)}
+        className={`flex cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md transition-shadow ${
+          selected ? "ring-2 ring-emerald-500 ring-offset-1" : ""
+        }`}
+        style={{
+          width,
+          height: getCardHeight(width),
+        }}
+      >
+        <OpponentTimer
+          initials="B"
+          duration={180_000}
+          expiryTimestamp={opponent.life}
+        />
+
+        <div className="flex flex-col items-center gap-y-0.5">
+          <AnimatePresence initial={false}>
+            {opponent.display_queue?.map((item, queueIndex) => (
+              <motion.div
+                key={queueIndex}
+                layout
+                initial={{
+                  opacity: 0,
+                  y: -10,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  y: 12,
+                }}
+                transition={{
+                  duration: 0.25,
+                  ease: "easeIn",
+                }}
+                className="flex gap-x-0.5"
+              >
+                {Array.from({ length: GUESS_LENGTH }, (_, index) => (
+                  <div
+                    key={index}
+                    className="grid place-content-center rounded-sm bg-stone-300 font-semibold text-stone-700"
+                    style={{
+                      width: hopperTileSize,
+                      height: hopperTileSize,
+                      fontSize: hopperTileSize * HOPPER_FONT_RATIO,
+                    }}
+                  >
+                    {item[index] ?? " "}
+                  </div>
+                ))}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex gap-x-0.5">
+          {Array.from({ length: GUESS_LENGTH }, (_, index) => (
+            <div
+              key={index}
+              className="grid place-content-center rounded-sm bg-emerald-500 font-semibold text-white"
+              style={{
+                width: revealedTileSize,
+                height: revealedTileSize,
+                fontSize: revealedTileSize * REVEALED_FONT_RATIO,
+              }}
             >
-              {Array.from({ length: GUESS_LENGTH }, (_, index) => (
-                <div
-                  key={index}
-                  className="grid size-2 place-content-center rounded-sm bg-stone-300 text-[6px] font-semibold text-stone-700"
-                >
-                  {item[index] ?? " "}
-                </div>
-              ))}
-            </motion.div>
+              {opponent.revealed_letters?.[index] ?? " "}
+            </div>
           ))}
-        </AnimatePresence>
-      </div>
-
-      <div className="flex gap-x-0.5">
-        {Array.from({ length: GUESS_LENGTH }, (_, index) => (
-          <div
-            key={index}
-            className="grid size-3 place-content-center rounded-sm bg-emerald-500 text-[8px] font-semibold text-white"
-          >
-            {opponent?.revealed_letters?.[index] ?? " "}
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}, areCardPropsEqual);
+        </div>
+      </motion.div>
+    );
+  },
+  areCardPropsEqual,
+);
 
 OpponentCard.displayName = "OpponentCard";
 

@@ -135,6 +135,9 @@ importers:
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
+      shared:
+        specifier: workspace:*
+        version: link:../../packages/shared
       socket.io:
         specifier: ^4.8.3
         version: 4.8.3(supports-color@7.2.0)
@@ -187,6 +190,8 @@ importers:
       typescript-eslint:
         specifier: ^8.50.0
         version: 8.50.0(eslint@9.39.1(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
+
+  packages/shared: {}
 
   packages/types: {}
 
