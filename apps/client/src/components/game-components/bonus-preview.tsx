@@ -1,5 +1,5 @@
 import { ATTACK_WORD_BONUS_MS, getGuessBonusMs } from "@/shared/battle-royale";
-
+import { Timer } from "lucide-react";
 type BonusPreviewProps = {
   currentWordGuesses?: number;
   hasQueuedAttack: boolean;
@@ -19,7 +19,7 @@ const BonusPreview: React.FC<BonusPreviewProps> = ({
 
   return (
     <p className="text-center text-xs font-semibold text-emerald-600">
-      +{bonusSeconds}s on correct guess
+      <Timer />+{bonusSeconds}s
     </p>
   );
 };
