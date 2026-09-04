@@ -271,10 +271,6 @@ export const handleStartGame = (
         serverOnlyData,
         serverOnlyBotData,
       );
-      logger.info(
-        { roomId: game.room.lobbyId, playerName: player.name },
-        "Player eliminated by timer",
-      );
     }
 
     io.to(game.room.lobbyId).emit("lobby:update", {
