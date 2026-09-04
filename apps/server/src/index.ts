@@ -457,17 +457,6 @@ io.on("connection", (socket) => {
     // so we can leave double letter words like BOOKS partial match even if the user has guessed one "O"
     const result = checkWord(guessedWord, targetWord);
 
-    logger.debug(
-      {
-        roomId,
-        userId,
-        targetId: payload.target,
-        isMatch: result.isMatch,
-        guessCount: player.currentWordGuesses,
-      },
-      "Guess processed",
-    );
-
     if (result.isMatch) {
       const guessCount = player.currentWordGuesses;
       applyCorrectGuessReward({
@@ -480,16 +469,6 @@ io.on("connection", (socket) => {
         roomServerOnlyData.playerData[payload.target] ??
         serverOnlyBotData.get(roomId)?.[payload.target];
       applyAttack(targetWord, guessCount, target, targetServerData);
-      logger.info(
-        {
-          roomId,
-          userId,
-          targetId: payload.target,
-          guessCount,
-          targetFound: Boolean(target),
-        },
-        "Correct guess applied",
-      );
     } else {
       const fullLetters = Object.values(result.fullMatches);
 

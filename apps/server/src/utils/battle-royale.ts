@@ -434,6 +434,8 @@ export const applyCorrectGuessReward = ({
     );
     return;
   }
+  // TODO: this doesn't adderss if the user is guessing a real word or not
+  // probably need to add a isAttackWord tag
   const nextWord = serverData.queue.shift();
   if (nextWord === undefined) {
     player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);

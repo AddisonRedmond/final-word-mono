@@ -18,7 +18,7 @@ const BonusPreview: React.FC<BonusPreviewProps> = ({
   const bonusSeconds = Math.round(bonusMs / 1000);
 
   return (
-    <p className="text-center text-xs font-semibold text-emerald-600">
+    <p className="flex items-center text-center text-xs font-semibold text-emerald-600">
       <Timer />+{bonusSeconds}s
     </p>
   );
