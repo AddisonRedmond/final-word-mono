@@ -72,7 +72,7 @@ export const cleanupGame = (
 };
 
 export const handleAddBots = (numberOfBotsToAdd: number) => {
-  const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
+  const getRandomLevel = (): 1 | 2 | 3 | 4 => {
     // Average several uniform rolls to approximate a bell curve centered on level 3.
     const rolls = 3;
     const average =
@@ -81,9 +81,9 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
         0,
       ) / rolls;
 
-    const level = Math.floor(average * 5) + 1;
+    const level = Math.floor(average * 4) + 1;
 
-    return Math.min(5, Math.max(1, level)) as 1 | 2 | 3 | 4 | 5;
+    return Math.min(5, Math.max(1, level)) as 1 | 2 | 3 | 4;
   };
 
   const roomBotServerData: { [botId: string]: BotServerData } = {};

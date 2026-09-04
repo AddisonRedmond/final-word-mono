@@ -453,6 +453,8 @@ io.on("connection", (socket) => {
     player.totalGuesses += 1;
     player.currentWordGuesses += 1;
 
+    // TODO: need to add and remove partial matches when they're added to the revealed letters object
+    // so we can leave double letter words like BOOKS partial match even if the user has guessed one "O"
     const result = checkWord(guessedWord, targetWord);
 
     logger.debug(
