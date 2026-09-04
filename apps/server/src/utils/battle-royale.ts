@@ -147,6 +147,7 @@ export const handleStartGame = (
   serverOnlyData: ServerOnlyData,
   serverOnlyBotData: ServerBotData,
 ): void => {
+  // TODO: probably reduce amount of time gained as game continues
   if (game.room.isStarted || game.room.isFinished) {
     logger.warn(
       { roomId: game.room.lobbyId },
