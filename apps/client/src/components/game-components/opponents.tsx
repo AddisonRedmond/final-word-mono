@@ -37,6 +37,8 @@ type OpponentCardProps = {
   onSelect: (id: string) => void;
 };
 
+
+
 const Opponents = memo(
   ({ opponents, selectedId, onSelect }: OpponentsProps) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -200,7 +202,7 @@ const OpponentCard = memo(
         }}
       >
         <OpponentTimer
-          initials="B"
+          initials={opponent.name}
           duration={180_000}
           expiryTimestamp={opponent.life}
         />

@@ -62,7 +62,7 @@ const GuessLetter = memo(function GuessLetter({
 }) {
   return (
     <div
-      className={`grid size-14 place-content-center rounded-md relative ${variantClasses[variant]}`}
+      className={`grid size-14 place-content-center rounded-md relative`}
     >
       <p className="absolute text-xs top-0.5 right-0.5">{match}</p>
       <AnimatePresence>
@@ -96,9 +96,9 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
   return (
     <LazyMotion features={domAnimation} strict>
       <div>
-        <div className="relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
+        <div className=" relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
-          <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
+          <div className="bg-emerald-100 relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
             {guessLetters.map((letter, index) => (
               <GuessLetter
                 key={index}
