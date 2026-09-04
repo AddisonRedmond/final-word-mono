@@ -96,6 +96,7 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
 
     roomBotServerData[botNameForNow] = {
       word: getRandomWord(),
+      currentWordIsAttack: false,
       queue: [],
       level: getRandomLevel(),
       target: "random",
@@ -434,14 +435,11 @@ export const applyCorrectGuessReward = ({
     );
     return;
   }
-  // TODO: this doesn't adderss if the user is guessing a real word or not
-  // probably need to add a isAttackWord tag
   const nextWord = serverData.queue.shift();
-  if (nextWord === undefined) {
-    player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
-  } else {
-    player.life = Math.min(currentLife + ATTACK_WORD_BONUS_MS, maxLifeExpiry);
-  }
+  const earnedBonus = serverData.currentWordIsAttack
+    ? ATTACK_WORD_BONUS_MS
+    : bonusLife;
+  player.life = Math.min(currentLife + earnedBonus, maxLifeExpiry);
 
   player.correctGuesses += 1;
   player.currentWordGuesses = 0;
@@ -450,6 +448,7 @@ export const applyCorrectGuessReward = ({
   player.revealed_letters = player.display_queue?.shift() ?? {};
 
   serverData.word = nextWord ?? getRandomWord();
+  serverData.currentWordIsAttack = nextWord !== undefined;
 };
 
 export const applyAttack = (
@@ -476,12 +475,12 @@ export const applyAttack = (
 
   let lettersToReveal = 0;
 
-  if (guessCount <= 4) {
-    lettersToReveal = 3;
-  } else if (guessCount <= 6) {
+  if (guessCount <= 3) {
     lettersToReveal = 2;
-  } else if (guessCount >= 10) {
-    lettersToReveal = 1;
+  } else if (guessCount <= 7) {
+    lettersToReveal = 3;
+  } else {
+    lettersToReveal = 4;
   }
 
   if (lettersToReveal === 0) {

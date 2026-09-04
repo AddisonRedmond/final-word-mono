@@ -18,6 +18,7 @@ export type PlayerDisplay = {
 
 export type PlayerServerData = {
   word: string;
+  currentWordIsAttack: boolean;
   queue: string[];
 };
 
@@ -25,6 +26,7 @@ export type ServerPlayerData = Record<string, PlayerServerData>;
 
 export type BotServerData = {
   word: string;
+  currentWordIsAttack: boolean;
   queue: string[];
   level: 1 | 2 | 3 | 4 | 5;
   target: TargetType;

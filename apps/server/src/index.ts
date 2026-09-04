@@ -389,6 +389,7 @@ io.on("connection", (socket) => {
     // end: if there isn't existing roomServerData build it
     roomServerOnlyData.playerData[userId] = {
       word: getRandomWord(),
+      currentWordIsAttack: false,
       queue: [],
     };
 
