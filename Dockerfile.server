@@ -21,7 +21,7 @@ COPY packages/types ./packages/types
 COPY packages/shared ./packages/shared
 
 # Build the server
-RUN pnpm --filter server build
+RUN pnpm --filter shared build && pnpm --filter server build
 
 WORKDIR /app/apps/server
 
