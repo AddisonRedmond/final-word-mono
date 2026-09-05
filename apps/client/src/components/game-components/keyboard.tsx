@@ -48,10 +48,10 @@ const KeyboardRow = ({
       {letters.split("").map((letter) => {
         let variant: keyof typeof variantClasses = "default";
 
-        if (Object.values(fullMatch ?? {}).includes(letter)) {
-          variant = "correct";
-        } else if (partialMatch?.includes(letter)) {
+        if (partialMatch?.includes(letter)) {
           variant = "present";
+        } else if (Object.values(fullMatch ?? {}).includes(letter)) {
+          variant = "correct";
         } else if (noMatch?.includes(letter)) {
           variant = "absent";
         }

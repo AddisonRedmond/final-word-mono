@@ -119,6 +119,25 @@ const getGuessContext = (
   };
 };
 
+const hasUnrevealedOccurrence = (
+  word: string,
+  letter: string,
+  revealedLetters: Record<number, string>,
+) => {
+  const normalizedWord = word.trim().toUpperCase();
+  const normalizedLetter = letter.toUpperCase();
+  const totalOccurrences = [...normalizedWord].filter(
+    (wordLetter) => wordLetter === normalizedLetter,
+  ).length;
+  const revealedOccurrences = Object.entries(revealedLetters).filter(
+    ([index, revealedLetter]) =>
+      normalizedWord[Number(index)] === normalizedLetter &&
+      revealedLetter.toUpperCase() === normalizedLetter,
+  ).length;
+
+  return revealedOccurrences < totalOccurrences;
+};
+
 io.use(async (socket, next) => {
   const authToken =
     typeof socket.handshake.auth?.token === "string"
@@ -454,8 +473,6 @@ io.on("connection", (socket) => {
     player.totalGuesses += 1;
     player.currentWordGuesses += 1;
 
-    // TODO: need to add and remove partial matches when they're added to the revealed letters object
-    // so we can leave double letter words like BOOKS partial match even if the user has guessed one "O"
     const result = checkWord(guessedWord, targetWord);
 
     if (result.isMatch) {
@@ -471,8 +488,6 @@ io.on("connection", (socket) => {
         serverOnlyBotData.get(roomId)?.[payload.target];
       applyAttack(targetWord, guessCount, target, targetServerData);
     } else {
-      const fullLetters = Object.values(result.fullMatches);
-
       player.revealed_letters = {
         ...(player.revealed_letters ?? {}),
         ...result.fullMatches,
@@ -483,13 +498,18 @@ io.on("connection", (socket) => {
           ...(player.partialMatches ?? []),
           ...result.partialMatches,
         ]),
-      ].filter((letter) => !fullLetters.includes(letter));
+      ].filter((letter) =>
+        hasUnrevealedOccurrence(
+          targetWord,
+          letter,
+          player.revealed_letters ?? {},
+        ),
+      );
 
       player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
       ].filter(
         (letter) =>
-          !fullLetters.includes(letter) &&
           !player.partialMatches?.includes(letter),
       );
     }
