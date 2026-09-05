@@ -129,6 +129,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
             <Winner
               userData={lobby.players[userId]}
               gameStartTimestamp={lobby.room.startTime}
+              handleLeave={() => br.leave(socketRef)}
             />
           )}
 

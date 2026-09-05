@@ -8,17 +8,22 @@ import type { PlayerDisplay } from "@/types/battle-royale.types";
 type WinnerProps = {
   userData: PlayerDisplay;
   gameStartTimestamp: number;
+  handleLeave: () => void;
 };
 
 const formatDuration = (duration: number) => {
-  const totalSeconds = Math.max(0, Math.floor(duration / 1000));
+  const totalSeconds = Math.min(
+    10 * 60,
+    Math.max(0, Math.floor(duration / 1000)),
+  );
+
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
-const Winner = ({ userData, gameStartTimestamp }: WinnerProps) => {
+const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
   const [Fireworks, setFireworks] =
     useState<ComponentType<FireworksProps> | null>(null);
   const survivalTime = formatDuration(userData.life - gameStartTimestamp);
@@ -109,7 +114,7 @@ const Winner = ({ userData, gameStartTimestamp }: WinnerProps) => {
             </div>
             <div className="px-6 py-7 text-center">
               <p className="text-sm font-medium uppercase tracking-[0.16em] text-zinc-400">
-                Last word standing
+                You had the FINAL WORD
               </p>
               <h2 className="mt-2 wrap-break-word text-4xl font-black tracking-wide text-yellow-300">
                 {userData.name}
@@ -140,6 +145,13 @@ const Winner = ({ userData, gameStartTimestamp }: WinnerProps) => {
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={handleLeave}
+                className="mt-7 w-full rounded-md bg-yellow-300 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-zinc-950 transition-colors hover:bg-yellow-200"
+              >
+                Leave
+              </button>
             </div>
           </motion.div>
         </div>
