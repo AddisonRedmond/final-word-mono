@@ -7,7 +7,6 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    DATABASE_URL: z.string().url(),
     NODE_ENV: z.enum(["development", "test", "production"]),
     SUPABASE_SERVICE_ROLE_KEY: z.string(),
   },
@@ -24,7 +23,6 @@ export const env = createEnv({
   },
 
   runtimeEnv: {
-    DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:

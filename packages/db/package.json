@@ -28,7 +28,7 @@
     "postgres": "^3.4.9"
   },
   "devDependencies": {
-    "@types/node": "^20.11.17",
+    "@types/node": "^20.19.37",
     "drizzle-kit": "^0.31.10",
     "typescript": "^5.8.3"
   }

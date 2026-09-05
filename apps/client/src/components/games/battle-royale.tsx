@@ -21,6 +21,7 @@ import type { OpponentWithId } from "../game-components/opponents";
 import Tile from "../tile";
 import MatchTimer from "../game-components/match-timer";
 import BonusPreview from "../game-components/bonus-preview";
+import Winner from "../game-components/winner";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -122,6 +123,13 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         onSelect={setTarget}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
+        {lobby?.room.isFinished && lobby.room.winnerId === userId && (
+          <Winner>
+            <div className="rounded-lg bg-white px-8 py-6 text-center shadow-2xl">
+              <p className="text-2xl font-bold">You won!</p>
+            </div>
+          </Winner>
+        )}
         {lobby?.room.isStarted && (
           <MatchTimer expiryTimestamp={lobby.room.matchEndTime} />
         )}
