@@ -3,6 +3,7 @@ packages:
   - "packages/*"
 allowBuilds:
   '@firebase/util': true
+  '@tsparticles/engine': set this to true or false
   esbuild: true
   protobufjs: true
   sharp: true

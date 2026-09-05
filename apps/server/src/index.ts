@@ -411,7 +411,6 @@ io.on("connection", (socket) => {
       currentWordIsAttack: false,
       queue: [],
     };
-
     socket.join(roomId);
 
     if (game.players.size >= Max_Players) {
