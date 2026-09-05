@@ -36,7 +36,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   useBattleRoyaleSocket({ socketRef, setLobby });
 
   const handleLetter = useCallback((letter: string) => {
-    if (!/^[A-Z]$/.test(letter)) {
+    if (!/^[A-Z]$/.test(letter) || lobby?.players[userId]?.isEliminated) {
       return;
     }
     setGuess((prev) =>
