@@ -507,11 +507,9 @@ io.on("connection", (socket) => {
 
       player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
-      ].filter(
-        (letter) =>
-          !player.partialMatches?.includes(letter),
-      );
+      ].filter((letter) => !player.partialMatches?.includes(letter));
     }
     scheduleLobbyUpdate(roomId, game);
+    console.log(roomServerOnlyData.playerData[userId]);
   });
 });

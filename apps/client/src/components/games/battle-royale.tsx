@@ -18,7 +18,6 @@ import Eliminated from "../game-components/eliminated";
 import AttackPicker from "../game-components/attack-picker";
 import Opponents from "../game-components/opponents";
 import type { OpponentWithId } from "../game-components/opponents";
-import Tile from "../tile";
 import MatchTimer from "../game-components/match-timer";
 import BonusPreview from "../game-components/bonus-preview";
 import Winner from "../game-components/winner";
@@ -53,6 +52,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     if (!lobby?.room.isStarted) {
       return;
     }
+    if (lobby.players[userId]?.isEliminated) return;
     br.sendGuess({ guess, target, socketRef });
     setGuess("");
   }, [guess, lobby?.room.isStarted, socketRef, target]);
@@ -123,13 +123,15 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         onSelect={setTarget}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
-        {lobby?.room.isFinished && lobby.room.winnerId === userId && (
-          <Winner>
-            <div className="rounded-lg bg-white px-8 py-6 text-center shadow-2xl">
-              <p className="text-2xl font-bold">You won!</p>
-            </div>
-          </Winner>
-        )}
+        {lobby?.room.isFinished &&
+          lobby.room.winnerId === userId &&
+          lobby.players[userId] && (
+            <Winner
+              userData={lobby.players[userId]}
+              gameStartTimestamp={lobby.room.startTime}
+            />
+          )}
+
         {lobby?.room.isStarted && (
           <MatchTimer expiryTimestamp={lobby.room.matchEndTime} />
         )}
@@ -192,9 +194,6 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
             <p className="rounded-md aspect-square p-1 bg-red-300">E</p>
           </button>
         </div>
-        {/* <pre className="mt-3 max-w-md whitespace-pre-wrap wrap-break-words rounded-md bg-slate-100 p-3 text-xs text-slate-700">
-          {JSON.stringify(lobby?.players[userId], null, 2)}
-        </pre> */}
       </div>
       <Opponents
         opponents={oddOpponents}
