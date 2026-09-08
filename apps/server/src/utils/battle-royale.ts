@@ -23,6 +23,7 @@ import {
 
 const initialTimer = 120 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
+const Max_Life_Timer = 3 * 60 * 1000; //Seconds
 
 export const cleanupGame = (
   roomId: string,
@@ -424,7 +425,7 @@ export const applyCorrectGuessReward = ({
 }) => {
   const bonusLife = getGuessBonusMs(player.currentWordGuesses);
   const now = Date.now();
-  const maxLifeExpiry = now + 3 * 60 * 1000;
+  const maxLifeExpiry = now + Max_Life_Timer;
   const currentLife = Math.max(player.life, now);
 
   const serverData = roomServerOnlyData[userId];
@@ -439,7 +440,7 @@ export const applyCorrectGuessReward = ({
   const earnedBonus = serverData.currentWordIsAttack
     ? ATTACK_WORD_BONUS_MS
     : bonusLife;
-    
+
   player.life = Math.min(currentLife + earnedBonus, maxLifeExpiry);
 
   player.correctGuesses += 1;
@@ -447,7 +448,6 @@ export const applyCorrectGuessReward = ({
   player.noMatch = [];
   player.partialMatches = [];
   player.revealed_letters = player.display_queue?.shift() ?? {};
-
 
   serverData.word = nextWord ?? getRandomWord();
   serverData.currentWordIsAttack = nextWord !== undefined;

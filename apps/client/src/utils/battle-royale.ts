@@ -15,7 +15,7 @@ const validGuessWords = new Set(SpellCheckWords);
 
 const normalizeGuess = (word: string): string => word.trim().toUpperCase();
 
-const isValidGuess = (word: string): boolean => {
+export const isValidGuess = (word: string): boolean => {
   const normalizedWord = normalizeGuess(word);
 
   if (!/^[A-Z]{5}$/.test(normalizedWord)) {

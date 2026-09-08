@@ -10,7 +10,7 @@ import CountDownTimer from "../game-components/timer";
 import type { ClientGame, TargetType } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
-import { motion } from "motion/react";
+import { motion, useAnimate } from "motion/react";
 import GuessContainer from "../game-components/guess-container";
 import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
@@ -33,6 +33,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
   const [guess, setGuess] = useState("");
   const [target, setTarget] = useState<TargetType>("random");
+  const [scope, animate] = useAnimate();
   useBattleRoyaleSocket({ socketRef, setLobby });
 
   const handleLetter = useCallback((letter: string) => {
@@ -53,9 +54,15 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       return;
     }
     if (lobby.players[userId]?.isEliminated) return;
+
+    if (!br.isValidGuess(guess)) {
+      animate(scope.current, { x: [-10, 10, -10, 10, 0] });
+      return;
+    }
+
     br.sendGuess({ guess, target, socketRef });
     setGuess("");
-  }, [guess, lobby?.room.isStarted, socketRef, target]);
+  }, [animate, guess, lobby?.room.isStarted, scope, socketRef, target]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -149,7 +156,11 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         )}
 
         {lobby?.players[userId]?.isEliminated ? (
-          <Eliminated playerdata={lobby.players[userId]} />
+          <Eliminated
+            userData={lobby.players[userId]}
+            gameStartTimestamp={lobby.room.startTime}
+            handleLeave={() => br.leave(socketRef)}
+          />
         ) : (
           <div className="text-xs text-center font-semibold">
             <p>Target</p>
@@ -157,11 +168,13 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
           </div>
         )}
 
-        <GuessContainer
-          fullMatches={lobby?.players[userId]?.revealed_letters}
-          guess={guess}
-          queue={lobby?.players[userId]?.display_queue}
-        />
+        <div ref={scope}>
+          <GuessContainer
+            fullMatches={lobby?.players[userId]?.revealed_letters}
+            guess={guess}
+            queue={lobby?.players[userId]?.display_queue}
+          />
+        </div>
 
         {!lobby?.players[userId]?.isEliminated && (
           <BonusPreview

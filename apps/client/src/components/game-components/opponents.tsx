@@ -112,7 +112,7 @@ const Opponents = memo(
     return (
       <div
         ref={ref}
-        className="min-h-0 min-w-0 flex-1 overflow-auto scrollbar-gutter-stable"
+        className="min-h-0 min-w-0 flex-1 overflow-auto scrollbar-gutter-stable p-1"
       >
         <div className="flex flex-wrap content-start justify-evenly gap-2">
           <AnimatePresence mode="popLayout">
