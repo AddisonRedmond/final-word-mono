@@ -474,6 +474,12 @@ io.on("connection", (socket) => {
 
     const result = checkWord(guessedWord, targetWord);
 
+    // TODO: if user makes a wrong guess 6 times in a row, then either give them a fresh word and reset guess state
+    // or give them the attack word if they have it
+
+    // TODO: if the user guesses an attack word give them no time back
+    // Maybe max it out at 3 attack words, no maximum guesses for attack words
+
     if (result.isMatch) {
       const guessCount = player.currentWordGuesses;
       const target = game.players.get(payload.target);

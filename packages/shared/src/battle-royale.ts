@@ -3,14 +3,10 @@
 export const lifeMap = {
   1: 60 * 1000,
   2: 60 * 1000,
-  3: 45 * 1000,
-  4: 45 * 1000,
-  5: 30 * 1000,
-  6: 30 * 1000,
-  7: 15 * 1000,
-  8: 15 * 1000,
-  9: 10 * 1000,
-  10: 10 * 1000,
+  3: 30 * 1000,
+  4: 30 * 1000,
+  5: 15 * 1000,
+  6: 15 * 1000,
 } as const;
 
 // flat bonus (ms) awarded for correctly guessing an incoming attack word

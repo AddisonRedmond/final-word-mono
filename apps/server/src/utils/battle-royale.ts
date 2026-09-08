@@ -21,9 +21,9 @@ import {
   MATCH_TIME_LIMIT_MS,
 } from "shared/battle-royale.js";
 
-const initialTimer = 120 * 1000;
+const initialTimer = 1 * 60 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
-const Max_Life_Timer = 3 * 60 * 1000; //Seconds
+const Max_Life_Timer = 1 * 60 * 1000; //Seconds
 
 export const cleanupGame = (
   roomId: string,
