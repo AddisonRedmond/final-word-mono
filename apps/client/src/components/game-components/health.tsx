@@ -5,7 +5,7 @@ type HealthProps = {
   expiryTimestamp?: number;
 };
 
-const MAX_HEALTH_SECONDS = 3 * 60;
+const MAX_HEALTH_SECONDS = 1 * 60;
 
 const Health: React.FC<HealthProps> = ({ expiryTimestamp }) => {
   const hasExpiryTimestamp =

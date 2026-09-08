@@ -31,7 +31,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const Max_Players = 99;
 const Game_Update_Delay = 250;
-const Max_Guesses = 6;
+const Max_Guesses = 8;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();

@@ -99,6 +99,7 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
         <div className=" relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
           <div className=" relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
+            <div>8</div>
             {guessLetters.map((letter, index) => (
               <GuessLetter
                 key={index}
