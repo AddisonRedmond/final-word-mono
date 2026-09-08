@@ -439,6 +439,7 @@ export const applyCorrectGuessReward = ({
   const earnedBonus = serverData.currentWordIsAttack
     ? ATTACK_WORD_BONUS_MS
     : bonusLife;
+    
   player.life = Math.min(currentLife + earnedBonus, maxLifeExpiry);
 
   player.correctGuesses += 1;
@@ -446,6 +447,7 @@ export const applyCorrectGuessReward = ({
   player.noMatch = [];
   player.partialMatches = [];
   player.revealed_letters = player.display_queue?.shift() ?? {};
+
 
   serverData.word = nextWord ?? getRandomWord();
   serverData.currentWordIsAttack = nextWord !== undefined;

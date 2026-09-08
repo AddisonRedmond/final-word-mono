@@ -476,16 +476,18 @@ io.on("connection", (socket) => {
 
     if (result.isMatch) {
       const guessCount = player.currentWordGuesses;
+      const target = game.players.get(payload.target);
+      const targetServerData =
+        roomServerOnlyData.playerData[payload.target] ??
+        serverOnlyBotData.get(roomId)?.[payload.target];
+      if (!roomServerOnlyData.playerData[userId].currentWordIsAttack) {
+        applyAttack(targetWord, guessCount, target, targetServerData);
+      }
       applyCorrectGuessReward({
         player,
         userId,
         roomServerOnlyData: roomServerOnlyData.playerData,
       });
-      const target = game.players.get(payload.target);
-      const targetServerData =
-        roomServerOnlyData.playerData[payload.target] ??
-        serverOnlyBotData.get(roomId)?.[payload.target];
-      applyAttack(targetWord, guessCount, target, targetServerData);
     } else {
       player.revealed_letters = {
         ...(player.revealed_letters ?? {}),

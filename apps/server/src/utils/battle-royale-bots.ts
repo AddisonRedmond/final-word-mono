@@ -117,7 +117,10 @@ export const runBots = (
   playerServerData: ServerPlayerData,
   onUpdate: () => void,
 ) => {
-  logger.info({ botCount: Object.keys(serverOnlyBotdata).length }, "Starting bot ticker");
+  logger.info(
+    { botCount: Object.keys(serverOnlyBotdata).length },
+    "Starting bot ticker",
+  );
   return setInterval(() => {
     const now = Date.now();
 
@@ -135,7 +138,8 @@ export const runBots = (
         continue;
       }
 
-      if (botDisplayData.isEliminated) {        continue;
+      if (botDisplayData.isEliminated) {
+        continue;
       }
 
       // The bot's life timer expired.
@@ -156,10 +160,16 @@ export const runBots = (
         continue;
       }
 
-      const result = getBotGuessResult({
-        level: botServerData.level,
-        botGuesses: botServerData.botGuesses,
-      });
+      const revealedLetters = botDisplayData.revealed_letters ?? {};
+      const hasEntireWordRevealed = botServerData.word
+        .split("")
+        .every((_, index) => revealedLetters[index] !== undefined);
+      const result: BotGuessResult = hasEntireWordRevealed
+        ? { type: "correct" }
+        : getBotGuessResult({
+            level: botServerData.level,
+            botGuesses: botServerData.botGuesses,
+          });
 
       botServerData.botGuesses++;
       botDisplayData.totalGuesses += 1;
@@ -170,12 +180,6 @@ export const runBots = (
           const guessCount = botDisplayData.currentWordGuesses;
           const guessedWord = botServerData.word;
 
-          applyCorrectGuessReward({
-            player: botDisplayData,
-            userId: botId,
-            roomServerOnlyData: serverOnlyBotdata,
-          });
-
           const targetId = determineTarget(
             playerData,
             botId,
@@ -185,7 +189,14 @@ export const runBots = (
           const targetServerData =
             serverOnlyBotdata[targetId] ?? playerServerData[targetId];
 
-          applyAttack(guessedWord, guessCount, target, targetServerData);
+          if (!serverOnlyBotdata[botId].currentWordIsAttack) {
+            applyAttack(guessedWord, guessCount, target, targetServerData);
+          }
+          applyCorrectGuessReward({
+            player: botDisplayData,
+            userId: botId,
+            roomServerOnlyData: serverOnlyBotdata,
+          });
           onUpdate();
 
           break;
