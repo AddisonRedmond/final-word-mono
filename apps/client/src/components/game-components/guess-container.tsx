@@ -7,6 +7,7 @@ type GuessContainerProps = {
   guess: string;
   queue?: RevealedLetters[];
   fullMatches?: Record<number, string>;
+  currentWordGuesses?: number;
 };
 const variantClasses: Record<TileVariant, string> = {
   default: "bg-amber-50 text-stone-800 border border-amber-200/60",
@@ -16,6 +17,7 @@ const variantClasses: Record<TileVariant, string> = {
   hopper: "bg-stone-200 text-black border border-stone-300",
 };
 
+const Max_Guesses = 8;
 // static content, never re-renders when guess changes
 const HopperQueue: React.FC<{ queue?: RevealedLetters[] }> = memo(
   ({ queue }) => {
@@ -87,6 +89,7 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
   guess = "",
   queue,
   fullMatches,
+  currentWordGuesses = 0,
 }) => {
   const guessLetters = Array.from(
     { length: GUESS_LENGTH },
@@ -95,11 +98,13 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
 
   return (
     <LazyMotion features={domAnimation} strict>
-      <div>
-        <div className=" relative isolate overflow-hidden rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
+      <div className="flex items-end gap-2">
+        <div className="grid size-8 shrink-0 place-content-center rounded-full border border-white/40 bg-stone-900 text-sm text-white shadow-[0_3px_0_rgba(0,0,0,0.35),0_5px_10px_rgba(0,0,0,0.25)] sm:size-9">
+          {Math.max(0, Max_Guesses - currentWordGuesses)}
+        </div>
+        <div className="relative isolate  rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
-          <div className=" relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
-            <div>8</div>
+          <div className="z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
             {guessLetters.map((letter, index) => (
               <GuessLetter
                 key={index}

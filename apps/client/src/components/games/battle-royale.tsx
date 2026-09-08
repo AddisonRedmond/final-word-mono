@@ -173,6 +173,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
             fullMatches={lobby?.players[userId]?.revealed_letters}
             guess={guess}
             queue={lobby?.players[userId]?.display_queue}
+            currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
           />
         </div>
 
