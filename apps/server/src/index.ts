@@ -12,6 +12,7 @@ import {
   getRandomWord,
   handleAddBots,
   applyCorrectGuessReward,
+  advanceToNextWord,
   applyAttack,
   cleanupGame,
 } from "./utils/battle-royale.js";
@@ -30,6 +31,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const Max_Players = 99;
 const Game_Update_Delay = 250;
+const Max_Guesses = 6;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
@@ -474,10 +476,7 @@ io.on("connection", (socket) => {
 
     const result = checkWord(guessedWord, targetWord);
 
-    // TODO: if user makes a wrong guess 6 times in a row, then either give them a fresh word and reset guess state
-    // or give them the attack word if they have it
-
-    // TODO: if the user guesses an attack word give them no time back
+    // TODO: if the user guesses an attack word give them no time back rather than 6
     // Maybe max it out at 3 attack words, no maximum guesses for attack words
 
     if (result.isMatch) {
@@ -516,6 +515,17 @@ io.on("connection", (socket) => {
       player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
       ].filter((letter) => !player.partialMatches?.includes(letter));
+
+      if (
+        !roomServerOnlyData.playerData[userId].currentWordIsAttack &&
+        player.currentWordGuesses >= Max_Guesses
+      ) {
+        advanceToNextWord({
+          player,
+          userId,
+          roomServerOnlyData: roomServerOnlyData.playerData,
+        });
+      }
     }
     scheduleLobbyUpdate(roomId, game);
     console.log(roomServerOnlyData.playerData[userId]);

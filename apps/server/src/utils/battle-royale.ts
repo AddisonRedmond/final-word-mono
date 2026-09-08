@@ -24,6 +24,7 @@ import {
 const initialTimer = 1 * 60 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
 const Max_Life_Timer = 1 * 60 * 1000; //Seconds
+const Max_Attack_Words = 3;
 
 export const cleanupGame = (
   roomId: string,
@@ -437,13 +438,40 @@ export const applyCorrectGuessReward = ({
     return;
   }
   const nextWord = serverData.queue.shift();
-  const earnedBonus = serverData.currentWordIsAttack
-    ? ATTACK_WORD_BONUS_MS
-    : bonusLife;
-
-  player.life = Math.min(currentLife + earnedBonus, maxLifeExpiry);
+  if (!serverData.currentWordIsAttack) {
+    player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+  }
 
   player.correctGuesses += 1;
+  player.currentWordGuesses = 0;
+  player.noMatch = [];
+  player.partialMatches = [];
+  player.revealed_letters = player.display_queue?.shift() ?? {};
+
+  serverData.word = nextWord ?? getRandomWord();
+  serverData.currentWordIsAttack = nextWord !== undefined;
+};
+
+export const advanceToNextWord = ({
+  player,
+  userId,
+  roomServerOnlyData,
+}: {
+  player: PlayerDisplay;
+  userId: string;
+  roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
+}) => {
+  const serverData = roomServerOnlyData[userId];
+  if (!serverData) {
+    logger.warn(
+      { userId },
+      "Word rollover skipped: player server data missing",
+    );
+    return;
+  }
+
+  const nextWord = serverData.queue.shift();
+
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];
@@ -467,6 +495,14 @@ export const applyAttack = (
         hasGuessedWord: Boolean(guessedWord),
       },
       "Attack skipped",
+    );
+    return;
+  }
+
+  if (targetServerData && targetServerData.queue.length >= Max_Attack_Words) {
+    logger.debug(
+      { target: target.name, maxAttackWords: Max_Attack_Words },
+      "Attack skipped: target attack queue is full",
     );
     return;
   }
