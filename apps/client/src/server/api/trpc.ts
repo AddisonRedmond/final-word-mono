@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import type { NextApiRequest, NextApiResponse } from "next/types";
 
 import { createSupabaseServerClient } from "@/utils/supabase/server";
+import { db } from "@/server/db";
 
 /**
  * 1. CONTEXT
@@ -49,6 +50,7 @@ export async function createTRPCContext({
   }
 
   return {
+    db,
     supabase,
     user,
   };

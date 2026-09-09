@@ -2,14 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env";
 
-const isProtectedRoute = (pathname: string) => {
-  return pathname === "/" || pathname.startsWith("/game");
-};
-
-const isAuthRoute = (pathname: string) => {
-  return pathname === "/sign-in";
-};
-
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -35,33 +27,26 @@ export async function updateSession(request: NextRequest) {
   );
 
   let user = null;
-
   try {
-    const {
-      data: { user: resolvedUser },
-    } = await supabase.auth.getUser();
+    const { data: { user: resolvedUser } } = await supabase.auth.getUser();
     user = resolvedUser;
   } catch {
     user = null;
   }
 
-  const pathname = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
 
-  if (!user && isProtectedRoute(pathname)) {
+  // Authed user trying to reach sign-in → send to home
+  if (user && pathname === "/sign-in") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
+  // Unauthenticated user trying to reach any page other than sign-in → send to sign-in
+  if (!user && pathname !== "/sign-in") {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && user?.is_anonymous && request.nextUrl.pathname.startsWith("/profile")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && isAuthRoute(pathname)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
