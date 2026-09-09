@@ -703,7 +703,6 @@ const words: string[] = [
     "CABLE",
     "PEACH",
     "RALLY",
-    "SCHWA",
     "DRAFT",
     "CHARM",
     "BRAKE",

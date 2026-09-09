@@ -37,8 +37,6 @@ type OpponentCardProps = {
   onSelect: (id: string) => void;
 };
 
-
-
 const Opponents = memo(
   ({ opponents, selectedId, onSelect }: OpponentsProps) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -194,7 +192,9 @@ const OpponentCard = memo(
         }}
         onClick={() => onSelect(opponent.id)}
         className={`flex cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md transition-shadow ${
-          selected ? "ring-2 ring-emerald-500 ring-offset-1" : ""
+          selected
+            ? "border-emerald-400 bg-emerald-500/20 ring-2 ring-emerald-400"
+            : ""
         }`}
         style={{
           width,

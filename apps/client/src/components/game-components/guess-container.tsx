@@ -99,11 +99,18 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
   return (
     <LazyMotion features={domAnimation} strict>
       <div className="flex items-end gap-2">
-        <div className="grid size-8 shrink-0 place-content-center rounded-full border border-white/40 bg-stone-900 text-sm text-white shadow-[0_3px_0_rgba(0,0,0,0.35),0_5px_10px_rgba(0,0,0,0.25)] sm:size-9">
-          {Math.max(0, Max_Guesses - currentWordGuesses)}
+        <div className="flex h-8 shrink-0 flex-col items-center justify-center rounded-md border border-white/20 bg-stone-950 px-2 leading-none sm:h-9">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+            Tries
+          </span>
+          <span className="text-sm font-black tabular-nums text-white">
+            {Math.max(0, Max_Guesses - currentWordGuesses)}
+          </span>
         </div>
-        <div className="relative isolate  rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
+
+        <div className="relative isolate rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
+
           <div className="z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
             {guessLetters.map((letter, index) => (
               <GuessLetter

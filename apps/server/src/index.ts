@@ -15,11 +15,14 @@ import {
   advanceToNextWord,
   applyAttack,
   cleanupGame,
+  determineTarget,
+  Max_Attack_Words,
 } from "./utils/battle-royale.js";
 import type {
   Game,
   ServerOnlyData,
   ServerBotData,
+  TargetType,
 } from "types/battle-royale.types.js";
 import { runBots } from "./utils/battle-royale-bots.js";
 import logger from "./utils/logger.js";
@@ -104,7 +107,7 @@ const scheduleLobbyUpdate = (roomId: string, game: Game) => {
 const getGuessContext = (
   roomId: string,
   userId: string,
-  payload: { word: string; target: string },
+  payload: { word: string; target: TargetType },
 ) => {
   const game = games.get(roomId);
   const roomServerOnlyData = serverOnlyData.get(roomId);
@@ -437,7 +440,7 @@ io.on("connection", (socket) => {
     emitLobbyUpdate(roomId, game);
   });
 
-  socket.on("guess", (payload: { word: string; target: string }) => {
+  socket.on("guess", (payload: { word: string; target: TargetType }) => {
     const roomId = socket.data.roomId as string | undefined;
     const userId = socket.data.userId as string | undefined;
 
@@ -476,15 +479,27 @@ io.on("connection", (socket) => {
 
     const result = checkWord(guessedWord, targetWord);
 
-    // TODO: if the user guesses an attack word give them no time back rather than 6
-    // Maybe max it out at 3 attack words, no maximum guesses for attack words
+    // update attack to calculate backend probably
 
     if (result.isMatch) {
       const guessCount = player.currentWordGuesses;
-      const target = game.players.get(payload.target);
+      const isAttackable = (playerId: string) => {
+        const queueLength =
+          roomServerOnlyData.playerData[playerId]?.queue.length ??
+          serverOnlyBotData.get(roomId)?.[playerId]?.queue.length ??
+          0;
+        return queueLength < Max_Attack_Words;
+      };
+      const targetId = determineTarget(
+        game.players,
+        userId,
+        payload.target,
+        isAttackable,
+      );
+      const target = game.players.get(targetId);
       const targetServerData =
-        roomServerOnlyData.playerData[payload.target] ??
-        serverOnlyBotData.get(roomId)?.[payload.target];
+        roomServerOnlyData.playerData[targetId] ??
+        serverOnlyBotData.get(roomId)?.[targetId];
       if (!roomServerOnlyData.playerData[userId].currentWordIsAttack) {
         applyAttack(targetWord, guessCount, target, targetServerData);
       }

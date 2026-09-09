@@ -1,9 +1,8 @@
 import type { TargetType } from "@/types/battle-royale.types";
-import type { Dispatch, SetStateAction } from "react";
 
 type AttackPickerProps = {
   target: TargetType;
-  setTarget: Dispatch<SetStateAction<TargetType>>;
+  setTarget: (target: TargetType) => void;
 };
 
 type TargetButtonProps = {

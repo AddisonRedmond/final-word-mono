@@ -63,10 +63,11 @@ export const leave = (socketRef: SocketRef) => {
 
 export const determineTarget = (
   playerDisplayData: Record<string, PlayerDisplay>,
+  selfId: string,
   target: TargetType,
 ): string => {
   const activePlayers = Object.entries(playerDisplayData).filter(
-    ([, player]) => !player.isEliminated,
+    ([id, player]) => id !== selfId && !player.isEliminated,
   );
 
   if (activePlayers.length === 0) {

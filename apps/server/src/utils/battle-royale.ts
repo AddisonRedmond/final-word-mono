@@ -24,7 +24,7 @@ import {
 const initialTimer = 1.5 * 60 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
-const Max_Attack_Words = 3;
+export const Max_Attack_Words = 3;
 
 export const cleanupGame = (
   roomId: string,
@@ -581,12 +581,18 @@ export const determineTarget = (
   players: Map<string, PlayerDisplay>,
   selfId: string,
   target: TargetType,
+  isAttackable: (playerId: string) => boolean = () => true,
 ): string => {
   const activeIds: string[] = [];
+  const attackableIds: string[] = [];
   let firstId = "";
   let firstLife = -Infinity;
   let lastId = "";
   let lastLife = Infinity;
+  let attackableFirstId = "";
+  let attackableFirstLife = -Infinity;
+  let attackableLastId = "";
+  let attackableLastLife = Infinity;
   let targetIsActive = false;
 
   for (const [playerId, player] of players) {
@@ -609,26 +615,49 @@ export const determineTarget = (
     if (playerId === target) {
       targetIsActive = true;
     }
+
+    if (isAttackable(playerId)) {
+      attackableIds.push(playerId);
+
+      if (player.life > attackableFirstLife) {
+        attackableFirstLife = player.life;
+        attackableFirstId = playerId;
+      }
+
+      if (player.life < attackableLastLife) {
+        attackableLastLife = player.life;
+        attackableLastId = playerId;
+      }
+    }
   }
 
   if (activeIds.length === 0) {
     return "";
   }
 
+  // Prefer a target whose attack queue has room so a maxed-out queue doesn't
+  // silently swallow every subsequent "first"/"last"/"random" attack.
   switch (target) {
     case "first":
-      return firstId;
+      return attackableFirstId || firstId;
 
     case "last":
-      return lastId;
+      return attackableLastId || lastId;
 
-    case "random":
-      return activeIds[Math.floor(Math.random() * activeIds.length)] ?? "";
+    case "random": {
+      const pool = attackableIds.length > 0 ? attackableIds : activeIds;
+      return pool[Math.floor(Math.random() * pool.length)] ?? "";
+    }
 
-    default:
-      // target is already a player id; fall back to random if they aren't targetable.
-      return targetIsActive
-        ? target
-        : (activeIds[Math.floor(Math.random() * activeIds.length)] ?? "");
+    default: {
+      // target is already a player id; fall back to another target if they
+      // aren't targetable or their attack queue is full.
+      if (targetIsActive && isAttackable(target)) {
+        return target;
+      }
+
+      const pool = attackableIds.length > 0 ? attackableIds : activeIds;
+      return pool[Math.floor(Math.random() * pool.length)] ?? "";
+    }
   }
 };

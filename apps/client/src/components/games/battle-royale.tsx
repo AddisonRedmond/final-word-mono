@@ -30,9 +30,11 @@ type BattleRoyaleProps = {
 const GUESS_LENGTH = 5;
 
 const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
+  // TODO: make the attack select show who youre selecting when you're attacking
   const [lobby, setLobby] = useState<ClientGame>();
   const [guess, setGuess] = useState("");
-  const [target, setTarget] = useState<TargetType>("random");
+  const [targetType, setTargetType] = useState<TargetType>("random");
+  const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
   useBattleRoyaleSocket({ socketRef, setLobby });
 
@@ -60,9 +62,29 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       return;
     }
 
-    br.sendGuess({ guess, target, socketRef });
+    br.sendGuess({ guess, target: targetType, socketRef });
     setGuess("");
-  }, [animate, guess, lobby?.room.isStarted, scope, socketRef, target]);
+  }, [animate, guess, lobby?.room.isStarted, scope, socketRef, targetType]);
+
+  const isPolicyTarget = (
+    value: TargetType,
+  ): value is "first" | "last" | "random" =>
+    value === "first" || value === "last" || value === "random";
+
+  const handleSelectTargetType = useCallback(
+    (type: TargetType) => {
+      setTargetType(type);
+      if (lobby?.players) {
+        setTarget(br.determineTarget(lobby.players, userId, type));
+      }
+    },
+    [lobby?.players, userId],
+  );
+
+  const handleSelectOpponent = useCallback((id: string) => {
+    setTargetType(id);
+    setTarget(id);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -112,10 +134,20 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   }, [lobby?.players, userId]);
 
   useEffect(() => {
-    if (lobby?.players[userId]?.isEliminated) {
-      setTarget("first");
+    if (!lobby?.players) return;
+
+    const currentTarget = lobby.players[target];
+    if (currentTarget && !currentTarget.isEliminated) return;
+
+    // stale target: re-resolve from policy, or fall back to "first" if it was a specific player
+    if (isPolicyTarget(targetType)) {
+      setTarget(br.determineTarget(lobby.players, userId, targetType));
+      return;
     }
-  }, [lobby?.players, userId]);
+
+    setTargetType("first");
+    setTarget(br.determineTarget(lobby.players, userId, "first"));
+  }, [lobby?.players, target, targetType, userId]);
 
   return (
     <motion.div
@@ -127,7 +159,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       <Opponents
         opponents={evenOpponents}
         selectedId={target}
-        onSelect={setTarget}
+        onSelect={handleSelectOpponent}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
         {lobby?.room.isFinished &&
@@ -164,7 +196,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         ) : (
           <div className="text-xs text-center font-semibold">
             <p>Target</p>
-            <AttackPicker target={target} setTarget={setTarget} />
+            <AttackPicker target={targetType} setTarget={handleSelectTargetType} />
           </div>
         )}
 
@@ -213,7 +245,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       <Opponents
         opponents={oddOpponents}
         selectedId={target}
-        onSelect={setTarget}
+        onSelect={handleSelectOpponent}
       />
     </motion.div>
   );
