@@ -203,7 +203,7 @@ const OpponentCard = memo(
       >
         <OpponentTimer
           initials={opponent.name}
-          duration={60_000}
+          duration={90_000}
           expiryTimestamp={opponent.life}
         />
 

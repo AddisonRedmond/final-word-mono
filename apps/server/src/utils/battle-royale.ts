@@ -21,9 +21,9 @@ import {
   MATCH_TIME_LIMIT_MS,
 } from "shared/battle-royale.js";
 
-const initialTimer = 1 * 60 * 1000;
+const initialTimer = 1.5 * 60 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
-const Max_Life_Timer = 1 * 60 * 1000; //Seconds
+const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
 const Max_Attack_Words = 3;
 
 export const cleanupGame = (
@@ -424,6 +424,10 @@ export const applyCorrectGuessReward = ({
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
 }) => {
+  // TODO: remove life time map, add time stamp that counts down for the user
+  // starting at 60 seconds, counts down 1 second at a time, if the user gets to 6 guesses
+  // each guess after that will remove 5s from their timer
+  // if the timer reaches 0 they failed that word. Advancetonextword
   const bonusLife = getGuessBonusMs(player.currentWordGuesses);
   const now = Date.now();
   const maxLifeExpiry = now + Max_Life_Timer;

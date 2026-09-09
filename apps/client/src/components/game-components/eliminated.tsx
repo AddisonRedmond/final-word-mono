@@ -31,14 +31,12 @@ const Eliminated = ({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 h-screen w-screen overflow-hidden"
+        className=""
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
         <div className="relative z-10 flex h-full w-full items-center justify-center">
           <motion.div
             className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-red-500/70 bg-zinc-950/90 text-white shadow-2xl"

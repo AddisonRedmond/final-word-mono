@@ -2,12 +2,12 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/state/auth-store";
 
-const PlayersOnline = () => (
-  <div className="flex items-center gap-x-1.5 text-sm">
-    <span className="size-2 rounded-full bg-green-400 animate-pulse" />
-    <span>1,342 online</span>
-  </div>
-);
+// const PlayersOnline = () => (
+//   <div className="flex items-center gap-x-1.5 text-sm">
+//     <span className="size-2 rounded-full bg-green-400 animate-pulse" />
+//     <span>1,342 online</span>
+//   </div>
+// );
 
 interface ProfileProps {
   name: string | null;
@@ -54,10 +54,10 @@ const Navbar = () => {
         </span>
       </div>
       <div className="flex items-center gap-x-4">
-        <button className="text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors">
+        {/* <button className="text-sm font-medium px-3 py-1.5 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors">
           🏆 Leaderboard
-        </button>
-        <PlayersOnline />
+        </button> */}
+        {/* <PlayersOnline /> */}
         <Profile email={profileEmail} name={profileName} />
         <button
           type="button"

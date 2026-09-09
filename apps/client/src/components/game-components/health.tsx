@@ -5,14 +5,16 @@ type HealthProps = {
   expiryTimestamp?: number;
 };
 
-const MAX_HEALTH_SECONDS = 1 * 60;
+const MAX_HEALTH_SECONDS = 1.5 * 60;
 
 const Health: React.FC<HealthProps> = ({ expiryTimestamp }) => {
   const hasExpiryTimestamp =
     typeof expiryTimestamp === "number" && Number.isFinite(expiryTimestamp);
   const { totalSeconds, restart } = useTimer({
     autoStart: hasExpiryTimestamp,
-    expiryTimestamp: new Date(hasExpiryTimestamp ? expiryTimestamp : Date.now()),
+    expiryTimestamp: new Date(
+      hasExpiryTimestamp ? expiryTimestamp : Date.now(),
+    ),
   });
 
   useEffect(() => {
