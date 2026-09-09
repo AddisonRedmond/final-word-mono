@@ -99,15 +99,6 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
   return (
     <LazyMotion features={domAnimation} strict>
       <div className="flex items-end gap-2">
-        <div className="flex h-8 shrink-0 flex-col items-center justify-center rounded-md border border-white/20 bg-stone-950 px-2 leading-none sm:h-9">
-          <span className="text-[9px] font-bold uppercase tracking-wider text-white/40">
-            Tries
-          </span>
-          <span className="text-sm font-black tabular-nums text-white">
-            {Math.max(0, Max_Guesses - currentWordGuesses)}
-          </span>
-        </div>
-
         <div className="relative isolate rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
 

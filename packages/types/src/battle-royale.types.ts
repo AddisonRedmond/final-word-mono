@@ -1,10 +1,6 @@
 export type TargetType = "first" | "last" | "random" | (string & {});
 
 export type RevealedLetters = Record<number, string>;
-// name
-// life - gameStartTimeStamp
-// total guesses
-// correct guesses
 
 export type PlayerDisplay = {
   name: string;

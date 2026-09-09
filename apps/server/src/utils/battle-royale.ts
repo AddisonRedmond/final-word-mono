@@ -22,7 +22,7 @@ import {
 } from "shared/battle-royale.js";
 
 const initialTimer = 1.5 * 60 * 1000;
-const Max_Wait_Time = 45 * 1000; //Seconds
+const Max_Wait_Time = 5 * 1000; //Seconds
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
 export const Max_Attack_Words = 3;
 
@@ -503,15 +503,17 @@ export const applyAttack = (
     return;
   }
 
-  if (targetServerData && targetServerData.queue.length >= Max_Attack_Words) {
+  const attackQueueIsFull =
+    targetServerData !== undefined &&
+    targetServerData.queue.length >= Max_Attack_Words;
+
+  if (attackQueueIsFull) {
+    // Attack word queue is full: still reveal letters, just don't queue another word.
     logger.debug(
       { target: target.name, maxAttackWords: Max_Attack_Words },
-      "Attack skipped: target attack queue is full",
+      "Attack word not queued: target attack queue is full",
     );
-    return;
-  }
-
-  if (targetServerData) {
+  } else if (targetServerData) {
     targetServerData.queue.push(guessedWord.toUpperCase());
   }
 

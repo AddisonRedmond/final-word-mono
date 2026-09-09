@@ -7,7 +7,6 @@ import type {
 import {
   applyAttack,
   applyCorrectGuessReward,
-  advanceToNextWord,
   determineTarget,
 } from "./battle-royale.js";
 import logger from "./logger.js";
@@ -212,17 +211,6 @@ export const runBots = (
 
           botDisplayData.revealed_letters = updatedReveal;
 
-          if (
-            !botServerData.currentWordIsAttack &&
-            botDisplayData.currentWordGuesses >= 6
-          ) {
-            advanceToNextWord({
-              player: botDisplayData,
-              userId: botId,
-              roomServerOnlyData: serverOnlyBotdata,
-            });
-          }
-
           onUpdate();
 
           break;
@@ -231,17 +219,6 @@ export const runBots = (
         case "incorrect": {
           // Incorrect guess.
           // For now, no additional information gained.
-
-          if (
-            !botServerData.currentWordIsAttack &&
-            botDisplayData.currentWordGuesses >= 6
-          ) {
-            advanceToNextWord({
-              player: botDisplayData,
-              userId: botId,
-              roomServerOnlyData: serverOnlyBotdata,
-            });
-          }
 
           onUpdate();
 

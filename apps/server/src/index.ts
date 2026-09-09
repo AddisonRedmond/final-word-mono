@@ -12,7 +12,6 @@ import {
   getRandomWord,
   handleAddBots,
   applyCorrectGuessReward,
-  advanceToNextWord,
   applyAttack,
   cleanupGame,
   determineTarget,
@@ -34,7 +33,6 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const Max_Players = 99;
 const Game_Update_Delay = 250;
-const Max_Guesses = 8;
 
 const games = new Map<string, Game>();
 const serverOnlyData: ServerOnlyData = new Map();
@@ -530,17 +528,6 @@ io.on("connection", (socket) => {
       player.noMatch = [
         ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
       ].filter((letter) => !player.partialMatches?.includes(letter));
-
-      if (
-        !roomServerOnlyData.playerData[userId].currentWordIsAttack &&
-        player.currentWordGuesses >= Max_Guesses
-      ) {
-        advanceToNextWord({
-          player,
-          userId,
-          roomServerOnlyData: roomServerOnlyData.playerData,
-        });
-      }
     }
     scheduleLobbyUpdate(roomId, game);
     console.log(roomServerOnlyData.playerData[userId]);
