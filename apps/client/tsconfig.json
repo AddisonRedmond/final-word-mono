@@ -30,6 +30,7 @@
       "@/*": ["./src/*"],
       "@/types/*": ["../../packages/types/src/*"],
       "@/shared/*": ["../../packages/shared/src/*"],
+      "@/db/*": ["../../packages/db/src/*"],
     }
   },
   "include": [

@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { and, eq, or } from "drizzle-orm";
+
 import { TRPCError } from "@trpc/server";
+import { and, eq, or } from "drizzle-orm";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { friendships, profiles } from "db/schema";
+import { friendships, profiles } from "@/db/schema";
 
 export const friendsRouter = createTRPCRouter({
   /**
@@ -12,6 +13,7 @@ export const friendsRouter = createTRPCRouter({
    *  - outgoing pending requests (requester = me)
    */
   list: protectedProcedure.query(async ({ ctx }) => {
+    console.log(ctx)
     const userId = ctx.user.id;
 
     const rows = await ctx.db
