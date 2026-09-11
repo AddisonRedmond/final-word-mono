@@ -64,6 +64,16 @@ const Navbar = () => {
       {/* Nav links + profile */}
       <div className="flex items-center gap-x-3">
         <Link
+          href="/"
+          className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            router.pathname === "/"
+              ? "border-green-400 bg-green-50 text-green-700"
+              : "border-gray-200 hover:bg-gray-100 text-gray-700"
+          }`}
+        >
+          Home
+        </Link>
+        <Link
           href="/friends"
           className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
             router.pathname === "/friends"

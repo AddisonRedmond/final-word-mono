@@ -11,6 +11,7 @@ import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import BattleRoyale from "@/components/games/battle-royale";
 import { AnimatePresence, motion } from "motion/react";
 import { useAuthStore } from "@/state/auth-store";
+import HeadToHeadCard from "@/components/duel-card";
 
 export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -110,7 +111,8 @@ export default function Home() {
             {isPlaying && user?.id ? (
               <BattleRoyale socketRef={socketRef} userId={user.id} />
             ) : (
-              <div>
+              <div className="flex gap-x-5">
+                <HeadToHeadCard />
                 <BattleRoyalCard handlePlay={handlePlay} />
               </div>
             )}

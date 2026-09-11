@@ -87,3 +87,18 @@ export const isSameQueue = (
     isSameRevealedLetters(entry, next[index]),
   );
 };
+
+export const getInitials = (name?: string | null) => {
+  if (!name) return "?";
+
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return initials || "?";
+};

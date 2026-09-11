@@ -1,4 +1,5 @@
 import Tile from "@/components/tile";
+import type React from "react";
 
 type GameCardProps = {
   desc: string;
@@ -9,7 +10,7 @@ type GameCardProps = {
     word: string;
     variant: "correct" | "present" | "absent" | "default";
   }[];
-  onPlay?: () => void;
+  children: React.ReactNode;
 };
 
 const GameCard: React.FC<GameCardProps> = ({
@@ -18,7 +19,7 @@ const GameCard: React.FC<GameCardProps> = ({
   badge,
   badgeVariant = "green",
   tiles,
-  onPlay,
+  children,
 }) => {
   const badgeColors = {
     green: "bg-green-400",
@@ -27,7 +28,7 @@ const GameCard: React.FC<GameCardProps> = ({
   };
 
   return (
-    <div className="shadow-xl relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono cursor-pointer transition-all hover:border-green-400 active:scale-[0.98]">
+    <div className="shadow-xl w-xs relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono cursor-pointer transition-all hover:border-green-400 active:scale-[0.98]">
       {tiles && (
         <div className="flex gap-1.5 mb-3.5">
           {tiles.map((tile, i) => (
@@ -55,20 +56,7 @@ const GameCard: React.FC<GameCardProps> = ({
         {desc}
       </p>
 
-      <button
-        onClick={onPlay}
-        className="flex items-center gap-2 w-full justify-center bg-green-400 hover:bg-green-300 active:scale-95 transition-all rounded-md py-2 text-white text-xs font-bold uppercase tracking-widest"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className="w-3 h-3"
-        >
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        Play
-      </button>
+      {children}
     </div>
   );
 };

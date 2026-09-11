@@ -10,6 +10,7 @@ import {
   REVEALED_FONT_RATIO,
   REVEALED_TILE_RATIO,
   getCardHeight,
+  getInitials,
   getWidthForHeight,
   isSameQueue,
   isSameRevealedLetters,
@@ -202,7 +203,7 @@ const OpponentCard = memo(
         }}
       >
         <OpponentTimer
-          initials={opponent.name}
+          initials={getInitials(opponent.name)}
           duration={90_000}
           expiryTimestamp={opponent.life}
         />
