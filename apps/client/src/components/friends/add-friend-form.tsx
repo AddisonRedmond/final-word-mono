@@ -5,10 +5,13 @@ import type { Friend } from "./types";
 
 interface AddFriendFormProps {
   existingFriends: Friend[];
-  onAdd: (friend: Friend) => void;
+  onAdd: (friendEmail: string) => Promise<void> | void;
 }
 
-export const AddFriendForm = ({ existingFriends, onAdd }: AddFriendFormProps) => {
+export const AddFriendForm = ({
+  existingFriends,
+  onAdd,
+}: AddFriendFormProps) => {
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -34,17 +37,17 @@ export const AddFriendForm = ({ existingFriends, onAdd }: AddFriendFormProps) =>
     }
 
     setIsSubmitting(true);
-    // TODO: replace with real tRPC mutation
-    await new Promise((r) => setTimeout(r, 600));
-    onAdd({
-      id: crypto.randomUUID(),
-      name: trimmed.split("@")[0] ?? trimmed,
-      email: trimmed,
-      status: "pending_outgoing",
-    });
-    setEmail("");
-    setSuccessMessage(`Friend request sent to ${trimmed}`);
-    setIsSubmitting(false);
+    try {
+      await onAdd(trimmed);
+      setEmail("");
+      setSuccessMessage(`Friend request sent to ${trimmed}`);
+    } catch (err: unknown) {
+      setEmailError(
+        err instanceof Error ? err.message : "Failed to send friend request.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

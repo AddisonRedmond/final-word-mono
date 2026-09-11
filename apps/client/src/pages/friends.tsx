@@ -15,33 +15,39 @@ import { FriendsTabBar } from "@/components/friends/friends-tab-bar";
 import Tile from "@/components/tile";
 import { api } from "@/utils/api";
 
-const MOCK_FRIENDS: Friend[] = [
-  { id: "1", name: "Alice", email: "alice@example.com", status: "accepted" },
-  { id: "2", name: "Bob", email: "bob@example.com", status: "accepted" },
-  {
-    id: "3",
-    name: "Charlie",
-    email: "charlie@example.com",
-    status: "pending_incoming",
-  },
-  {
-    id: "4",
-    name: "Diana",
-    email: "diana@example.com",
-    status: "pending_outgoing",
-  },
-];
-
 const Friends: React.FC = () => {
-  const friendsTest = api.friends.list.useQuery();
-  const [friends, setFriends] = useState<Friend[]>(MOCK_FRIENDS);
+  const utils = api.useUtils();
+  const friendsQuery = api.friends.list.useQuery(undefined, {
+    refetchIntervalInBackground: true,
+    refetchInterval: 1000 * 60, 
+    staleTime: 0,
+  });
+
+  const sendRequestMutation = api.friends.sendRequest.useMutation({
+    onSuccess: () => void utils.friends.list.invalidate(),
+  });
+  const acceptRequestMutation = api.friends.acceptRequest.useMutation({
+    onSuccess: () => void utils.friends.list.invalidate(),
+  });
+  const removeMutation = api.friends.remove.useMutation({
+    onSuccess: () => void utils.friends.list.invalidate(),
+  });
+
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const friends: Friend[] = (friendsQuery.data ?? []).map((friend) => ({
+    id: friend.id,
+    name: friend.name ?? friend.email ?? "Unknown",
+    email: friend.email ?? "",
+    status: friend.status,
+  }));
+
   const accepted = friends.filter((f) => f.status === "accepted");
   const incoming = friends.filter((f) => f.status === "pending_incoming");
   const outgoing = friends.filter((f) => f.status === "pending_outgoing");
+
   const pendingCount = incoming.length + outgoing.length;
 
   const showFriends = activeTab === "all" || activeTab === "friends";
@@ -58,22 +64,25 @@ const Friends: React.FC = () => {
   const filteredIncoming = filterByEmail(incoming);
   const filteredOutgoing = filterByEmail(outgoing);
 
-  const handleAddFriend = (friend: Friend) =>
-    setFriends((prev) => [...prev, friend]);
+  const handleAddFriend = async (friendEmail: string) => {
+    await sendRequestMutation.mutateAsync({ email: friendEmail });
+  };
 
-  const handleAccept = (id: string) =>
-    setFriends((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: "accepted" } : f)),
-    );
+  const handleAccept = (id: string) => {
+    acceptRequestMutation.mutate({ requesterId: id });
+  };
 
-  const handleDecline = (id: string) =>
-    setFriends((prev) => prev.filter((f) => f.id !== id));
+  const handleDecline = (id: string) => {
+    removeMutation.mutate({ otherId: id });
+  };
 
-  const handleRemove = (id: string) =>
-    setFriends((prev) => prev.filter((f) => f.id !== id));
+  const handleRemove = (id: string) => {
+    removeMutation.mutate({ otherId: id });
+  };
 
-  const handleCancel = (id: string) =>
-    setFriends((prev) => prev.filter((f) => f.id !== id));
+  const handleCancel = (id: string) => {
+    removeMutation.mutate({ otherId: id });
+  };
 
   return (
     <>

@@ -13,7 +13,6 @@ export const friendsRouter = createTRPCRouter({
    *  - outgoing pending requests (requester = me)
    */
   list: protectedProcedure.query(async ({ ctx }) => {
-    console.log(ctx)
     const userId = ctx.user.id;
 
     const rows = await ctx.db

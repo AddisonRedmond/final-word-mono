@@ -24,6 +24,14 @@ export const api = createTRPCNext<AppRouter>({
   // ssrPrepass,
   config() {
     return {
+      queryClientConfig: {
+        defaultOptions: {
+          queries: {
+            refetchOnWindowFocus: true,
+            staleTime: 0,
+          },
+        },
+      },
       /**
        * Links used to determine request flow from client to server.
        *
