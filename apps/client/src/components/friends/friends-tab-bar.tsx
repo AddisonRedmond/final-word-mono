@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { motion } from "motion/react";
+import Button from "../button";
 import { TABS, type FilterTab } from "./types";
 
 interface FriendsTabBarProps {
@@ -40,15 +41,10 @@ export const FriendsTabBar = ({
         const isActive = activeTab === key;
         const showBadge = key === "pending" && pendingCount > 0;
         return (
-          <button
+          <Button
             key={key}
-            type="button"
             onClick={() => onTabChange(key)}
-            className={`relative text-[11px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-md transition-all active:scale-95 ${
-              isActive
-                ? "bg-green-400 text-white"
-                : "border border-gray-200 text-gray-500 hover:bg-gray-100"
-            }`}
+            variant={isActive ? "solid" : "outline"}
           >
             {label}
             {showBadge && (
@@ -56,7 +52,7 @@ export const FriendsTabBar = ({
                 {pendingCount}
               </span>
             )}
-          </button>
+          </Button>
         );
       })}
 
@@ -82,18 +78,13 @@ export const FriendsTabBar = ({
           />
         </motion.div>
 
-        <button
-          type="button"
+        <Button
           onClick={handleSearchToggle}
-          className={`text-[11px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-md border transition-all active:scale-95 ${
-            searchOpen
-              ? "border-green-400 bg-green-50 text-green-600"
-              : "border-gray-200 text-gray-500 hover:bg-gray-100"
-          }`}
+          variant={searchOpen ? "selected" : "outline"}
           aria-label={searchOpen ? "Close search" : "Open search"}
         >
           {searchOpen ? "✕" : "Search"}
-        </button>
+        </Button>
       </div>
     </div>
   );

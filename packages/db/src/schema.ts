@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   pgEnum,
   pgTable,
@@ -19,6 +20,32 @@ export const gamePlayerStats = pgTable("game_player_stats", {
     .defaultNow()
     .notNull(),
 });
+
+export const duels = pgTable("duels", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  word: text("word").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const duelParticipants = pgTable(
+  "duel_participants",
+  {
+    duelId: uuid("duel_id")
+      .notNull()
+      .references(() => duels.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    startTime: timestamp("start_time", { withTimezone: true }),
+    endTime: timestamp("end_time", { withTimezone: true }),
+    totalGuesses: integer("total_guesses").notNull().default(0),
+    success: boolean("success").notNull().default(false),
+    guesses: text("guesses").array().notNull().default([]),
+  },
+  (t) => [primaryKey({ columns: [t.duelId, t.userId] })],
+);
 
 export const friendStatusEnum = pgEnum("friend_status", [
   "pending",
@@ -85,6 +112,12 @@ export const profiles = pgTable("profiles", {
 
 export type GamePlayerStats = typeof gamePlayerStats.$inferSelect;
 export type NewGamePlayerStats = typeof gamePlayerStats.$inferInsert;
+
+export type Duel = typeof duels.$inferSelect;
+export type NewDuel = typeof duels.$inferInsert;
+
+export type DuelParticipant = typeof duelParticipants.$inferSelect;
+export type NewDuelParticipant = typeof duelParticipants.$inferInsert;
 
 export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;

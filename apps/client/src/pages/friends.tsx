@@ -10,6 +10,7 @@ import {
   EmptyState,
 } from "@/components/friends/section-heading";
 import { FriendRow } from "@/components/friends/friend-row";
+import { FriendControls } from "@/components/friends/friend-controls";
 import { AddFriendForm } from "@/components/friends/add-friend-form";
 import { FriendsTabBar } from "@/components/friends/friends-tab-bar";
 import Tile from "@/components/tile";
@@ -165,9 +166,13 @@ const Friends: React.FC = () => {
                           <FriendRow
                             key={f.id}
                             friend={f}
-                            onAccept={handleAccept}
-                            onDecline={handleDecline}
-                          />
+                          >
+                            <FriendControls
+                              friend={f}
+                              onAccept={handleAccept}
+                              onDecline={handleDecline}
+                            />
+                          </FriendRow>
                         ))}
                       </AnimatePresence>
                     </div>
@@ -192,8 +197,9 @@ const Friends: React.FC = () => {
                           <FriendRow
                             key={f.id}
                             friend={f}
-                            onCancel={handleCancel}
-                          />
+                          >
+                            <FriendControls friend={f} onCancel={handleCancel} />
+                          </FriendRow>
                         ))}
                       </AnimatePresence>
                     </div>
@@ -239,8 +245,9 @@ const Friends: React.FC = () => {
                             <FriendRow
                               key={f.id}
                               friend={f}
-                              onRemove={handleRemove}
-                            />
+                            >
+                              <FriendControls friend={f} onRemove={handleRemove} />
+                            </FriendRow>
                           ))
                         ) : (
                           <EmptyState message="No friends yet — send a request above." />

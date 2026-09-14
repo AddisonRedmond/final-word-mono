@@ -13,6 +13,13 @@ const challenge = {
     success: false,
     guesses: ["FOLK", "BLIND", "ALONE"],
   },
+  user2: {
+    startTime: "now",
+    endTime: "later",
+    totalGuesses: 6,
+    success: false,
+    guesses: ["FOLK", "BLIND", "ALONE"],
+  },
 };
 
 export const friendsRouter = createTRPCRouter({
