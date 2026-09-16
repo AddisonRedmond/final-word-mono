@@ -6,11 +6,13 @@ import type { Friend } from "../friends/types";
 
 interface NewDuelProps {
   friends: Friend[];
+  isLoading?: boolean;
+  onSendDuel: (invitedFriends: Friend[]) => void;
 }
 
 const MAX_PLAYERS = 5;
 
-const NewDuel = ({ friends }: NewDuelProps) => {
+const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [invitedFriends, setInvitedFriends] = useState<Friend[]>([]);
@@ -142,7 +144,15 @@ const NewDuel = ({ friends }: NewDuelProps) => {
         )}
       </AnimatePresence>
       <div className="mt-4 max-h-64 overflow-y-auto pr-1">
-        {filteredFriends.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <div
+              role="status"
+              aria-label="Loading friends"
+              className="size-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-500"
+            />
+          </div>
+        ) : filteredFriends.length > 0 ? (
           filteredFriends.map((friend) => (
             <FriendRow key={friend.id} friend={friend}>
               <Button
@@ -153,7 +163,7 @@ const NewDuel = ({ friends }: NewDuelProps) => {
                   (invited) => invited.id === friend.id,
                 ) || invitedFriends.length >= MAX_PLAYERS}
                 aria-label={`Add ${friend.name} to invite list`}
-                className="size-7 px-0 py-0 text-base leading-none disabled:cursor-not-allowed disabled:opacity-40"
+                className="size-7 px-0 py-0 grid place-content-center text-base leading-none disabled:cursor-not-allowed disabled:opacity-40"
               >
                 +
               </Button>
@@ -166,6 +176,18 @@ const NewDuel = ({ friends }: NewDuelProps) => {
               : "No friends yet."}
           </p>
         )}
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button
+          type="button"
+          variant="solid"
+          onClick={() => onSendDuel(invitedFriends)}
+          disabled={invitedFriends.length === 0}
+          aria-label="Send duel"
+          className="disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Send Duel
+        </Button>
       </div>
     </motion.div>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import Button from "@/components/button";
 import Modal from "@/components/modal";
@@ -6,12 +6,23 @@ import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
 import { api } from "@/utils/api";
 import NewDuel from "@/components/duels/new-duel";
+import DuelRibbon from "@/components/duels/duel-ribbon";
 import type { Friend } from "@/components/friends/types";
+import { useAuthStore } from "@/state/auth-store";
+import { useDuelRealtime } from "@/hooks/useDuelRealtime";
 
 const Duels = () => {
   const { data, isLoading, error } = api.friends.list.useQuery();
+  const { data: duels } = api.duels.allDuels.useQuery();
+
+  const sendDuelMutation = api.duels.sendDuel.useMutation();
+  const startOrResumeDuel = api.duels.startOrResumeDuel.useMutation();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [usersToDuel, setUsersToDuel] = useState<string[]>();
+
+  const currentUserId = useAuthStore((state) => state.user?.id);
+  const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
+  const participantsByDuel = useDuelRealtime(duelIds);
   const friends: Friend[] = (data ?? [])
     .filter((friend) => friend.status === "accepted")
     .map((friend) => ({
@@ -20,6 +31,16 @@ const Duels = () => {
       email: friend.email ?? "",
       status: friend.status,
     }));
+
+  const handleSendDuel = (invitedFriends: Friend[]) => {
+    sendDuelMutation.mutate(invitedFriends.map((friend) => friend.id));
+  };
+
+  const handleStartDuel = (duelId: string) => {
+    startOrResumeDuel.mutate(duelId);
+  };
+
+  console.log(participantsByDuel);
 
   return (
     <div className="h-screen flex items-center flex-col gap-y-2 ">
@@ -37,8 +58,17 @@ const Duels = () => {
           </div>
           <hr className="my-2 border-none h-0.5 bg-stone-300" />
           <div>
-            <p>DUEL1</p>
-            <p>DUEL2</p>
+            {currentUserId &&
+              duels?.map((duel) => (
+                <DuelRibbon
+                  key={duel.id}
+                  duel={duel}
+                  currentUserId={currentUserId}
+                  friends={friends}
+                  participants={participantsByDuel[duel.id] ?? []}
+                  startOrResumeDuel={handleStartDuel}
+                />
+              ))}
           </div>
         </div>
       </div>
@@ -46,7 +76,11 @@ const Duels = () => {
       <AnimatePresence>
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
-            <NewDuel friends={friends} />
+            <NewDuel
+              onSendDuel={handleSendDuel}
+              friends={friends}
+              isLoading={isLoading}
+            />
           </Modal>
         )}
       </AnimatePresence>

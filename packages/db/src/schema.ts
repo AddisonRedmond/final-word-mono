@@ -23,10 +23,15 @@ export const gamePlayerStats = pgTable("game_player_stats", {
 
 export const duels = pgTable("duels", {
   id: uuid("id").defaultRandom().primaryKey(),
+  initiatedBy: uuid("initiated_by")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
   word: text("word").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  completed: boolean().default(false).notNull(),
+  participants: text("participants").array().notNull(),
 });
 
 export const duelParticipants = pgTable(
@@ -43,6 +48,7 @@ export const duelParticipants = pgTable(
     totalGuesses: integer("total_guesses").notNull().default(0),
     success: boolean("success").notNull().default(false),
     guesses: text("guesses").array().notNull().default([]),
+    accepted: boolean(),
   },
   (t) => [primaryKey({ columns: [t.duelId, t.userId] })],
 );
@@ -103,8 +109,8 @@ export const friendships = pgTable(
  */
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), // matches auth.users.id
-  email: text("email"),        // mirrors auth.users.email
-  name: text("name"),          // mirrors auth.users user_metadata.full_name
+  email: text("email"), // mirrors auth.users.email
+  name: text("name"), // mirrors auth.users user_metadata.full_name
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
