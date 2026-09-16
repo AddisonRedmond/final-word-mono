@@ -49,6 +49,7 @@ export const duelParticipants = pgTable(
     success: boolean("success").notNull().default(false),
     guesses: text("guesses").array().notNull().default([]),
     accepted: boolean(),
+    completed_game_acknowledged: boolean().default(false),
   },
   (t) => [primaryKey({ columns: [t.duelId, t.userId] })],
 );

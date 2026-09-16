@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
+import type { DuelParticipant } from "@/db/schema";
 
-export type DuelParticipant = {
-  duelId: string;
-  userId: string;
-  startTime: string | null;
-  endTime: string | null;
-  totalGuesses: number;
-  success: boolean;
-  guesses: string[];
-  accepted: boolean | null;
-};
+// export type DuelParticipant = {
+//   duelId: string;
+//   userId: string;
+//   startTime: string | null;
+//   endTime: string | null;
+//   totalGuesses: number;
+//   success: boolean;
+//   guesses: string[];
+//   accepted: boolean | null;
+// };
 
 // raw row shape as returned by supabase (snake_case column names)
 type DuelParticipantRow = {
@@ -23,17 +24,19 @@ type DuelParticipantRow = {
   success: boolean;
   guesses: string[];
   accepted: boolean | null;
+  completed_game_acknowledged: boolean;
 };
 
 const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
   duelId: row.duel_id,
   userId: row.user_id,
-  startTime: row.start_time,
-  endTime: row.end_time,
+  startTime: row.start_time ? new Date(row.start_time) : null,
+  endTime: row.end_time ? new Date(row.end_time) : null,
   totalGuesses: row.total_guesses,
   success: row.success,
   guesses: row.guesses,
   accepted: row.accepted,
+  completed_game_acknowledged: row.completed_game_acknowledged,
 });
 
 export const useDuelRealtime = (duelIds: string[]) => {

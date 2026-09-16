@@ -1,62 +1,52 @@
-import { number, z } from "zod";
+import { z } from "zod";
 
 import { TRPCError } from "@trpc/server";
-import { and, arrayContains, eq, inArray, or } from "drizzle-orm";
+import { and, arrayContains, eq, inArray, notInArray, or } from "drizzle-orm";
+
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { duelParticipants, duels, friendships } from "@/db/schema";
 import type { Duel } from "@/db/schema";
 import { getRandomWord } from "@/utils/duel";
+import { haveAllDuelParticipantsFinished } from "@/utils/duel";
 
 const MAX_ACTIVE_DUELS = 5;
 const MAX_INVITEES = 5;
-const challenge = {
-  challengeID: "some uuid",
-  participants: ["user1", "user2", "user3"],
-  word: "FLOAT",
-  completed: false,
-  user1: {
-    startTime: "now",
-    endTime: "later",
-    totalGuesses: 6,
-    success: false,
-    guesses: ["FOLK", "BLIND", "ALONE"],
-    accepted: true,
-  },
-  user2: {
-    startTime: "now",
-    endTime: "later",
-    totalGuesses: 6,
-    success: false,
-    guesses: ["FOLK", "BLIND", "ALONE"],
-    accepted: true,
-  },
-};
 
 export const duelsRouter = createTRPCRouter({
-  /**
-   * Returns all friendships for the current user, split into:
-   *  - accepted friends
-   *  - incoming pending requests (addressee = me)
-   *  - outgoing pending requests (requester = me)
-   */
   allDuels: protectedProcedure.query(async ({ ctx }) => {
-    // duel_participants table has realtime enabled
-    // I want the
+    const declinedDuels = ctx.db
+      .select({ duelId: duelParticipants.duelId })
+      .from(duelParticipants)
+      .where(
+        and(
+          eq(duelParticipants.userId, ctx.user.id),
+          eq(duelParticipants.accepted, false),
+        ),
+      );
+
+    const acknowledgedCompletedDuels = ctx.db
+      .select({ duelId: duelParticipants.duelId })
+      .from(duelParticipants)
+      .innerJoin(duels, eq(duels.id, duelParticipants.duelId))
+      .where(
+        and(
+          eq(duelParticipants.userId, ctx.user.id),
+          eq(duelParticipants.completed_game_acknowledged, true),
+          eq(duels.completed, true),
+        ),
+      );
+
     return ctx.db
       .select()
       .from(duels)
       .where(
         and(
           arrayContains(duels.participants, [ctx.user.id]),
-          eq(duels.completed, false),
+          notInArray(duels.id, declinedDuels),
+          notInArray(duels.id, acknowledgedCompletedDuels),
         ),
       );
   }),
-
-  /**
-   * Send a friend request to a user by email.
-   * Looks up the addressee's profile, then inserts a pending friendship row.
-   */
   sendDuel: protectedProcedure
     .input(z.array(z.string().uuid()).min(1).max(4))
     .mutation(async ({ ctx, input }) => {
@@ -77,7 +67,6 @@ export const duelsRouter = createTRPCRouter({
         });
       }
 
-      // Make sure user doesn't have 5 or more active games currently
       const activeDuels = await ctx.db
         .select({ duelId: duelParticipants.duelId })
         .from(duelParticipants)
@@ -93,7 +82,6 @@ export const duelsRouter = createTRPCRouter({
         });
       }
 
-      // check and make sure all invitees are friends with ctx.user
       const acceptedFriendships = await ctx.db
         .select()
         .from(friendships)
@@ -114,12 +102,15 @@ export const duelsRouter = createTRPCRouter({
         );
 
       const friendIds = new Set(
-        acceptedFriendships.map((f) =>
-          f.requesterId === userId ? f.addresseeId : f.requesterId,
+        acceptedFriendships.map((friendship) =>
+          friendship.requesterId === userId
+            ? friendship.addresseeId
+            : friendship.requesterId,
         ),
       );
 
       const nonFriendInvitees = inviteeIds.filter((id) => !friendIds.has(id));
+
       if (nonFriendInvitees.length > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -128,7 +119,7 @@ export const duelsRouter = createTRPCRouter({
       }
 
       const participantIds = [userId, ...inviteeIds];
-      // if they are, create a new duel and save it to duel,
+
       const newDuel: Omit<Duel, "id"> = {
         initiatedBy: userId,
         word: getRandomWord(),
@@ -137,9 +128,6 @@ export const duelsRouter = createTRPCRouter({
         participants: participantIds,
       };
 
-      // dont create individual user game info yet, when the user starts their game then it should be created
-
-      // try catch
       const duel = await ctx.db.insert(duels).values(newDuel).returning();
 
       return duel;
@@ -156,7 +144,10 @@ export const duelsRouter = createTRPCRouter({
         .where(eq(duels.id, input));
 
       if (!duel) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Duel not found." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Duel not found.",
+        });
       }
 
       if (!duel.participants.includes(userId)) {
@@ -193,10 +184,69 @@ export const duelsRouter = createTRPCRouter({
           duelId: input,
           userId,
           startTime: new Date(),
+          accepted: true,
         })
         .returning();
 
       return participant;
+    }),
+
+  declineDuel: protectedProcedure
+    .input(z.string().uuid())
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+
+      const [duel] = await ctx.db
+        .select()
+        .from(duels)
+        .where(eq(duels.id, input));
+
+      if (!duel) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Duel not found.",
+        });
+      }
+
+      if (!duel.participants.includes(userId)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not a participant in this duel.",
+        });
+      }
+
+      if (duel.completed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This duel has already been completed.",
+        });
+      }
+
+      await ctx.db.insert(duelParticipants).values({
+        duelId: duel.id,
+        userId,
+        accepted: false,
+      });
+
+      // Get the current participant state after recording
+      // this user's decline.
+      const participants = await ctx.db
+        .select()
+        .from(duelParticipants)
+        .where(eq(duelParticipants.duelId, duel.id));
+
+      const allFinished = haveAllDuelParticipantsFinished(
+        duel.participants,
+        duel.initiatedBy,
+        participants,
+      );
+
+      if (allFinished) {
+        await ctx.db
+          .update(duels)
+          .set({ completed: true })
+          .where(eq(duels.id, duel.id));
+      }
     }),
 
   handleDuelGuess: protectedProcedure

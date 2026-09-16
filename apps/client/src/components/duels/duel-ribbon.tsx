@@ -1,7 +1,7 @@
-import type { Duel } from "@/db/schema";
+import type { Duel, DuelParticipant } from "@/db/schema";
 import type { Friend } from "@/components/friends/types";
 import Button from "@/components/button";
-import type { DuelParticipant } from "@/hooks/useDuelRealtime";
+import { variants } from "@/utils/duel";
 
 export interface DuelRibbonProps {
   duel: Duel;
@@ -9,14 +9,20 @@ export interface DuelRibbonProps {
   friends: Friend[];
   participants: DuelParticipant[];
   startOrResumeDuel: (duelId: string) => void;
-  declineDuel?: (duelId: string) => void;
+  handleDeclineDuel: (duelId: string) => void;
 }
-
 const opponentColor = (participant: DuelParticipant | undefined) => {
-  if (!participant?.startTime) return "bg-stone-400";
-  return participant.endTime ? "bg-green-500" : "bg-amber-500";
+  if (!participant || participant.accepted === false) {
+    return variants.declined;
+  }
+  if (participant.endTime) {
+    return participant.success ? variants.done : variants.forfeit;
+  }
+  if (participant.startTime) {
+    return variants.started;
+  }
+  return variants.pending;
 };
-
 const getInitials = (name: string) =>
   name
     .split(" ")
@@ -24,58 +30,72 @@ const getInitials = (name: string) =>
     .join("")
     .toUpperCase()
     .slice(0, 2);
-
 const DuelRibbon: React.FC<DuelRibbonProps> = ({
   duel,
   currentUserId,
   friends,
   participants,
   startOrResumeDuel,
-  declineDuel,
+  handleDeclineDuel,
 }) => {
   const opponentIds = duel.participants.filter((id) => id !== currentUserId);
-  const hasJoined = participants.some((p) => p.userId === currentUserId);
+  const currentParticipant = participants.find(
+    (participant) => participant.userId === currentUserId,
+  );
+  const hasJoined = currentParticipant?.accepted === true;
   const isInitiator = duel.initiatedBy === currentUserId;
-  console.log(hasJoined);
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-md hover:bg-stone-500/10 transition-colors">
+    <div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
+      {" "}
       <div className="min-w-0">
+        {" "}
         <div className="flex items-center gap-1.5">
-          <p className="text-sm font-semibold text-gray-800">vs</p>
+          {" "}
+          <p className="text-sm font-semibold text-gray-800">vs</p>{" "}
           {opponentIds.map((id) => {
-            const participant = participants.find((p) => p.userId === id);
+            const participant = participants.find(
+              (participant) => participant.userId === id,
+            );
             const name =
               friends.find((friend) => friend.id === id)?.name ?? "Unknown";
-
             return (
               <span
                 key={id}
                 title={name}
-                className={`size-6 rounded-md grid place-content-center text-[10px] font-bold text-white shrink-0 select-none ${opponentColor(participant)}`}
+                className={`grid size-6 shrink-0 select-none place-content-center rounded-md text-[10px] font-bold text-white ${opponentColor(participant)}`}
               >
-                {getInitials(name)}
+                {" "}
+                {getInitials(name)}{" "}
               </span>
             );
-          })}
-        </div>
-        <p className="text-[11px] text-gray-500 truncate">
-          {new Date(duel.createdAt).toLocaleDateString()}
-        </p>
-      </div>
+          })}{" "}
+        </div>{" "}
+        <p className="truncate text-[11px] text-gray-500">
+          {" "}
+          {new Date(duel.createdAt).toLocaleDateString()}{" "}
+        </p>{" "}
+      </div>{" "}
       {duel.completed ? (
-        <span className="text-[11px] font-bold uppercase tracking-widest px-2 py-1 rounded-md shrink-0 bg-stone-200 text-stone-600">
-          Completed
+        <span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-stone-600">
+          {" "}
+          Completed{" "}
         </span>
       ) : (
-        <div className="flex gap-1.5 shrink-0">
-          {!hasJoined && !isInitiator && <Button variant="red">Decline</Button>}
+        <div className="flex shrink-0 gap-1.5">
+          {" "}
+          {!hasJoined && !isInitiator && (
+            <Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
+              {" "}
+              Decline{" "}
+            </Button>
+          )}{" "}
           <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
-            Start
-          </Button>
+            {" "}
+            Start{" "}
+          </Button>{" "}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 };
-
 export default DuelRibbon;
