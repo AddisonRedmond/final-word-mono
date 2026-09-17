@@ -50,6 +50,7 @@ const Duels = () => {
     );
 
     await refetchDuels();
+    setIsModalOpen(false);
   };
 
   const handleStartDuel = async (duelId: string) => {
