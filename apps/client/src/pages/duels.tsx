@@ -10,7 +10,7 @@ import DuelRibbon from "@/components/duels/duel-ribbon";
 import type { Friend } from "@/components/friends/types";
 import { useAuthStore } from "@/state/auth-store";
 import { useDuelRealtime } from "@/hooks/useDuelRealtime";
-import StatusBadge from "@/components/duels/status-badge";
+import { StatusBadge, DuelBoard } from "@/components/duels";
 
 const Duels = () => {
   const { data, isLoading } = api.friends.list.useQuery();
@@ -26,8 +26,10 @@ const Duels = () => {
   const sendDuelMutation = api.duels.sendDuel.useMutation();
   const startOrResumeDuel = api.duels.startOrResumeDuel.useMutation();
   const declineDuel = api.duels.declineDuel.useMutation();
+  const makeGuess = api.duels.handleDuelGuess.useMutation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDueling, setIsDueling] = useState(false);
 
   const currentUserId = useAuthStore((state) => state.user?.id);
 
@@ -56,6 +58,7 @@ const Duels = () => {
   const handleStartDuel = async (duelId: string) => {
     await startOrResumeDuel.mutateAsync(duelId);
     await refetchDuels();
+    setIsDueling(true);
   };
 
   const handleDeclineDuel = async (duelId: string) => {
@@ -133,7 +136,13 @@ const Duels = () => {
           {/* TODO clean this up later ^ */}
         </div>
       </div>
-
+      <AnimatePresence>
+        {isDueling && startOrResumeDuel.data && (
+          <Modal onClose={() => setIsDueling(false)}>
+            <DuelBoard duelData={startOrResumeDuel.data} />
+          </Modal>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>

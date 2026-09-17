@@ -251,5 +251,12 @@ export const duelsRouter = createTRPCRouter({
 
   handleDuelGuess: protectedProcedure
     .input(z.string())
-    .mutation(async ({ ctx, input }) => {}),
+    .mutation(async ({ ctx, input }) => {
+      // PATHS
+      // correct guess
+
+      // incorrect guess + no more guesses left
+      
+      // incorrect guess + more guesses left
+    }),
 });

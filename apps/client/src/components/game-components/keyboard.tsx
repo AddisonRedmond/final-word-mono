@@ -63,11 +63,11 @@ const KeyboardRow = ({
             onClick={() => onLetter(letter)}
             disabled={disabled}
             className={`${keyBaseClass} ${variantClasses[variant]} ${
-              disabled ? "cursor-not-allowed opacity-40" : ""
+              disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
             }`}
             aria-label={`Type ${letter}`}
           >
-            {letter}
+            {letter} 
           </button>
         );
       })}
@@ -84,7 +84,6 @@ const Keyboard = ({
   partialMatch,
   noMatch,
 }: KeyboardProps) => {
-  // console.log(Object.values(fullMatch));
   return (
     <div
       className={`flex w-full max-w-2xl flex-col gap-1.5 rounded-lg border border-white/15 bg-black/20 p-2 ${className}`}
