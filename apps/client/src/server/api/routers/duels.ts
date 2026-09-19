@@ -174,10 +174,12 @@ export const duelsRouter = createTRPCRouter({
           ),
         );
 
+      // have this return the matches for each guess so the word isn't exposed to
+      // the client - to prevent cheating
       if (existingParticipant) {
         return existingParticipant;
       }
-
+      
       const [participant] = await ctx.db
         .insert(duelParticipants)
         .values({
@@ -252,6 +254,7 @@ export const duelsRouter = createTRPCRouter({
   handleDuelGuess: protectedProcedure
     .input(z.string())
     .mutation(async ({ ctx, input }) => {
+      
       // PATHS
       // correct guess
 

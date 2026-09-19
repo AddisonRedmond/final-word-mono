@@ -50,3 +50,13 @@ export const haveAllDuelParticipantsFinished = (
     return participant.accepted === false || participant.endTime !== null;
   });
 };
+
+const handleColorGuesses = (word: string, guesses: string[]) => {
+  const fullMatches = {};
+  const partialMatches = {};
+  const noMatch = {};
+
+  // TODO 
+
+  // TODO, dont forget to handle partial matches
+};
