@@ -11,6 +11,13 @@ import type { Friend } from "@/components/friends/types";
 import { useAuthStore } from "@/state/auth-store";
 import { useDuelRealtime } from "@/hooks/useDuelRealtime";
 import { StatusBadge, DuelBoard } from "@/components/duels";
+import type { MatchResult, KeyboardState } from "@/utils/duel";
+import type { DuelParticipant } from "@/db/schema";
+
+type ActiveDuelData = DuelParticipant & {
+  matchResults: MatchResult[];
+  keyboardState: KeyboardState;
+};
 
 const Duels = () => {
   const { data, isLoading } = api.friends.list.useQuery();
@@ -30,6 +37,9 @@ const Duels = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDueling, setIsDueling] = useState(false);
+  const [activeDuelData, setActiveDuelData] = useState<ActiveDuelData | null>(
+    null,
+  );
 
   const currentUserId = useAuthStore((state) => state.user?.id);
 
@@ -56,9 +66,24 @@ const Duels = () => {
   };
 
   const handleStartDuel = async (duelId: string) => {
-    await startOrResumeDuel.mutateAsync(duelId);
+    const data = await startOrResumeDuel.mutateAsync(duelId);
+    setActiveDuelData(data);
     await refetchDuels();
     setIsDueling(true);
+  };
+
+  const handleDuelGuess = async (guess: string) => {
+    if (!activeDuelData) return;
+    const result = await makeGuess.mutateAsync({
+      duelId: activeDuelData.duelId,
+      guess,
+    });
+    // Update board state directly from the guess response — no second request needed.
+    setActiveDuelData(result);
+  };
+
+  const handleForfeit = async (duelId: string) => {
+    
   };
 
   const handleDeclineDuel = async (duelId: string) => {
@@ -137,9 +162,12 @@ const Duels = () => {
         </div>
       </div>
       <AnimatePresence>
-        {isDueling && startOrResumeDuel.data && (
+        {isDueling && activeDuelData && (
           <Modal onClose={() => setIsDueling(false)}>
-            <DuelBoard duelData={startOrResumeDuel.data} />
+            <DuelBoard
+              duelData={activeDuelData}
+              onSubmitGuess={handleDuelGuess}
+            />
           </Modal>
         )}
       </AnimatePresence>

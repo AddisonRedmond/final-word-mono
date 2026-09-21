@@ -44,14 +44,12 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
   );
   const hasJoined = currentParticipant?.accepted === true;
   const isInitiator = duel.initiatedBy === currentUserId;
+  const hasCompleted = currentParticipant?.endTime;
   return (
     <div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
-      {" "}
       <div className="min-w-0">
-        {" "}
         <div className="flex items-center gap-1.5">
-          {" "}
-          <p className="text-sm font-semibold text-gray-800">vs</p>{" "}
+          <p className="text-sm font-semibold text-gray-800">vs</p>
           {opponentIds.map((id) => {
             const participant = participants.find(
               (participant) => participant.userId === id,
@@ -64,37 +62,36 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
                 title={name}
                 className={`grid size-6 shrink-0 select-none place-content-center rounded-md text-[10px] font-bold text-white ${opponentColor(participant)}`}
               >
-                {" "}
-                {getInitials(name)}{" "}
+                {getInitials(name)}
               </span>
             );
-          })}{" "}
-        </div>{" "}
+          })}
+        </div>
         <p className="truncate text-[11px] text-gray-500">
-          {" "}
-          {new Date(duel.createdAt).toLocaleDateString()}{" "}
-        </p>{" "}
-      </div>{" "}
+          {new Date(duel.createdAt).toLocaleDateString()}
+        </p>
+      </div>
       {duel.completed ? (
         <span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-stone-600">
-          {" "}
-          Completed{" "}
+          Completed
         </span>
       ) : (
         <div className="flex shrink-0 gap-1.5">
-          {" "}
           {!hasJoined && !isInitiator && (
             <Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
-              {" "}
-              Decline{" "}
+              Decline
             </Button>
-          )}{" "}
+          )}
+          {hasJoined && !hasCompleted && (
+            <Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
+              Forfeit
+            </Button>
+          )}
           <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
-            {" "}
-            Start{" "}
-          </Button>{" "}
+            Start
+          </Button>
         </div>
-      )}{" "}
+      )}
     </div>
   );
 };

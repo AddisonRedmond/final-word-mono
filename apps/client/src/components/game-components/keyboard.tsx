@@ -1,5 +1,3 @@
-import { number } from "zod";
-
 const TOP_ROW = "QWERTYUIOP";
 const MIDDLE_ROW = "ASDFGHJKL";
 const BOTTOM_ROW = "ZXCVBNM";

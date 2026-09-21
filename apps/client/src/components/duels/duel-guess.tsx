@@ -28,18 +28,20 @@ export const DuelGuessLetter = memo(function GuessLetter({
     <div
       className={`relative grid h-14 w-1/5 place-content-center rounded-md ${variantClasses[variant]}`}
     >
-      <AnimatePresence>
-        {letter && (
-          <m.p
-            key="letter"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-          >
-            {letter}
-          </m.p>
-        )}
-      </AnimatePresence>
+      <LazyMotion features={domAnimation} strict>
+        <AnimatePresence>
+          {letter && (
+            <m.p
+              key="letter"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+            >
+              {letter}
+            </m.p>
+          )}
+        </AnimatePresence>
+      </LazyMotion>
     </div>
   );
 });
@@ -54,19 +56,17 @@ const DuelGuess = memo(function GuessContainer({
   );
 
   return (
-    <LazyMotion features={domAnimation} strict>
-      <div className="relative isolate rounded-md border border-white/30 bg-white/10 p-2 shadow-lg backdrop-blur-md">
-        <div className="flex items-center justify-evenly gap-x-1 text-xl font-bold">
-          {guessLetters.map((letter, index) => (
-            <DuelGuessLetter
-              key={index}
-              letter={letter}
-              variant={variants?.[index] ?? "default"}
-            />
-          ))}
-        </div>
+    <div className="relative isolate rounded-md border border-white/30 bg-white/10 p-2 shadow-lg backdrop-blur-md">
+      <div className="flex items-center justify-evenly gap-x-1 text-xl font-bold">
+        {guessLetters.map((letter, index) => (
+          <DuelGuessLetter
+            key={index}
+            letter={letter}
+            variant={variants?.[index] ?? "default"}
+          />
+        ))}
       </div>
-    </LazyMotion>
+    </div>
   );
 });
 

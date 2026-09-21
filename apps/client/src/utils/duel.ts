@@ -51,12 +51,81 @@ export const haveAllDuelParticipantsFinished = (
   });
 };
 
-const handleColorGuesses = (word: string, guesses: string[]) => {
-  const fullMatches = {};
-  const partialMatches = {};
-  const noMatch = {};
+export type MatchResult = {
+  fullMatches: Record<number, string>;
+  partialMatches: string[];
+  noMatch: string[];
+};
 
-  // TODO 
+export type KeyboardState = {
+  correct: string[]; // green — right letter, right position
+  present: string[]; // yellow — right letter, wrong position
+  absent: string[];  // grey — not in word
+};
 
-  // TODO, dont forget to handle partial matches
+/**
+ * Two-pass Wordle-correct match algorithm.
+ * Pass 1: lock in exact position matches and consume those letter occurrences.
+ * Pass 2: for remaining positions, mark yellow if an unaccounted occurrence
+ *         of that letter still exists in the word, otherwise grey.
+ * Correctly handles repeated letters (e.g. GRASS, APPLE).
+ */
+export const calculateMatchObj = (word: string, guess: string): MatchResult => {
+  const fullMatches: Record<number, string> = {};
+  const partialMatches: string[] = [];
+  const noMatch: string[] = [];
+
+  const remainingWordLetters: Record<string, number> = {};
+  for (const letter of word) {
+    remainingWordLetters[letter] = (remainingWordLetters[letter] ?? 0) + 1;
+  }
+
+  // Pass 1 — green matches.
+  for (let i = 0; i < word.length; i++) {
+    if (guess[i] === word[i]) {
+      fullMatches[i] = word[i]!;
+      remainingWordLetters[word[i]!]! -= 1;
+    }
+  }
+
+  // Pass 2 — yellow / grey for non-green positions.
+  for (let i = 0; i < word.length; i++) {
+    if (fullMatches[i] !== undefined) continue;
+    const guessedLetter = guess[i];
+    if (!guessedLetter) continue;
+
+    if ((remainingWordLetters[guessedLetter] ?? 0) > 0) {
+      partialMatches.push(guessedLetter);
+      remainingWordLetters[guessedLetter]! -= 1;
+    } else {
+      if (!noMatch.includes(guessedLetter)) noMatch.push(guessedLetter);
+    }
+  }
+
+  return { fullMatches, partialMatches, noMatch };
+};
+
+/**
+ * Derives the cumulative keyboard state from all per-guess match results.
+ * A letter only shows green once all its occurrences in the word are placed —
+ * ensured by removing it from `present` when it appears in `correct`.
+ */
+export const buildKeyboardState = (matchResults: MatchResult[]): KeyboardState => {
+  const correct = new Set<string>();
+  const present = new Set<string>();
+  const absent = new Set<string>();
+
+  for (const { fullMatches, partialMatches, noMatch } of matchResults) {
+    for (const letter of Object.values(fullMatches)) correct.add(letter);
+    for (const letter of partialMatches) present.add(letter);
+    for (const letter of noMatch) absent.add(letter);
+  }
+
+  for (const letter of correct) present.delete(letter);
+
+  return {
+    correct: [...correct],
+    present: [...present],
+    absent: [...absent],
+  };
 };

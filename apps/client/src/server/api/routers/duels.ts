@@ -1,38 +1,45 @@
 import { z } from "zod";
 
 import { TRPCError } from "@trpc/server";
-import { and, arrayContains, eq, inArray, notInArray, or } from "drizzle-orm";
+import { and, arrayContains, eq, exists, inArray, not, or } from "drizzle-orm";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { duelParticipants, duels, friendships } from "@/db/schema";
 import type { Duel } from "@/db/schema";
-import { getRandomWord } from "@/utils/duel";
-import { haveAllDuelParticipantsFinished } from "@/utils/duel";
+import {
+  getRandomWord,
+  haveAllDuelParticipantsFinished,
+  calculateMatchObj,
+  buildKeyboardState,
+} from "@/utils/duel";
 
 const MAX_ACTIVE_DUELS = 5;
 const MAX_INVITEES = 5;
+const MAX_GUESSES = 6;
 
 export const duelsRouter = createTRPCRouter({
   allDuels: protectedProcedure.query(async ({ ctx }) => {
-    const declinedDuels = ctx.db
+    const userId = ctx.user.id;
+
+    const declinedDuel = ctx.db
       .select({ duelId: duelParticipants.duelId })
       .from(duelParticipants)
       .where(
         and(
-          eq(duelParticipants.userId, ctx.user.id),
+          eq(duelParticipants.duelId, duels.id),
+          eq(duelParticipants.userId, userId),
           eq(duelParticipants.accepted, false),
         ),
       );
 
-    const acknowledgedCompletedDuels = ctx.db
+    const acknowledgedCompletedDuel = ctx.db
       .select({ duelId: duelParticipants.duelId })
       .from(duelParticipants)
-      .innerJoin(duels, eq(duels.id, duelParticipants.duelId))
       .where(
         and(
-          eq(duelParticipants.userId, ctx.user.id),
+          eq(duelParticipants.duelId, duels.id),
+          eq(duelParticipants.userId, userId),
           eq(duelParticipants.completed_game_acknowledged, true),
-          eq(duels.completed, true),
         ),
       );
 
@@ -41,12 +48,27 @@ export const duelsRouter = createTRPCRouter({
       .from(duels)
       .where(
         and(
-          arrayContains(duels.participants, [ctx.user.id]),
-          notInArray(duels.id, declinedDuels),
-          notInArray(duels.id, acknowledgedCompletedDuels),
+          arrayContains(duels.participants, [userId]),
+          not(exists(declinedDuel)),
+          not(
+            exists(
+              ctx.db
+                .select({ duelId: duelParticipants.duelId })
+                .from(duelParticipants)
+                .where(
+                  and(
+                    eq(duelParticipants.duelId, duels.id),
+                    eq(duelParticipants.userId, userId),
+                    eq(duelParticipants.completed_game_acknowledged, true),
+                    eq(duels.completed, true),
+                  ),
+                ),
+            ),
+          ),
         ),
       );
   }),
+
   sendDuel: protectedProcedure
     .input(z.array(z.string().uuid()).min(1).max(4))
     .mutation(async ({ ctx, input }) => {
@@ -174,13 +196,27 @@ export const duelsRouter = createTRPCRouter({
           ),
         );
 
-      // have this return the matches for each guess so the word isn't exposed to
-      // the client - to prevent cheating
+      const buildResponse = (
+        participant: NonNullable<typeof existingParticipant>,
+      ) => {
+        const matchResults = participant.guesses.map((guess) =>
+          calculateMatchObj(duel.word.toUpperCase(), guess.toUpperCase()),
+        );
+
+        const keyboardState = buildKeyboardState(matchResults);
+
+        return {
+          ...participant,
+          matchResults,
+          keyboardState,
+        };
+      };
+
       if (existingParticipant) {
-        return existingParticipant;
+        return buildResponse(existingParticipant);
       }
-      
-      const [participant] = await ctx.db
+
+      const [newParticipant] = await ctx.db
         .insert(duelParticipants)
         .values({
           duelId: input,
@@ -190,7 +226,14 @@ export const duelsRouter = createTRPCRouter({
         })
         .returning();
 
-      return participant;
+      if (!newParticipant) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create participant.",
+        });
+      }
+
+      return buildResponse(newParticipant);
     }),
 
   declineDuel: protectedProcedure
@@ -230,8 +273,6 @@ export const duelsRouter = createTRPCRouter({
         accepted: false,
       });
 
-      // Get the current participant state after recording
-      // this user's decline.
       const participants = await ctx.db
         .select()
         .from(duelParticipants)
@@ -252,14 +293,112 @@ export const duelsRouter = createTRPCRouter({
     }),
 
   handleDuelGuess: protectedProcedure
-    .input(z.string())
+    .input(
+      z.object({
+        duelId: z.string().uuid(),
+        guess: z.string().length(5),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      
-      // PATHS
-      // correct guess
+      const userId = ctx.user.id;
+      const normalizedGuess = input.guess.trim().toUpperCase();
 
-      // incorrect guess + no more guesses left
-      
-      // incorrect guess + more guesses left
+      const [duel] = await ctx.db
+        .select({
+          id: duels.id,
+          word: duels.word,
+          completed: duels.completed,
+        })
+        .from(duels)
+        .where(eq(duels.id, input.duelId));
+
+      if (!duel) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Duel not found.",
+        });
+      }
+
+      if (duel.completed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This duel has already been completed.",
+        });
+      }
+
+      const [participant] = await ctx.db
+        .select()
+        .from(duelParticipants)
+        .where(
+          and(
+            eq(duelParticipants.duelId, input.duelId),
+            eq(duelParticipants.userId, userId),
+          ),
+        );
+
+      if (!participant) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not a participant in this duel.",
+        });
+      }
+
+      if (participant.endTime !== null) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You have already finished this duel.",
+        });
+      }
+
+      if (participant.guesses.length >= MAX_GUESSES) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No guesses remaining.",
+        });
+      }
+
+      const normalizedWord = duel.word.toUpperCase();
+      const isCorrect = normalizedGuess === normalizedWord;
+      const isLastGuess = participant.guesses.length + 1 >= MAX_GUESSES;
+      const isGameOver = isCorrect || isLastGuess;
+
+      const updatedGuesses = [...participant.guesses, normalizedGuess];
+
+      const [updated] = await ctx.db
+        .update(duelParticipants)
+        .set({
+          guesses: updatedGuesses,
+          totalGuesses: updatedGuesses.length,
+          success: isCorrect,
+          ...(isGameOver ? { endTime: new Date() } : {}),
+        })
+        .where(
+          and(
+            eq(duelParticipants.duelId, input.duelId),
+            eq(duelParticipants.userId, userId),
+          ),
+        )
+        .returning();
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to save guess.",
+        });
+      }
+
+      const matchResults = updated.guesses.map((guess) =>
+        calculateMatchObj(normalizedWord, guess),
+      );
+
+      const keyboardState = buildKeyboardState(matchResults);
+
+      return {
+        ...updated,
+        matchResults,
+        keyboardState,
+        isCorrect,
+        isGameOver,
+      };
     }),
 });
