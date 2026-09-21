@@ -39,13 +39,19 @@ const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
   completed_game_acknowledged: row.completed_game_acknowledged,
 });
 
-export const useDuelRealtime = (duelIds: string[]) => {
+export const useDuelRealtime = (
+  duelIds: string[],
+  onParticipantChange?: () => Promise<unknown> | void,
+) => {
   const [participants, setParticipants] = useState<
     Record<string, DuelParticipant[]>
   >({});
 
   useEffect(() => {
-    if (duelIds.length === 0) return;
+    if (duelIds.length === 0) {
+      setParticipants({});
+      return;
+    }
 
     const supabase = createClient();
     let isMounted = true;
@@ -123,6 +129,8 @@ export const useDuelRealtime = (duelIds: string[]) => {
 
             return current;
           });
+
+          void onParticipantChange?.();
         },
       )
       .subscribe();
@@ -131,7 +139,7 @@ export const useDuelRealtime = (duelIds: string[]) => {
       isMounted = false;
       void supabase.removeChannel(channel);
     };
-  }, [duelIds]);
+  }, [duelIds, onParticipantChange]);
 
   return participants;
 };

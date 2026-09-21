@@ -4,16 +4,20 @@ import Button from "@/components/button";
 import { variants } from "@/utils/duel";
 
 export interface DuelRibbonProps {
-  duel: Duel;
+  duel: Omit<Duel, "word">;
   currentUserId: string;
   friends: Friend[];
   participants: DuelParticipant[];
   startOrResumeDuel: (duelId: string) => void;
   handleDeclineDuel: (duelId: string) => void;
+  handleForfeit: (duelId: string) => void;
 }
 const opponentColor = (participant: DuelParticipant | undefined) => {
-  if (!participant || participant.accepted === false) {
-    return variants.declined;
+  if (!participant) {
+    return variants.pending;
+  }
+  if (participant.accepted === false) {
+    return participant.endTime ? variants.forfeit : variants.declined;
   }
   if (participant.endTime) {
     return participant.success ? variants.done : variants.forfeit;
@@ -37,6 +41,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
   participants,
   startOrResumeDuel,
   handleDeclineDuel,
+  handleForfeit,
 }) => {
   const opponentIds = duel.participants.filter((id) => id !== currentUserId);
   const currentParticipant = participants.find(
@@ -44,7 +49,10 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
   );
   const hasJoined = currentParticipant?.accepted === true;
   const isInitiator = duel.initiatedBy === currentUserId;
-  const hasCompleted = currentParticipant?.endTime;
+  const hasCompleted = Boolean(currentParticipant?.endTime);
+  // Creating a duel adds the initiator as an accepted participant, but they
+  // have not actually begun playing until they submit their first guess.
+  const hasStartedPlaying = (currentParticipant?.guesses.length ?? 0) > 0;
   return (
     <div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
       <div className="min-w-0">
@@ -72,9 +80,16 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
         </p>
       </div>
       {duel.completed ? (
-        <span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-stone-600">
-          Completed
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 text-[11px] font-bold uppercase tracking-widest text-stone-600">
+            Completed
+          </span>
+          {hasCompleted && (
+            <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
+              View result
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="flex shrink-0 gap-1.5">
           {!hasJoined && !isInitiator && (
@@ -83,13 +98,22 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
             </Button>
           )}
           {hasJoined && !hasCompleted && (
-            <Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
+            <Button onClick={() => handleForfeit(duel.id)} variant="red">
               Forfeit
             </Button>
           )}
-          <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
-            Start
-          </Button>
+          {!hasCompleted && (
+            <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
+              {hasJoined && (!isInitiator || hasStartedPlaying)
+                ? "Resume"
+                : "Start"}
+            </Button>
+          )}
+          {hasCompleted && !duel.completed && (
+            <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
+              View result
+            </Button>
+          )}
         </div>
       )}
     </div>

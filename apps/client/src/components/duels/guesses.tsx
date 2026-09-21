@@ -1,10 +1,7 @@
-import type { MatchResult } from "@/utils/duel";
+import { MAX_GUESSES, WORD_LENGTH, type MatchResult } from "@/utils/duel";
 import { DuelGuessLetter } from "./duel-guess";
 
 type TileVariant = "default" | "correct" | "present" | "absent";
-
-const MAX_GUESSES = 5;
-const WORD_LENGTH = 5;
 
 /**
  * Converts a MatchResult into a per-letter TileVariant array so
@@ -12,11 +9,10 @@ const WORD_LENGTH = 5;
  */
 const matchResultToVariants = (
   match: MatchResult,
-  guess: string,
 ): TileVariant[] => {
   return Array.from({ length: WORD_LENGTH }, (_, i) => {
     if (match.fullMatches[i] !== undefined) return "correct";
-    if (match.partialMatches.includes(guess[i]?.toUpperCase() ?? ""))
+    if (match.partialMatchIndexes.includes(i))
       return "present";
     return "absent";
   });
@@ -32,7 +28,7 @@ const Guesses: React.FC<{ guesses: string[]; matchResults: MatchResult[] }> = ({
         const guess = guesses[rowIndex] ?? "";
         const match = matchResults[rowIndex];
         const variants =
-          match && guess ? matchResultToVariants(match, guess) : undefined;
+          match && guess ? matchResultToVariants(match) : undefined;
 
         return (
           <div key={rowIndex} className="flex gap-1 w-full">

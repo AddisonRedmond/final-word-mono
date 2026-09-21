@@ -1,9 +1,17 @@
 import words from "./words";
 import type { DuelParticipant } from "@/db/schema";
 
+export const WORD_LENGTH = 5;
+export const MAX_GUESSES = 6;
+const validWords = new Set(words.map((word) => word.toUpperCase()));
+
 export const getRandomWord = (): string => {
   return words[Math.floor(Math.random() * words.length)]!;
 };
+
+/** Returns whether a five-letter guess exists in the canonical duel word list. */
+export const isValidDuelWord = (word: string): boolean =>
+  word.length === WORD_LENGTH && validWords.has(word.toUpperCase());
 
 export const variants = {
   forfeit: "bg-red-500",
@@ -54,6 +62,7 @@ export const haveAllDuelParticipantsFinished = (
 export type MatchResult = {
   fullMatches: Record<number, string>;
   partialMatches: string[];
+  partialMatchIndexes: number[];
   noMatch: string[];
 };
 
@@ -73,6 +82,7 @@ export type KeyboardState = {
 export const calculateMatchObj = (word: string, guess: string): MatchResult => {
   const fullMatches: Record<number, string> = {};
   const partialMatches: string[] = [];
+  const partialMatchIndexes: number[] = [];
   const noMatch: string[] = [];
 
   const remainingWordLetters: Record<string, number> = {};
@@ -96,13 +106,14 @@ export const calculateMatchObj = (word: string, guess: string): MatchResult => {
 
     if ((remainingWordLetters[guessedLetter] ?? 0) > 0) {
       partialMatches.push(guessedLetter);
+      partialMatchIndexes.push(i);
       remainingWordLetters[guessedLetter]! -= 1;
     } else {
       if (!noMatch.includes(guessedLetter)) noMatch.push(guessedLetter);
     }
   }
 
-  return { fullMatches, partialMatches, noMatch };
+  return { fullMatches, partialMatches, partialMatchIndexes, noMatch };
 };
 
 /**

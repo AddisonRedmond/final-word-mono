@@ -17,6 +17,7 @@ import type { DuelParticipant } from "@/db/schema";
 type ActiveDuelData = DuelParticipant & {
   matchResults: MatchResult[];
   keyboardState: KeyboardState;
+  secretWord?: string;
 };
 
 const Duels = () => {
@@ -33,6 +34,8 @@ const Duels = () => {
   const sendDuelMutation = api.duels.sendDuel.useMutation();
   const startOrResumeDuel = api.duels.startOrResumeDuel.useMutation();
   const declineDuel = api.duels.declineDuel.useMutation();
+  const forfeitDuel = api.duels.forfeitDuel.useMutation();
+  const acknowledgeDuel = api.duels.acknowledgeDuel.useMutation();
   const makeGuess = api.duels.handleDuelGuess.useMutation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,7 +48,7 @@ const Duels = () => {
 
   const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
-  const participantsByDuel = useDuelRealtime(duelIds);
+  const participantsByDuel = useDuelRealtime(duelIds, refetchDuels);
 
   const friends: Friend[] = (data ?? [])
     .filter((friend) => friend.status === "accepted")
@@ -80,16 +83,56 @@ const Duels = () => {
     });
     // Update board state directly from the guess response — no second request needed.
     setActiveDuelData(result);
+    if (result.isGameOver) await refetchDuels();
   };
 
   const handleForfeit = async (duelId: string) => {
-    
+    await forfeitDuel.mutateAsync(duelId);
+    setIsDueling(false);
+    setActiveDuelData(null);
+    await refetchDuels();
   };
 
   const handleDeclineDuel = async (duelId: string) => {
     await declineDuel.mutateAsync(duelId);
     await refetchDuels();
   };
+
+  const handleCloseBoard = async () => {
+    const activeDuel = duels?.find((duel) => duel.id === activeDuelData?.duelId);
+    if (activeDuel?.completed && activeDuelData?.endTime) {
+      await acknowledgeDuel.mutateAsync(activeDuel.id);
+      await refetchDuels();
+    }
+    setIsDueling(false);
+    setActiveDuelData(null);
+  };
+
+  const activeDuel = duels?.find((duel) => duel.id === activeDuelData?.duelId);
+  const activeDuelOpponents = (activeDuel?.participants ?? [])
+    .filter((userId) => userId !== currentUserId)
+    .map((userId) => {
+      const participant = (participantsByDuel[activeDuel?.id ?? ""] ?? []).find(
+        (item) => item.userId === userId,
+      );
+      const status = !participant
+        ? "pending"
+        : participant.accepted === false
+          ? participant.endTime
+            ? "forfeit"
+            : "declined"
+          : participant.endTime
+            ? participant.success
+              ? "completed"
+              : "forfeit"
+            : "started";
+      return {
+        id: userId,
+        name: friends.find((friend) => friend.id === userId)?.name ?? "Unknown",
+        status,
+        guesses: participant?.guesses ?? [],
+      };
+    });
   return (
     <div className="h-screen flex flex-col items-center gap-y-2">
       {/* TODO: add navbar to the app, not individual pages */}
@@ -148,6 +191,7 @@ const Duels = () => {
                   participants={participantsByDuel[duel.id] ?? []}
                   startOrResumeDuel={handleStartDuel}
                   handleDeclineDuel={handleDeclineDuel}
+                  handleForfeit={handleForfeit}
                 />
               ))
             ) : (
@@ -163,10 +207,12 @@ const Duels = () => {
       </div>
       <AnimatePresence>
         {isDueling && activeDuelData && (
-          <Modal onClose={() => setIsDueling(false)}>
+          <Modal onClose={() => void handleCloseBoard()}>
             <DuelBoard
               duelData={activeDuelData}
               onSubmitGuess={handleDuelGuess}
+              onClose={() => void handleCloseBoard()}
+              opponents={activeDuelOpponents}
             />
           </Modal>
         )}
