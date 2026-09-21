@@ -1,18 +1,19 @@
+import { animate, AnimatePresence, useAnimate } from "motion/react";
 import { useMemo, useState } from "react";
-import { AnimatePresence } from "motion/react";
 import Button from "@/components/button";
+import { DuelBoard, StatusBadge } from "@/components/duels";
+import DuelRibbon from "@/components/duels/duel-ribbon";
+import NewDuel from "@/components/duels/new-duel";
+import type { Friend } from "@/components/friends/types";
 import Modal from "@/components/modal";
 import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
-import { api } from "@/utils/api";
-import NewDuel from "@/components/duels/new-duel";
-import DuelRibbon from "@/components/duels/duel-ribbon";
-import type { Friend } from "@/components/friends/types";
-import { useAuthStore } from "@/state/auth-store";
-import { useDuelRealtime } from "@/hooks/useDuelRealtime";
-import { StatusBadge, DuelBoard } from "@/components/duels";
-import type { MatchResult, KeyboardState } from "@/utils/duel";
 import type { DuelParticipant } from "@/db/schema";
+import { useDuelRealtime } from "@/hooks/useDuelRealtime";
+import { useAuthStore } from "@/state/auth-store";
+import { api } from "@/utils/api";
+import type { KeyboardState, MatchResult } from "@/utils/duel";
+import { isValidGuess } from "@/utils/battle-royale";
 
 type ActiveDuelData = DuelParticipant & {
   matchResults: MatchResult[];
@@ -43,6 +44,7 @@ const Duels = () => {
   const [activeDuelData, setActiveDuelData] = useState<ActiveDuelData | null>(
     null,
   );
+  const [scope, animate] = useAnimate();
 
   const currentUserId = useAuthStore((state) => state.user?.id);
 
@@ -81,8 +83,17 @@ const Duels = () => {
       duelId: activeDuelData.duelId,
       guess,
     });
+
+    if (!isValidGuess(guess)) {
+      animate(scope.current, { x: [-10, 10, -10, 10, 0] });
+      return;
+    }
     // Update board state directly from the guess response — no second request needed.
-    setActiveDuelData(result);
+    setActiveDuelData((current) => {
+      if (!current || current.duelId !== result.duelId) return current;
+
+      return result.guesses.length >= current.guesses.length ? result : current;
+    });
     if (result.isGameOver) await refetchDuels();
   };
 
@@ -99,7 +110,9 @@ const Duels = () => {
   };
 
   const handleCloseBoard = async () => {
-    const activeDuel = duels?.find((duel) => duel.id === activeDuelData?.duelId);
+    const activeDuel = duels?.find(
+      (duel) => duel.id === activeDuelData?.duelId,
+    );
     if (activeDuel?.completed && activeDuelData?.endTime) {
       await acknowledgeDuel.mutateAsync(activeDuel.id);
       await refetchDuels();
@@ -134,15 +147,15 @@ const Duels = () => {
       };
     });
   return (
-    <div className="h-screen flex flex-col items-center gap-y-2">
+    <div className="flex h-screen flex-col items-center gap-y-2">
       {/* TODO: add navbar to the app, not individual pages */}
 
       <Navbar />
 
-      <Tile word="DUEL" revealed={true} size="md" variant="correct" />
+      <Tile revealed={true} size="md" variant="correct" word="DUEL" />
 
-      <div className="flex flex-col items-center justify-center grow">
-        <div className="flex gap-x-2 w-full">
+      <div className="flex grow flex-col items-center justify-center">
+        <div className="flex w-full gap-x-2">
           <StatusBadge badgeType="started" label="Started" />
           <StatusBadge badgeType="done" label="Completed" />
           <StatusBadge badgeType="declined" label="Declined" />
@@ -150,14 +163,14 @@ const Duels = () => {
           <StatusBadge badgeType="pending" label="Pending" />
         </div>
 
-        <div className="w-2xl h-10/12 outline outline-stone-200 bg-white rounded-md shadow-lg p-2">
+        <div className="h-10/12 w-2xl rounded-md bg-white p-2 shadow-lg outline outline-stone-200">
           <div className="flex justify-between">
             <p className="font-semibold text-lg">DUELS</p>
             <div className="space-x-2">
               <Button
-                variant="blue"
-                onClick={() => refetchDuels()}
                 disabled={isFetchingDuels}
+                onClick={() => refetchDuels()}
+                variant="blue"
               >
                 {isFetchingDuels ? (
                   <span className="inline-block size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -171,32 +184,32 @@ const Duels = () => {
             </div>
           </div>
 
-          <hr className="my-2 border-none h-0.5 bg-stone-300" />
+          <hr className="my-2 h-0.5 border-none bg-stone-300" />
           {/* TODO clean this up later below \/ */}
 
           <div>
             {isLoadingDuels ? (
               <div className="flex h-32 items-center justify-center">
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
                   Loading duels...
                 </p>
               </div>
             ) : duels && duels.length > 0 ? (
               duels.map((duel) => (
                 <DuelRibbon
-                  key={duel.id}
-                  duel={duel}
                   currentUserId={currentUserId!}
+                  duel={duel}
                   friends={friends}
-                  participants={participantsByDuel[duel.id] ?? []}
-                  startOrResumeDuel={handleStartDuel}
                   handleDeclineDuel={handleDeclineDuel}
                   handleForfeit={handleForfeit}
+                  key={duel.id}
+                  participants={participantsByDuel[duel.id] ?? []}
+                  startOrResumeDuel={handleStartDuel}
                 />
               ))
             ) : (
               <div className="flex h-32 items-center justify-center">
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
                   No duels
                 </p>
               </div>
@@ -210,8 +223,8 @@ const Duels = () => {
           <Modal onClose={() => void handleCloseBoard()}>
             <DuelBoard
               duelData={activeDuelData}
-              onSubmitGuess={handleDuelGuess}
               onClose={() => void handleCloseBoard()}
+              onSubmitGuess={handleDuelGuess}
               opponents={activeDuelOpponents}
             />
           </Modal>
@@ -221,9 +234,9 @@ const Duels = () => {
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>
             <NewDuel
-              onSendDuel={handleSendDuel}
               friends={friends}
               isLoading={isLoading}
+              onSendDuel={handleSendDuel}
             />
           </Modal>
         )}

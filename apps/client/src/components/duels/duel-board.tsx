@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import type { DuelParticipant } from "@/db/schema";
-import type { MatchResult, KeyboardState } from "@/utils/duel";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAnimate } from "motion/react";
 import Keyboard from "@/components/game-components/keyboard";
+import type { DuelParticipant } from "@/db/schema";
+import * as br from "@/utils/battle-royale";
+import type { KeyboardState, MatchResult } from "@/utils/duel";
 import DuelGuess from "./duel-guess";
-import Guesses from "./guesses";
 import DuelResult from "./duel-result";
 import DuelTimer from "./duel-timer";
+import Guesses from "./guesses";
 
 type DuelBoardProps = {
 	duelData: DuelParticipant & {
@@ -31,6 +33,8 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
 }) => {
 	const [guess, setGuess] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const isSubmittingRef = useRef(false);
+	const [scope, animate] = useAnimate();
 
 	const { correct, present, absent } = duelData.keyboardState;
 	const isResultView = Boolean(duelData.endTime);
@@ -41,24 +45,31 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
 		correct.map((letter, i) => [i, letter]),
 	) as Record<number, string>;
 
-	const onLetter = (letter: string) => {
+	const onLetter = useCallback((letter: string) => {
 		setGuess((prev) => (prev.length < 5 ? prev + letter.toUpperCase() : prev));
-	};
+	}, []);
 
-	const onEnter = async () => {
-		if (guess.length !== 5 || isSubmitting) return;
+	const onEnter = useCallback(async () => {
+		if (guess.length !== 5 || isSubmittingRef.current) return;
+		if (!br.isValidGuess(guess)) {
+			animate(scope.current, { x: [-10, 10, -10, 10, 0] });
+			return;
+		}
+
+		isSubmittingRef.current = true;
 		setIsSubmitting(true);
 		try {
 			await onSubmitGuess(guess);
 			setGuess("");
 		} finally {
+			isSubmittingRef.current = false;
 			setIsSubmitting(false);
 		}
-	};
+	}, [animate, guess, onSubmitGuess, scope]);
 
-	const onBackspace = () => {
+	const onBackspace = useCallback(() => {
 		setGuess((prev) => prev.slice(0, -1));
-	};
+	}, []);
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -75,31 +86,33 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [guess, isSubmitting]);
+	}, [onBackspace, onEnter, onLetter]);
 
 	if (isResultView) {
 		return (
-			<DuelResult duelData={duelData} opponents={opponents} onClose={onClose} />
+			<DuelResult duelData={duelData} onClose={onClose} opponents={opponents} />
 		);
 	}
 
 	return (
-		<div className="w-full max-w-2xl rounded-2xl space-y-2">
+		<div className="w-full max-w-2xl space-y-2 rounded-2xl">
 			{duelData.startTime && <DuelTimer startTime={duelData.startTime} />}
 			<Guesses
-				key={duelData.guesses.join("-")}
 				guesses={duelData.guesses}
+				key={duelData.guesses.join("-")}
 				matchResults={duelData.matchResults}
 			/>
-			<DuelGuess guess={guess} />
+			<div ref={scope}>
+				<DuelGuess guess={guess} />
+			</div>
 			<Keyboard
-				onLetter={onLetter}
-				onEnter={() => void onEnter()}
-				onBackspace={onBackspace}
+				disabled={isSubmitting}
 				fullMatch={fullMatch}
-				partialMatch={present}
 				noMatch={absent}
+				onBackspace={onBackspace}
+				onEnter={() => void onEnter()}
+				onLetter={onLetter}
+				partialMatch={present}
 			/>
 		</div>
 	);

@@ -1643,7 +1643,7 @@ const words: string[] = [
     // "RAGES",
     // "EVADE",
     // "LURES",
-    // "FREAK",
+    "FREAK",
     // "VOGUE",
     // "TUNIC",
     // "SLAMS",
