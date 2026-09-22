@@ -108,7 +108,6 @@ const Duels = () => {
     await refetchDuels();
   };
 
-  console.log(activeDuelData);
   const handleCloseBoard = async () => {
     if (activeDuelData?.duel.completed && activeDuelData.participant) {
       await acknowledgeDuel.mutateAsync(activeDuelData.duel.id);

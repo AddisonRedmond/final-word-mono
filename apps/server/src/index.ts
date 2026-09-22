@@ -530,6 +530,5 @@ io.on("connection", (socket) => {
       ].filter((letter) => !player.partialMatches?.includes(letter));
     }
     scheduleLobbyUpdate(roomId, game);
-    console.log(roomServerOnlyData.playerData[userId]);
   });
 });
