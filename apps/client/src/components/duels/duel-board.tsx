@@ -1,121 +1,175 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAnimate } from "motion/react";
+
 import Keyboard from "@/components/game-components/keyboard";
 import type { DuelParticipant } from "@/db/schema";
 import * as br from "@/utils/battle-royale";
 import type { KeyboardState, MatchResult } from "@/utils/duel";
+
 import DuelGuess from "./duel-guess";
 import DuelResult from "./duel-result";
 import DuelTimer from "./duel-timer";
 import Guesses from "./guesses";
 
+export type DuelData = {
+  duel: {
+    id: string;
+    initiatedBy: string;
+    createdAt: Date;
+    completed: boolean;
+    winner: string | null;
+    participants: string[];
+  };
+  participant: DuelParticipant[];
+  matchResults: MatchResult[];
+  keyboardState: KeyboardState;
+  secretWord?: string;
+};
+
 type DuelBoardProps = {
-	duelData: DuelParticipant & {
-		matchResults: MatchResult[];
-		keyboardState: KeyboardState;
-		secretWord?: string;
-	};
-	onSubmitGuess: (guess: string) => Promise<void>;
-	onClose: () => void;
-	opponents: Array<{
-		id: string;
-		name: string;
-		status: string;
-		guesses: string[];
-	}>;
+  duelData: DuelData;
+  currentUserId: string;
+  onSubmitGuess: (guess: string) => Promise<void>;
+  onClose: () => void;
+  opponents: Array<{
+    id: string;
+    name: string;
+    status: string;
+    guesses: string[];
+  }>;
 };
 
 const DuelBoard: React.FC<DuelBoardProps> = ({
-	duelData,
-	onSubmitGuess,
-	onClose,
-	opponents,
+  duelData,
+  currentUserId,
+  onSubmitGuess,
+  onClose,
+  opponents,
 }) => {
-	const [guess, setGuess] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const isSubmittingRef = useRef(false);
-	const [scope, animate] = useAnimate();
+  const [guess, setGuess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [scope, animate] = useAnimate();
 
-	const { correct, present, absent } = duelData.keyboardState;
-	const isResultView = Boolean(duelData.endTime);
+  const currentParticipant = duelData.participant.find(
+    (participant) => participant.userId === currentUserId,
+  );
 
-	// Keyboard expects fullMatch as Record<number, string> — build a positional
-	// map from the correct letters list so the existing keyboard prop contract is satisfied.
-	const fullMatch = Object.fromEntries(
-		correct.map((letter, i) => [i, letter]),
-	) as Record<number, string>;
+  const { correct, present, absent } = duelData.keyboardState;
 
-	const onLetter = useCallback((letter: string) => {
-		setGuess((prev) => (prev.length < 5 ? prev + letter.toUpperCase() : prev));
-	}, []);
+  const isResultView = Boolean(currentParticipant?.endTime);
 
-	const onEnter = useCallback(async () => {
-		if (guess.length !== 5 || isSubmittingRef.current) return;
-		if (!br.isValidGuess(guess)) {
-			animate(scope.current, { x: [-10, 10, -10, 10, 0] });
-			return;
-		}
+  const fullMatch = Object.fromEntries(
+    correct.map((letter, index) => [index, letter]),
+  ) as Record<number, string>;
 
-		isSubmittingRef.current = true;
-		setIsSubmitting(true);
-		try {
-			await onSubmitGuess(guess);
-			setGuess("");
-		} finally {
-			isSubmittingRef.current = false;
-			setIsSubmitting(false);
-		}
-	}, [animate, guess, onSubmitGuess, scope]);
+  const onLetter = useCallback((letter: string) => {
+    setGuess((prev) => (prev.length < 5 ? prev + letter.toUpperCase() : prev));
+  }, []);
 
-	const onBackspace = useCallback(() => {
-		setGuess((prev) => prev.slice(0, -1));
-	}, []);
+  const onBackspace = useCallback(() => {
+    setGuess((prev) => prev.slice(0, -1));
+  }, []);
 
-	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const onEnter = useCallback(async () => {
+    if (guess.length !== 5 || isSubmittingRef.current) {
+      return;
+    }
 
-			if (e.key === "Enter") {
-				void onEnter();
-			} else if (e.key === "Backspace") {
-				onBackspace();
-			} else if (/^[a-zA-Z]$/.test(e.key)) {
-				onLetter(e.key);
-			}
-		};
+    if (!br.isValidGuess(guess)) {
+      animate(scope.current, { x: [-10, 10, -10, 10, 0] });
+      return;
+    }
 
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [onBackspace, onEnter, onLetter]);
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
-	if (isResultView) {
-		return (
-			<DuelResult duelData={duelData} onClose={onClose} opponents={opponents} />
-		);
-	}
+    try {
+      await onSubmitGuess(guess);
+      setGuess("");
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [animate, guess, onSubmitGuess, scope]);
 
-	return (
-		<div className="w-full max-w-2xl space-y-2 rounded-2xl">
-			{duelData.startTime && <DuelTimer startTime={duelData.startTime} />}
-			<Guesses
-				guesses={duelData.guesses}
-				key={duelData.guesses.join("-")}
-				matchResults={duelData.matchResults}
-			/>
-			<div ref={scope}>
-				<DuelGuess guess={guess} />
-			</div>
-			<Keyboard
-				disabled={isSubmitting}
-				fullMatch={fullMatch}
-				noMatch={absent}
-				onBackspace={onBackspace}
-				onEnter={() => void onEnter()}
-				onLetter={onLetter}
-				partialMatch={present}
-			/>
-		</div>
-	);
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void onEnter();
+        return;
+      }
+
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        onBackspace();
+        return;
+      }
+
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        onLetter(event.key);
+      }
+    },
+    [onBackspace, onEnter, onLetter],
+  );
+
+  useEffect(() => {
+    boardRef.current?.focus();
+  }, []);
+
+  if (!currentParticipant) {
+    return null;
+  }
+
+  if (isResultView) {
+    return (
+      <DuelResult
+        currentUserId={currentUserId}
+        duelData={duelData}
+        onClose={onClose}
+        opponents={opponents}
+      />
+    );
+  }
+
+  return (
+    <div
+      ref={boardRef}
+      tabIndex={-1}
+      onKeyDown={handleKeyDown}
+      className="w-full max-w-2xl space-y-2 rounded-2xl outline-none"
+    >
+      {currentParticipant.startTime && (
+        <DuelTimer startTime={currentParticipant.startTime} />
+      )}
+
+      <Guesses
+        guesses={currentParticipant.guesses}
+        matchResults={duelData.matchResults}
+      />
+
+      <div ref={scope}>
+        <DuelGuess guess={guess} />
+      </div>
+
+      <Keyboard
+        disabled={isSubmitting}
+        fullMatch={fullMatch}
+        noMatch={absent}
+        onBackspace={onBackspace}
+        onEnter={() => void onEnter()}
+        onLetter={onLetter}
+        partialMatch={present}
+      />
+    </div>
+  );
 };
 
 export default DuelBoard;

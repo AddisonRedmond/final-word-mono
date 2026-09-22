@@ -32,6 +32,9 @@ export const duels = pgTable("duels", {
     .notNull(),
   completed: boolean().default(false).notNull(),
   participants: text("participants").array().notNull(),
+  winner: uuid("winner").references(() => profiles.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const duelParticipants = pgTable(

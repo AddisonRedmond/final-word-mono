@@ -103,7 +103,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
             </Button>
           )}
           {!hasCompleted && (
-            <Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
+            <Button  onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
               {hasJoined && (!isInitiator || hasStartedPlaying)
                 ? "Resume"
                 : "Start"}

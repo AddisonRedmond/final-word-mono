@@ -69,7 +69,7 @@ export type MatchResult = {
 export type KeyboardState = {
   correct: string[]; // green — right letter, right position
   present: string[]; // yellow — right letter, wrong position
-  absent: string[];  // grey — not in word
+  absent: string[]; // grey — not in word
 };
 
 /**
@@ -121,7 +121,9 @@ export const calculateMatchObj = (word: string, guess: string): MatchResult => {
  * A letter only shows green once all its occurrences in the word are placed —
  * ensured by removing it from `present` when it appears in `correct`.
  */
-export const buildKeyboardState = (matchResults: MatchResult[]): KeyboardState => {
+export const buildKeyboardState = (
+  matchResults: MatchResult[],
+): KeyboardState => {
   const correct = new Set<string>();
   const present = new Set<string>();
   const absent = new Set<string>();
@@ -140,3 +142,58 @@ export const buildKeyboardState = (matchResults: MatchResult[]): KeyboardState =
     absent: [...absent],
   };
 };
+
+export const determineDuelWinner = (
+  participants: DuelParticipant[],
+): string | null => {
+  if (participants.length === 0) {
+    return null;
+  }
+
+  // Don't determine a winner until everyone has finished.
+  if (participants.some((participant) => participant.endTime === null)) {
+    return null;
+  }
+
+  // Successful players take priority over players who failed.
+  const successfulParticipants = participants.filter(
+    (participant) => participant.success,
+  );
+
+  // Nobody solved the word.
+  if (successfulParticipants.length === 0) {
+    return null;
+  }
+
+  // Find the participant with:
+  // 1. Fewest guesses
+  // 2. Fastest completion time
+  const sortedParticipants = [...successfulParticipants].sort((a, b) => {
+    if (a.totalGuesses !== b.totalGuesses) {
+      return a.totalGuesses - b.totalGuesses;
+    }
+
+    return a.endTime!.getTime() - b.endTime!.getTime();
+  });
+
+  const winner = sortedParticipants[0];
+
+  if (!winner) {
+    return null;
+  }
+
+  // If the best two players have identical guesses and completion time,
+  // the duel is a draw.
+  const runnerUp = sortedParticipants[1];
+
+  if (
+    runnerUp &&
+    winner.totalGuesses === runnerUp.totalGuesses &&
+    winner.endTime!.getTime() === runnerUp.endTime!.getTime()
+  ) {
+    return null;
+  }
+
+  return winner.userId;
+};
+

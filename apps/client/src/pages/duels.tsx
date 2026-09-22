@@ -1,5 +1,6 @@
-import { animate, AnimatePresence, useAnimate } from "motion/react";
+import { AnimatePresence, useAnimate } from "motion/react";
 import { useMemo, useState } from "react";
+
 import Button from "@/components/button";
 import { DuelBoard, StatusBadge } from "@/components/duels";
 import DuelRibbon from "@/components/duels/duel-ribbon";
@@ -8,30 +9,25 @@ import type { Friend } from "@/components/friends/types";
 import Modal from "@/components/modal";
 import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
-import type { DuelParticipant } from "@/db/schema";
 import { useDuelRealtime } from "@/hooks/useDuelRealtime";
 import { useAuthStore } from "@/state/auth-store";
-import { api } from "@/utils/api";
-import type { KeyboardState, MatchResult } from "@/utils/duel";
+import { api, type RouterOutputs } from "@/utils/api";
 import { isValidGuess } from "@/utils/battle-royale";
 
-type ActiveDuelData = DuelParticipant & {
-  matchResults: MatchResult[];
-  keyboardState: KeyboardState;
-  secretWord?: string;
-};
+type ActiveDuelData = RouterOutputs["duels"]["startOrResumeDuel"];
 
 const Duels = () => {
   const { data, isLoading } = api.friends.list.useQuery();
+
   const {
     data: duels,
     refetch: refetchDuels,
     isLoading: isLoadingDuels,
     isFetching: isFetchingDuels,
   } = api.duels.allDuels.useQuery(undefined, {
-    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
+
   const sendDuelMutation = api.duels.sendDuel.useMutation();
   const startOrResumeDuel = api.duels.startOrResumeDuel.useMutation();
   const declineDuel = api.duels.declineDuel.useMutation();
@@ -44,13 +40,14 @@ const Duels = () => {
   const [activeDuelData, setActiveDuelData] = useState<ActiveDuelData | null>(
     null,
   );
+
   const [scope, animate] = useAnimate();
 
   const currentUserId = useAuthStore((state) => state.user?.id);
 
   const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
-  const participantsByDuel = useDuelRealtime(duelIds, refetchDuels);
+  const participantsByDuel = useDuelRealtime(duelIds);
 
   const friends: Friend[] = (data ?? [])
     .filter((friend) => friend.status === "accepted")
@@ -71,36 +68,38 @@ const Duels = () => {
   };
 
   const handleStartDuel = async (duelId: string) => {
-    const data = await startOrResumeDuel.mutateAsync(duelId);
-    setActiveDuelData(data);
-    await refetchDuels();
+    const result = await startOrResumeDuel.mutateAsync(duelId);
+
+    setActiveDuelData(result);
     setIsDueling(true);
   };
 
   const handleDuelGuess = async (guess: string) => {
-    if (!activeDuelData) return;
+    if (!activeDuelData) {
+      return;
+    }
+
+    if (!isValidGuess(guess)) {
+      animate(scope.current, {
+        x: [-10, 10, -10, 10, 0],
+      });
+      return;
+    }
+
     const result = await makeGuess.mutateAsync({
-      duelId: activeDuelData.duelId,
+      duelId: activeDuelData.duel.id,
       guess,
     });
 
-    if (!isValidGuess(guess)) {
-      animate(scope.current, { x: [-10, 10, -10, 10, 0] });
-      return;
-    }
-    // Update board state directly from the guess response — no second request needed.
-    setActiveDuelData((current) => {
-      if (!current || current.duelId !== result.duelId) return current;
-
-      return result.guesses.length >= current.guesses.length ? result : current;
-    });
-    if (result.isGameOver) await refetchDuels();
+    setActiveDuelData(result);
   };
 
   const handleForfeit = async (duelId: string) => {
     await forfeitDuel.mutateAsync(duelId);
+
     setIsDueling(false);
     setActiveDuelData(null);
+
     await refetchDuels();
   };
 
@@ -109,43 +108,55 @@ const Duels = () => {
     await refetchDuels();
   };
 
+  console.log(activeDuelData);
   const handleCloseBoard = async () => {
-    const activeDuel = duels?.find(
-      (duel) => duel.id === activeDuelData?.duelId,
-    );
-    if (activeDuel?.completed && activeDuelData?.endTime) {
-      await acknowledgeDuel.mutateAsync(activeDuel.id);
-      await refetchDuels();
+    if (activeDuelData?.duel.completed && activeDuelData.participant) {
+      await acknowledgeDuel.mutateAsync(activeDuelData.duel.id);
     }
+
     setIsDueling(false);
     setActiveDuelData(null);
   };
 
-  const activeDuel = duels?.find((duel) => duel.id === activeDuelData?.duelId);
-  const activeDuelOpponents = (activeDuel?.participants ?? [])
-    .filter((userId) => userId !== currentUserId)
-    .map((userId) => {
-      const participant = (participantsByDuel[activeDuel?.id ?? ""] ?? []).find(
-        (item) => item.userId === userId,
-      );
-      const status = !participant
-        ? "pending"
-        : participant.accepted === false
-          ? participant.endTime
-            ? "forfeit"
-            : "declined"
-          : participant.endTime
-            ? participant.success
-              ? "completed"
-              : "forfeit"
-            : "started";
-      return {
-        id: userId,
-        name: friends.find((friend) => friend.id === userId)?.name ?? "Unknown",
-        status,
-        guesses: participant?.guesses ?? [],
-      };
-    });
+  const activeDuelOpponents = useMemo(() => {
+    if (!activeDuelData) {
+      return [];
+    }
+
+    return activeDuelData.duel.participants
+      .filter((userId) => userId !== currentUserId)
+      .map((userId) => {
+        const participant = (
+          participantsByDuel[activeDuelData.duel.id] ?? []
+        ).find((item) => item.userId === userId);
+
+        let status:
+          | "pending"
+          | "declined"
+          | "forfeit"
+          | "completed"
+          | "started";
+
+        if (!participant) {
+          status = "pending";
+        } else if (participant.accepted === false) {
+          status = participant.endTime ? "forfeit" : "declined";
+        } else if (participant.endTime) {
+          status = participant.success ? "completed" : "forfeit";
+        } else {
+          status = "started";
+        }
+
+        return {
+          id: userId,
+          name:
+            friends.find((friend) => friend.id === userId)?.name ?? "Unknown",
+          status,
+          guesses: participant?.guesses ?? [],
+        };
+      });
+  }, [activeDuelData, currentUserId, participantsByDuel, friends]);
+
   return (
     <div className="flex h-screen flex-col items-center gap-y-2">
       {/* TODO: add navbar to the app, not individual pages */}
@@ -166,6 +177,7 @@ const Duels = () => {
         <div className="h-10/12 w-2xl rounded-md bg-white p-2 shadow-lg outline outline-stone-200">
           <div className="flex justify-between">
             <p className="font-semibold text-lg">DUELS</p>
+
             <div className="space-x-2">
               <Button
                 disabled={isFetchingDuels}
@@ -178,6 +190,7 @@ const Duels = () => {
                   "Refresh"
                 )}
               </Button>
+
               <Button onClick={() => setIsModalOpen(true)} variant="solid">
                 New Duel
               </Button>
@@ -185,7 +198,6 @@ const Duels = () => {
           </div>
 
           <hr className="my-2 h-0.5 border-none bg-stone-300" />
-          {/* TODO clean this up later below \/ */}
 
           <div>
             {isLoadingDuels ? (
@@ -215,14 +227,21 @@ const Duels = () => {
               </div>
             )}
           </div>
-          {/* TODO clean this up later ^ */}
         </div>
       </div>
+
       <AnimatePresence>
         {isDueling && activeDuelData && (
           <Modal onClose={() => void handleCloseBoard()}>
             <DuelBoard
-              duelData={activeDuelData}
+              currentUserId={currentUserId!}
+              duelData={{
+                duel: activeDuelData.duel,
+                participant: activeDuelData.participant,
+                matchResults: activeDuelData.matchResults,
+                keyboardState: activeDuelData.keyboardState,
+                secretWord: activeDuelData.secretWord,
+              }}
               onClose={() => void handleCloseBoard()}
               onSubmitGuess={handleDuelGuess}
               opponents={activeDuelOpponents}
@@ -230,6 +249,7 @@ const Duels = () => {
           </Modal>
         )}
       </AnimatePresence>
+
       <AnimatePresence>
         {isModalOpen && (
           <Modal onClose={() => setIsModalOpen(false)}>

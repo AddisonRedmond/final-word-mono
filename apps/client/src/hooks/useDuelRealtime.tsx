@@ -2,19 +2,6 @@ import { useEffect, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import type { DuelParticipant } from "@/db/schema";
-
-// export type DuelParticipant = {
-//   duelId: string;
-//   userId: string;
-//   startTime: string | null;
-//   endTime: string | null;
-//   totalGuesses: number;
-//   success: boolean;
-//   guesses: string[];
-//   accepted: boolean | null;
-// };
-
-// raw row shape as returned by supabase (snake_case column names)
 type DuelParticipantRow = {
   duel_id: string;
   user_id: string;
@@ -26,7 +13,6 @@ type DuelParticipantRow = {
   accepted: boolean | null;
   completed_game_acknowledged: boolean;
 };
-
 const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
   duelId: row.duel_id,
   userId: row.user_id,
@@ -38,108 +24,85 @@ const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
   accepted: row.accepted,
   completed_game_acknowledged: row.completed_game_acknowledged,
 });
-
-export const useDuelRealtime = (
-  duelIds: string[],
-  onParticipantChange?: () => Promise<unknown> | void,
-) => {
+export const useDuelRealtime = (duelIds: string[]) => {
   const [participants, setParticipants] = useState<
     Record<string, DuelParticipant[]>
   >({});
-
   useEffect(() => {
     if (duelIds.length === 0) {
       setParticipants({});
       return;
     }
-
     const supabase = createClient();
     let isMounted = true;
-
-    void supabase
-      .from("duel_participants")
-      .select("*")
-      .in("duel_id", duelIds)
-      .then(({ data }) => {
-        if (!isMounted || !data) return;
-
-        const grouped: Record<string, DuelParticipant[]> = {};
-        for (const row of data as DuelParticipantRow[]) {
-          const participant = toDuelParticipant(row);
-          grouped[participant.duelId] = [
-            ...(grouped[participant.duelId] ?? []),
-            participant,
-          ];
-        }
-
-        setParticipants(grouped);
-      });
-
+    const loadParticipants = async () => {
+      const { data, error } = await supabase
+        .from("duel_participants")
+        .select("*")
+        .in("duel_id", duelIds);
+      if (!isMounted || error || !data) {
+        return;
+      }
+      const grouped: Record<string, DuelParticipant[]> = {};
+      for (const row of data as DuelParticipantRow[]) {
+        const participant = toDuelParticipant(row);
+        grouped[participant.duelId] = [
+          ...(grouped[participant.duelId] ?? []),
+          participant,
+        ];
+      }
+      setParticipants(grouped);
+    };
+    void loadParticipants();
     const channel = supabase
-      .channel("duel-participants")
+      .channel(`duel-participants-${duelIds.join("-")}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "duel_participants",
-        },
+        { event: "*", schema: "public", table: "duel_participants" },
         (payload: RealtimePostgresChangesPayload<DuelParticipantRow>) => {
           const newRow = payload.new as DuelParticipantRow;
           const oldRow = payload.old as DuelParticipantRow;
-
           const duelId = newRow.duel_id ?? oldRow.duel_id;
-
           if (!duelId || !duelIds.includes(duelId)) {
             return;
           }
-
-          const newParticipant = toDuelParticipant(newRow);
-          const oldParticipant = toDuelParticipant(oldRow);
-
           setParticipants((current) => {
             const duelParticipants = current[duelId] ?? [];
-
             if (payload.eventType === "INSERT") {
+              const participant = toDuelParticipant(newRow);
               return {
                 ...current,
-                [duelId]: [...duelParticipants, newParticipant],
+                [duelId]: [...duelParticipants, participant],
               };
             }
-
             if (payload.eventType === "UPDATE") {
+              const participant = toDuelParticipant(newRow);
               return {
                 ...current,
-                [duelId]: duelParticipants.map((participant) =>
-                  participant.userId === newParticipant.userId
-                    ? newParticipant
-                    : participant,
+                [duelId]: duelParticipants.map((currentParticipant) =>
+                  currentParticipant.userId === participant.userId
+                    ? participant
+                    : currentParticipant,
                 ),
               };
             }
-
             if (payload.eventType === "DELETE") {
               return {
                 ...current,
                 [duelId]: duelParticipants.filter(
-                  (participant) => participant.userId !== oldParticipant.userId,
+                  (participant) => participant.userId !== oldRow.user_id,
                 ),
               };
             }
-
             return current;
           });
-
-          void onParticipantChange?.();
         },
       )
       .subscribe();
-
     return () => {
       isMounted = false;
       void supabase.removeChannel(channel);
     };
-  }, [duelIds, onParticipantChange]);
-
+  }, [duelIds]);
   return participants;
 };
