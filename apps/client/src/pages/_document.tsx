@@ -1,7 +1,7 @@
 import { Html, Head, Main, NextScript } from "next/document";
 import Script from "next/script";
-
 export default function Document() {
+  const isDevelopment = process.env.NODE_ENV === "development";
   return (
     <Html lang="en">
       <Head>
@@ -15,7 +15,6 @@ export default function Document() {
           content="Final Word, multiplayer word game, word game, Wordle, word puzzle, online word game"
         />
         <meta name="robots" content="index, follow" />
-
         <meta
           property="og:title"
           content="Final Word — Multiplayer Word Game"
@@ -25,8 +24,7 @@ export default function Document() {
           content="Race against other players to solve the word. Think fast, guess smart, and be the last one standing."
         />
         <meta property="og:type" content="website" />
-
-        {process.env.NODE_ENV === "development" && (
+        {isDevelopment && (
           <Script
             src="//unpkg.com/react-scan/dist/auto.global.js"
             crossOrigin="anonymous"
@@ -35,8 +33,12 @@ export default function Document() {
         )}
       </Head>
       <body>
-        <Main />
-        <NextScript />
+        <Main /> <NextScript />
+        {isDevelopment && (
+          <div className="fixed top-0 left-1/2 z-99999 -translate-x-1/2 rounded-b-md bg-yellow-500 px-3 py-1 font-mono text-[11px] font-bold tracking-wider text-black">
+            DEV
+          </div>
+        )}
       </body>
     </Html>
   );
