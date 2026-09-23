@@ -5,11 +5,13 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <Script
-          src="//unpkg.com/react-scan/dist/auto.global.js"
-          crossOrigin="anonymous"
-          strategy="beforeInteractive"
-        />
+        {process.env.NODE_ENV === "development" && (
+          <Script
+            src="//unpkg.com/react-scan/dist/auto.global.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
+        )}
       </Head>
       <body>
         <Main />
