@@ -1,159 +1,512 @@
-# Turborepo starter
+# Final Word
 
-This Turborepo starter is maintained by the Turborepo core team.
+Final Word is a fast-paced multiplayer word game built as a Turborepo monorepo.
 
-## Using this example
+## Prerequisites
 
-Run the following command:
+Before getting started, make sure you have:
 
-```sh
-npx create-turbo@latest
+* Node.js 22+
+* pnpm
+* Docker Desktop
+* A GitHub account
+* A Google account
+
+Docker Desktop is required because the local Supabase stack runs in Docker containers.
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone <your-repository-url>
+cd final-word-mono
 ```
 
-## What's inside?
+### 2. Install dependencies
 
-This Turborepo includes the following packages/apps:
+From the repository root:
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+The repository uses pnpm workspaces and Turborepo.
 
-```sh
-cd my-turborepo
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+### 3. Set up environment variables
+
+Create the appropriate environment files using the existing environment variable names.
+
+Your local client environment should contain values for:
+
+```env
+GITHUB_SECRET=
+NEXT_PUBLIC_GITHUB_CLIENT_ID=
+
+NEXT_PUBLIC_WS_URL=
+
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Do not commit environment files or secrets to Git.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## Local Supabase
 
-```sh
-turbo build --filter=docs
+Final Word uses a local Supabase instance for development so that local authentication and database changes do not affect production.
+
+### 4. Start Docker Desktop
+
+Make sure Docker Desktop is running before starting Supabase.
+
+### 5. Start Supabase
+
+From the repository root:
+
+```bash
+pnpm exec supabase start
 ```
 
-Without global `turbo`:
+The local Supabase services will be started in Docker.
 
-```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+Useful local URLs:
+
+| Service         | URL                    |
+| --------------- | ---------------------- |
+| Supabase API    | http://127.0.0.1:54321 |
+| Supabase Studio | http://127.0.0.1:54323 |
+| Mailpit         | http://127.0.0.1:54324 |
+| PostgreSQL      | `127.0.0.1:54322`      |
+
+Supabase Studio can be used to inspect the local database, authentication users, RLS policies, and other local Supabase services.
+
+Open:
+
+http://127.0.0.1:54323
+
+### Stop Supabase
+
+When you're finished working:
+
+```bash
+pnpm exec supabase stop
 ```
 
-### Develop
+You can start it again later with:
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+```bash
+pnpm exec supabase start
 ```
 
-Without global `turbo`, use your package manager:
+## Local OAuth
 
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+Local development uses separate OAuth credentials from production.
+
+This prevents local testing from relying on production OAuth applications.
+
+### Google OAuth
+
+Create a separate Google OAuth application for local development.
+
+Use:
+
+```text
+Authorized JavaScript origin:
+http://localhost:3000
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+and:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
+```text
+Authorized redirect URI:
+http://127.0.0.1:54321/auth/v1/callback
 ```
 
-Without global `turbo`:
+Add the local credentials to the environment used by the Supabase CLI:
 
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```env
+SUPABASE_AUTH_GOOGLE_CLIENT_ID=
+SUPABASE_AUTH_GOOGLE_SECRET=
 ```
 
-### Remote Caching
+The local provider is configured in:
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
+```text
+supabase/config.toml
 ```
 
-Without global `turbo`, use your package manager:
+### GitHub OAuth
 
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
+Create a separate GitHub OAuth application for local development.
+
+Use:
+
+```text
+Homepage URL:
+http://localhost:3000
+```
+
+and:
+
+```text
+Authorization callback URL:
+http://127.0.0.1:54321/auth/v1/callback
+```
+
+Add the local credentials to the environment used by the Supabase CLI:
+
+```env
+SUPABASE_AUTH_GITHUB_CLIENT_ID=
+SUPABASE_AUTH_GITHUB_SECRET=
+```
+
+After changing OAuth configuration, restart Supabase:
+
+```bash
+pnpm exec supabase stop
+pnpm exec supabase start
+```
+
+## Database
+
+Final Word uses Drizzle for the application database schema and Supabase migrations for Supabase-specific database functionality such as:
+
+* Row Level Security
+* PostgreSQL functions
+* Triggers
+* Supabase-specific configuration
+
+Database migrations are committed to Git so local and production environments can be reproduced consistently.
+
+### Local database
+
+The local PostgreSQL database is available at:
+
+```text
+postgresql://postgres:postgres@127.0.0.1:54322/postgres
+```
+
+### Reset the local database
+
+To completely rebuild the local database from migrations:
+
+```bash
+pnpm exec supabase db reset
+```
+
+**Warning:** This deletes the local database and recreates it. It does not affect production.
+
+### Supabase migrations
+
+Supabase migrations are stored in:
+
+```text
+supabase/migrations/
+```
+
+Create a new migration:
+
+```bash
+pnpm exec supabase migration new <migration-name>
+```
+
+For example:
+
+```bash
+pnpm exec supabase migration new update_profile_rls
+```
+
+Edit the generated SQL file, then test it locally:
+
+```bash
+pnpm exec supabase db reset
+```
+
+Migration files should be committed to Git.
+
+### Production database
+
+Production database changes should be made through migrations rather than manually modifying the production database.
+
+The migration files in Git should be treated as the source of truth for Supabase-specific database functionality.
+
+## Running the Application
+
+Once Docker Desktop and Supabase are running:
+
+```bash
+pnpm dev
+```
+
+To run only the client:
+
+```bash
+pnpm exec turbo dev --filter=client
+```
+
+The Next.js application runs at:
+
+```text
+http://localhost:3000
+```
+
+The development environment displays a `DEV` indicator at the top of the application.
+
+## Next.js Development
+
+The client allows `localhost` and `127.0.0.1` as development origins.
+
+This is configured in:
+
+```text
+apps/client/next.config.js
+```
+
+If you change the `allowedDevOrigins` configuration, restart the Next.js development server.
+
+## Turborepo Commands
+
+Run all development tasks:
+
+```bash
+pnpm dev
+```
+
+Build everything:
+
+```bash
+pnpm build
+```
+
+Run linting:
+
+```bash
+pnpm lint
+```
+
+Run type checking:
+
+```bash
+pnpm check-types
+```
+
+Run a task for a specific package:
+
+```bash
+pnpm exec turbo dev --filter=client
+```
+
+or:
+
+```bash
+pnpm exec turbo build --filter=client
+```
+
+## Project Structure
+
+```text
+final-word-mono/
+├── apps/
+│   └── client/              # Next.js application
+│
+├── packages/
+│   ├── db/                  # Drizzle database schema
+│   ├── types/               # Shared types
+│   └── ...                  # Shared packages
+│
+├── supabase/
+│   ├── config.toml          # Local Supabase configuration
+│   └── migrations/          # Supabase database migrations
+│
+├── package.json
+├── pnpm-lock.yaml
+└── turbo.json
+```
+
+## Environment Separation
+
+Local development is intentionally separated from production.
+
+```text
+LOCAL
+Next.js
+   ↓
+Local Supabase
+   ↓
+Local PostgreSQL
+   ↓
+Local OAuth providers
+```
+
+Production uses its own:
+
+```text
+PRODUCTION
+Next.js
+   ↓
+Production Supabase
+   ↓
+Production PostgreSQL
+   ↓
+Production OAuth providers
+```
+
+Never put production credentials in local development environment files unless they are explicitly required.
+
+## Useful Supabase Commands
+
+Start Supabase:
+
+```bash
+pnpm exec supabase start
+```
+
+Stop Supabase:
+
+```bash
+pnpm exec supabase stop
+```
+
+Check Supabase status:
+
+```bash
+pnpm exec supabase status
+```
+
+Reset the local database:
+
+```bash
+pnpm exec supabase db reset
+```
+
+Create a migration:
+
+```bash
+pnpm exec supabase migration new <migration-name>
+```
+
+Check migration status:
+
+```bash
+pnpm exec supabase migration list
+```
+
+## Remote Caching
+
+Turborepo can use Vercel Remote Cache to share build caches between machines and CI/CD.
+
+Authenticate:
+
+```bash
 pnpm exec turbo login
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Then link the repository:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
+```bash
 pnpm exec turbo link
 ```
 
-## Useful Links
+Remote caching is optional for local development.
 
-Learn more about the power of Turborepo:
+## Troubleshooting
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+### Docker connection error
+
+If Supabase reports an error connecting to Docker, make sure Docker Desktop is running.
+
+Then try:
+
+```bash
+pnpm exec supabase start
+```
+
+### OAuth isn't working
+
+Verify:
+
+1. Supabase is running.
+2. Your local OAuth credentials are configured.
+3. The OAuth provider uses the local callback URL:
+
+```text
+http://127.0.0.1:54321/auth/v1/callback
+```
+
+4. Your Next.js app is running on:
+
+```text
+http://localhost:3000
+```
+
+5. Restart Supabase after changing `supabase/config.toml`:
+
+```bash
+pnpm exec supabase stop
+pnpm exec supabase start
+```
+
+### Profiles aren't being created
+
+The profile creation trigger runs when a new user is inserted into `auth.users`.
+
+If you created users before the trigger existed, either delete those local users and log in again or backfill the existing users.
+
+To inspect local users:
+
+```sql
+select *
+from auth.users;
+```
+
+To inspect profiles:
+
+```sql
+select *
+from public.profiles;
+```
+
+## Development Workflow
+
+A typical development session looks like:
+
+```bash
+# Start Docker Desktop
+
+# Start local Supabase
+pnpm exec supabase start
+
+# Start the application
+pnpm dev
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+When finished:
+
+```bash
+pnpm exec supabase stop
+```
+
+For database changes:
+
+```text
+Change schema/function
+        ↓
+Create migration
+        ↓
+Test locally
+        ↓
+Commit migration to Git
+        ↓
+Deploy migration to production
+```
+
+This keeps local and production database behavior reproducible and prevents development changes from accidentally affecting production.
