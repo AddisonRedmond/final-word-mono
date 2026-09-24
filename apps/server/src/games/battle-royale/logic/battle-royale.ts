@@ -13,7 +13,7 @@ import type {
 import type { Server } from "socket.io";
 import { randomUUID } from "node:crypto";
 import words from "./words.js";
-import logger from "./logger.js";
+import logger from "../../../utils/logger.js";
 import { scheduleMatchTimeLimit } from "./match-timer.js";
 import {
   ATTACK_WORD_BONUS_MS,

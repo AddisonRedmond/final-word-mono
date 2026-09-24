@@ -9,7 +9,7 @@ import {
   applyCorrectGuessReward,
   determineTarget,
 } from "./battle-royale.js";
-import logger from "./logger.js";
+import logger from "../../../utils/logger.js";
 
 type BotGuessResult =
   | {

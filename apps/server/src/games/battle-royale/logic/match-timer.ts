@@ -5,7 +5,7 @@ import type {
   ServerBotData,
   ServerOnlyData,
 } from "types/battle-royale.types.js";
-import logger from "./logger.js";
+import logger from "../../../utils/logger.js";
 import { MATCH_TIME_LIMIT_MS } from "shared/battle-royale.js";
 
 type RevealEliminatedPlayerWord = (
