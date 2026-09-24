@@ -22,7 +22,7 @@ import {
 } from "shared/battle-royale.js";
 
 const initialTimer = 1.5 * 60 * 1000;
-const Max_Wait_Time = 5 * 1000; //Seconds
+const Max_Wait_Time = 45 * 1000; //Seconds
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
 export const Max_Attack_Words = 3;
 
