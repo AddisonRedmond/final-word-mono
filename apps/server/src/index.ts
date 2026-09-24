@@ -73,7 +73,11 @@ const server = serve(
 const io = new Server(server, {
   path: "/socket.io",
   cors: {
-    origin: "*",
+    origin: [
+      "https://finalword.io",
+      "https://www.finalword.io",
+      "http://localhost:3000",
+    ],
   },
 });
 
