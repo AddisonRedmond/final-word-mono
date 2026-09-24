@@ -428,10 +428,13 @@ export const applyCorrectGuessReward = ({
   // starting at 60 seconds, counts down 1 second at a time, if the user gets to 6 guesses
   // each guess after that will remove 5s from their timer
   // if the timer reaches 0 they failed that word. Advancetonextword
-  const bonusLife = getGuessBonusMs(player.currentWordGuesses);
+  const rawBonusLife = getGuessBonusMs(player.currentWordGuesses);
+  // Guard against a non-finite bonus corrupting player.life into NaN, which
+  // would render as NaN on the client and drain the health bar to zero.
+  const bonusLife = Number.isFinite(rawBonusLife) ? rawBonusLife : 0;
   const now = Date.now();
   const maxLifeExpiry = now + Max_Life_Timer;
-  const currentLife = Math.max(player.life, now);
+  const currentLife = Math.max(Number.isFinite(player.life) ? player.life : now, now);
 
   const serverData = roomServerOnlyData[userId];
   if (!serverData) {
