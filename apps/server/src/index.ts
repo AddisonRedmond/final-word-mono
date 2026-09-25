@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import "dotenv/config";
 import logger from "./utils/logger.js";
 import { installSocketAuth } from "./socket/auth.js";
+import { installTimeSync } from "./socket/time-sync.js";
 import { registerGames } from "./games/registry.js";
 
 const app = new Hono();
@@ -36,6 +37,9 @@ const io = new Server(server, {
 
 // Authenticate every socket before any game handlers run.
 installSocketAuth(io);
+
+// Let clients measure and correct for client/server clock skew.
+installTimeSync(io);
 
 // Wire up all registered games (see games/registry.ts to add more).
 registerGames(io);

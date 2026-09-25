@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef } from "react";
+import { getServerNow } from "@/state/server-clock-store";
 
 type OpponentTimerProps = {
   duration: number;
@@ -19,7 +20,8 @@ const timers = new Map<HTMLDivElement, Timer>();
 let animationFrameId: number | null = null;
 
 const updateTimers = () => {
-  const now = Date.now();
+  // expiryTimestamp is a server-clock value, so compare against server-now.
+  const now = getServerNow();
 
   for (const timer of timers.values()) {
     const remaining = Math.max(0, timer.expiryTimestamp - now);

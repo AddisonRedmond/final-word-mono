@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useTimer } from "react-timer-hook";
 import { SlotTile } from "../tile";
+import { useServerClockStore } from "@/state/server-clock-store";
 
 type CountDownTimerProps = {
   expiryTimestamp?: number;
@@ -10,10 +12,19 @@ const ActiveCountDownTimer = ({
   expiryTimestamp,
   timerTitle,
 }: { expiryTimestamp: number; timerTitle: string }) => {
-  const { totalSeconds } = useTimer({
+  // Shift the server timestamp onto the client clock so react-timer-hook's
+  // internal Date.now() comparison yields the correct remaining time.
+  const offsetMs = useServerClockStore((state) => state.offsetMs);
+  const clientExpiry = expiryTimestamp - offsetMs;
+
+  const { totalSeconds, restart } = useTimer({
     autoStart: true,
-    expiryTimestamp: new Date(expiryTimestamp),
+    expiryTimestamp: new Date(clientExpiry),
   });
+
+  useEffect(() => {
+    restart(new Date(clientExpiry), true);
+  }, [clientExpiry, restart]);
 
   return (
     <div className="flex flex-col gap-y-6 text-center font-semibold">
