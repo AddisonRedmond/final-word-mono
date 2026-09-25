@@ -1,5 +1,5 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { DuelParticipant } from "@/db/schema";
 import { createClient } from "@/utils/supabase/client";
 
@@ -51,6 +51,18 @@ type UseDuelRealtimeOptions = {
 	onEvent?: (event: DuelRealtimeEvent) => void;
 };
 
+/**
+ * Note on realtime auth: the socket's JWT is set globally by the auth store
+ * (`supabase.realtime.setAuth(session.access_token)` on load + every auth
+ * change). That matters because `createBrowserClient` authenticates REST via
+ * cookies, but the realtime websocket is a separate transport that otherwise
+ * defaults to the anon key — and the duel RLS policies (`to authenticated using
+ * auth.uid() = any(participants)`) would then filter out every row while the
+ * channel still reports SUBSCRIBED. Because the store keeps the socket
+ * authenticated, this hook can build + subscribe channels synchronously without
+ * awaiting an auth step (awaiting before `.on(...)` breaks under Strict Mode).
+ */
+
 const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
 	duelId: row.duel_id,
 	userId: row.user_id,
@@ -73,6 +85,14 @@ export const useDuelRealtime = (
 		Record<string, DuelParticipant[]>
 	>({});
 
+	// A per-hook-instance suffix for channel topics. `supabase.channel(topic)`
+	// reuses any existing channel with the same topic, and under React Strict
+	// Mode (dev) the mount → cleanup → remount cycle races with the async
+	// `removeChannel`, so a remount can be handed back an already-subscribed
+	// channel — then `.on(...)` throws "cannot add postgres_changes callbacks
+	// after subscribe()". A unique topic per instance sidesteps reuse entirely.
+	const instanceId = useId();
+
 	// Keep the latest callback / user id in refs so the realtime subscription
 	// effect doesn't need to tear down and re-subscribe every time they change.
 	const onEventRef = useRef(onEvent);
@@ -82,8 +102,75 @@ export const useDuelRealtime = (
 		currentUserIdRef.current = currentUserId;
 	}, [onEvent, currentUserId]);
 
+	// Serialize duelIds into a stable primitive so the tracking effect only
+	// re-subscribes when the actual set of tracked duels changes, not on every
+	// render that produces a new array reference.
+	const duelIdsKey = [...duelIds].sort().join(",");
+	// Stable array derived from the key. Because it is memoized on duelIdsKey,
+	// its reference only changes when the tracked set actually changes, so the
+	// tracking effect can depend on it without churning on every render.
+	const trackedDuelIds = useMemo(
+		() => (duelIdsKey ? duelIdsKey.split(",") : []),
+		[duelIdsKey],
+	);
+
+	// -----------------------------------------------------------------------
+	// Invite subscription — always live while the user is logged in.
+	//
+	// A duel invite is, by definition, the event that happens BEFORE the
+	// recipient has the duel in their list. If we only subscribed once the user
+	// already had duels (the tracking effect below), a brand-new invitee with an
+	// empty duel list would have no channel at all and would never be notified.
+	// So invites get their own channel keyed only on the current user id.
+	// -----------------------------------------------------------------------
 	useEffect(() => {
-		if (duelIds.length === 0) {
+		if (!currentUserId) {
+			return;
+		}
+
+		const supabase = createClient();
+
+		// Build + subscribe synchronously (`.on(...)` must precede `.subscribe()`).
+		// The socket JWT is kept current by the auth store, so no auth step is
+		// needed here. The instanceId in the topic guarantees a fresh channel.
+		const inviteChannel = supabase
+			.channel(`duel-invites-${currentUserId}-${instanceId}`)
+			.on(
+				"postgres_changes",
+				{ event: "INSERT", schema: "public", table: "duels" },
+				(payload: RealtimePostgresChangesPayload<DuelRow>) => {
+					const newRow = payload.new as DuelRow;
+					const userId = currentUserIdRef.current;
+
+					// A brand new duel the current user is invited to.
+					// postgres_changes can't filter array-contains, so we filter on
+					// participants here.
+					if (
+						userId &&
+						newRow.participants?.includes(userId) &&
+						newRow.initiated_by !== userId
+					) {
+						onEventRef.current?.({
+							type: "invited",
+							duelId: newRow.id,
+							initiatedBy: newRow.initiated_by,
+						});
+					}
+				},
+			)
+			.subscribe();
+
+		return () => {
+			void supabase.removeChannel(inviteChannel);
+		};
+	}, [currentUserId, instanceId]);
+
+	// -----------------------------------------------------------------------
+	// Tracking subscription — participant updates + completion for duels the
+	// user already knows about. Scoped to the current set of duel ids.
+	// -----------------------------------------------------------------------
+	useEffect(() => {
+		if (trackedDuelIds.length === 0) {
 			setParticipants({});
 			return;
 		}
@@ -95,7 +182,7 @@ export const useDuelRealtime = (
 			const { data, error } = await supabase
 				.from("duel_participants")
 				.select(DUEL_PARTICIPANT_COLUMNS)
-				.in("duel_id", duelIds);
+				.in("duel_id", trackedDuelIds);
 
 			if (!isMounted || error || !data) {
 				return;
@@ -114,8 +201,10 @@ export const useDuelRealtime = (
 
 		void loadParticipants();
 
+		// Build + subscribe synchronously — see the invite effect above. The
+		// instanceId in the topic guarantees a fresh, non-reused channel.
 		const channel = supabase
-			.channel(`duel-realtime-${duelIds.join("-")}`)
+			.channel(`duel-realtime-${trackedDuelIds.join("-")}-${instanceId}`)
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "duel_participants" },
@@ -124,16 +213,20 @@ export const useDuelRealtime = (
 					const oldRow = payload.old as DuelParticipantRow;
 					const duelId = newRow.duel_id ?? oldRow.duel_id;
 
-					if (!duelId || !duelIds.includes(duelId)) {
+					if (!duelId || !trackedDuelIds.includes(duelId)) {
 						return;
 					}
 
 					// Surface "an opponent just finished" — a participant that isn't the
 					// current user transitioning into a finished (end_time) state.
+					// Require a known current user id: if it were undefined, the
+					// `!==` check would pass for our own row and we'd notify ourselves
+					// about our own finish.
 					if (
 						payload.eventType === "UPDATE" &&
 						newRow.end_time &&
 						!oldRow.end_time &&
+						currentUserIdRef.current !== undefined &&
 						newRow.user_id !== currentUserIdRef.current
 					) {
 						onEventRef.current?.({
@@ -185,31 +278,16 @@ export const useDuelRealtime = (
 				(payload: RealtimePostgresChangesPayload<DuelRow>) => {
 					const newRow = payload.new as DuelRow;
 					const oldRow = payload.old as DuelRow;
-					const userId = currentUserIdRef.current;
 
-					// A brand new duel the current user is invited to. Its id won't be in
-					// the tracked duelIds yet, so this is filtered client-side on the
-					// participants array (postgres_changes can't filter array-contains).
-					if (
-						payload.eventType === "INSERT" &&
-						userId &&
-						newRow.participants?.includes(userId) &&
-						newRow.initiated_by !== userId
-					) {
-						onEventRef.current?.({
-							type: "invited",
-							duelId: newRow.id,
-							initiatedBy: newRow.initiated_by,
-						});
-						return;
-					}
+					// Invites are handled by the dedicated invite channel above; this
+					// listener only concerns duels the user already tracks.
 
 					// A duel we're tracking transitioned into the completed state.
 					if (
 						payload.eventType === "UPDATE" &&
 						newRow.completed &&
 						!oldRow.completed &&
-						duelIds.includes(newRow.id)
+						trackedDuelIds.includes(newRow.id)
 					) {
 						onEventRef.current?.({
 							type: "duelCompleted",
@@ -225,7 +303,7 @@ export const useDuelRealtime = (
 			isMounted = false;
 			void supabase.removeChannel(channel);
 		};
-	}, [duelIds]);
+	}, [trackedDuelIds, instanceId]);
 
 	return participants;
 };

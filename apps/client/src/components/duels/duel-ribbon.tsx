@@ -111,7 +111,15 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 							Forfeit
 						</Button>
 					)}
-					{!hasCompleted && (
+					{hasCompleted ? (
+						// The current user has finished their guesses but the duel isn't
+						// resolved yet (other players are still going). Let them open the
+						// result view to watch everyone's progress; the winner stays
+						// unset until the duel completes.
+						<Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
+							View progress
+						</Button>
+					) : (
 						<Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
 							{hasJoined && (!isInitiator || hasStartedPlaying)
 								? "Resume"

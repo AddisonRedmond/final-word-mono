@@ -238,7 +238,7 @@ The migration files in Git should be treated as the source of truth for Supabase
 This repo uses two migration tools with a deliberate split:
 
 * **Drizzle** (`packages/db`) owns the base application tables (`profiles`,
-  `friendships`, `game_player_stats`) and provides the TypeScript types for
+  `friendships`, `battle_royale_stats`) and provides the TypeScript types for
   **all** tables, including the duel tables.
 * **Supabase migrations** (`supabase/migrations/`) own the duel tables'
   structure and Supabase-specific concerns (Row Level Security, realtime
