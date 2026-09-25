@@ -23,8 +23,10 @@ COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 
 # Build the server
-RUN pnpm --filter shared build && pnpm --filter server build
-
+RUN pnpm --filter shared build \
+    && pnpm --filter db build \
+    && pnpm --filter server build
+    
 WORKDIR /app/apps/server
 
 EXPOSE 4200
