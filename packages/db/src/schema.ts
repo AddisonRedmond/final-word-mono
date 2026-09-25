@@ -4,6 +4,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uuid,
@@ -31,12 +32,12 @@ import {
  * match's outcome. There is no per-match history table; everything here is a
  * maintained aggregate.
  *
- * Averages are stored as (sum, count) pairs rather than a single running
- * average, because a running average cannot be updated correctly without the
- * count and loses precision over time. Consumers derive the average on read:
- *   - average placement  = placementSum / gamesPlayed
- *   - win rate           = wins / gamesPlayed
- *   - losses             = gamesPlayed - wins - draws
+ * `averagePlacement` is stored as a running average (bounded between 1 and the
+ * max lobby size) rather than a growing sum, updated each game as:
+ *   newAvg = (oldAvg * oldGamesPlayed + placement) / (oldGamesPlayed + 1)
+ * Other rates are still derived on read:
+ *   - win rate = wins / gamesPlayed
+ *   - losses   = gamesPlayed - wins - draws
  * (gamesPlayed is guaranteed > 0 for any row that exists, since a row is only
  * created on a player's first completed match.)
  */
@@ -48,8 +49,8 @@ export const battleRoyaleStats = pgTable("battle_royale_stats", {
   gamesPlayed: integer("games_played").notNull().default(0),
   wins: integer("wins").notNull().default(0),
   draws: integer("draws").notNull().default(0),
-  // Running sum of placements (1 = won). average = placementSum / gamesPlayed.
-  placementSum: integer("placement_sum").notNull().default(0),
+  // Running average finishing placement (1 = won). Bounded, updated per game.
+  averagePlacement: real("average_placement").notNull().default(0),
   // Best (lowest) placement ever achieved; 1 means at least one win.
   bestPlacement: integer("best_placement"),
   // Running totals across all matches, for lifetime figures and averages.

@@ -82,13 +82,76 @@ const rankPlayers = (game: Game): RankedPlayer[] => {
   return ranked;
 };
 
+type PlayerStatResult = {
+  userId: string;
+  placement: number;
+  won: boolean;
+  isDraw: boolean;
+  totalGuesses: number;
+  correctGuesses: number;
+};
+
+/**
+ * Upsert one user's aggregate row for a single completed game. Existing rows
+ * are incremented in SQL so concurrent writes can't clobber each other's
+ * totals; brand-new users get a fresh row. Shared by both the natural
+ * game-finish path and the "left an in-progress game" path.
+ */
+const upsertPlayerStat = (result: PlayerStatResult, now: Date) => {
+  const { userId, placement, won, isDraw, totalGuesses, correctGuesses } =
+    result;
+  const winInc = won ? 1 : 0;
+  const drawInc = isDraw ? 1 : 0;
+
+  return db
+    .insert(battleRoyaleStats)
+    .values({
+      userId,
+      gamesPlayed: 1,
+      wins: winInc,
+      draws: drawInc,
+      // First game: the average is just this game's placement.
+      averagePlacement: placement,
+      bestPlacement: placement,
+      totalGuesses,
+      totalCorrectGuesses: correctGuesses,
+      currentWinStreak: winInc,
+      bestWinStreak: winInc,
+      wonLastGame: won,
+      lastPlayedAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: battleRoyaleStats.userId,
+      set: {
+        gamesPlayed: sql`${battleRoyaleStats.gamesPlayed} + 1`,
+        wins: sql`${battleRoyaleStats.wins} + ${winInc}`,
+        draws: sql`${battleRoyaleStats.draws} + ${drawInc}`,
+        // Running average: (oldAvg * oldGamesPlayed + placement) / newGamesPlayed.
+        // Uses the pre-update games_played, so this must be computed from the
+        // existing column values (before the increment above is visible).
+        averagePlacement: sql`(${battleRoyaleStats.averagePlacement} * ${battleRoyaleStats.gamesPlayed} + ${placement}) / (${battleRoyaleStats.gamesPlayed} + 1)`,
+        bestPlacement: sql`least(coalesce(${battleRoyaleStats.bestPlacement}, ${placement}), ${placement})`,
+        totalGuesses: sql`${battleRoyaleStats.totalGuesses} + ${totalGuesses}`,
+        totalCorrectGuesses: sql`${battleRoyaleStats.totalCorrectGuesses} + ${correctGuesses}`,
+        // Win streak: extend on a win, reset to 0 otherwise.
+        currentWinStreak: sql`case when ${won} then ${battleRoyaleStats.currentWinStreak} + 1 else 0 end`,
+        // Best streak: the greater of the prior best and the new current.
+        bestWinStreak: sql`greatest(${battleRoyaleStats.bestWinStreak}, case when ${won} then ${battleRoyaleStats.currentWinStreak} + 1 else 0 end)`,
+        // Overwrite (not accumulate) with the latest game's result.
+        wonLastGame: won,
+        lastPlayedAt: now,
+        updatedAt: now,
+      },
+    });
+};
+
 /**
  * Upsert per-user aggregate Battle Royale stats for a finished match.
  *
- * One row per user (see packages/db schema). Existing rows are incremented in
- * SQL so concurrent match finishes can't clobber each other's totals. Bots are
- * excluded. This never throws into the caller (the game loop) — any failure is
- * logged and swallowed so cleanup always completes.
+ * One row per user (see packages/db schema). Bots are excluded. This never
+ * throws into the caller (the game loop) — any failure is logged and swallowed
+ * so cleanup always completes.
  */
 export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
   try {
@@ -100,52 +163,20 @@ export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
 
     const now = new Date();
 
-    // One upsert per player. Kept as separate statements (rather than a single
-    // multi-row insert) because each row's streak logic depends on its own
-    // prior value via SQL CASE expressions.
     await Promise.all(
-      ranked.map(({ userId, placement, won, player }) => {
-        const winInc = won ? 1 : 0;
-        const drawInc = game.room.isDraw ? 1 : 0;
-
-        return db
-          .insert(battleRoyaleStats)
-          .values({
+      ranked.map(({ userId, placement, won, player }) =>
+        upsertPlayerStat(
+          {
             userId,
-            gamesPlayed: 1,
-            wins: winInc,
-            draws: drawInc,
-            placementSum: placement,
-            bestPlacement: placement,
+            placement,
+            won,
+            isDraw: game.room.isDraw,
             totalGuesses: player.totalGuesses,
-            totalCorrectGuesses: player.correctGuesses,
-            currentWinStreak: winInc,
-            bestWinStreak: winInc,
-            wonLastGame: won,
-            lastPlayedAt: now,
-            updatedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: battleRoyaleStats.userId,
-            set: {
-              gamesPlayed: sql`${battleRoyaleStats.gamesPlayed} + 1`,
-              wins: sql`${battleRoyaleStats.wins} + ${winInc}`,
-              draws: sql`${battleRoyaleStats.draws} + ${drawInc}`,
-              placementSum: sql`${battleRoyaleStats.placementSum} + ${placement}`,
-              bestPlacement: sql`least(coalesce(${battleRoyaleStats.bestPlacement}, ${placement}), ${placement})`,
-              totalGuesses: sql`${battleRoyaleStats.totalGuesses} + ${player.totalGuesses}`,
-              totalCorrectGuesses: sql`${battleRoyaleStats.totalCorrectGuesses} + ${player.correctGuesses}`,
-              // Win streak: extend on a win, reset to 0 otherwise.
-              currentWinStreak: sql`case when ${won} then ${battleRoyaleStats.currentWinStreak} + 1 else 0 end`,
-              // Best streak: the greater of the prior best and the new current.
-              bestWinStreak: sql`greatest(${battleRoyaleStats.bestWinStreak}, case when ${won} then ${battleRoyaleStats.currentWinStreak} + 1 else 0 end)`,
-              // Overwrite (not accumulate) with the latest game's result.
-              wonLastGame: won,
-              lastPlayedAt: now,
-              updatedAt: now,
-            },
-          });
-      }),
+            correctGuesses: player.correctGuesses,
+          },
+          now,
+        ),
+      ),
     );
 
     logger.info(
@@ -166,4 +197,64 @@ export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
       "Failed to persist Battle Royale stats",
     );
   }
+};
+
+/**
+ * Record a single player leaving an IN-PROGRESS match as a loss.
+ *
+ * Quitting a started game counts against you (prevents rage-quitting to protect
+ * stats). The leaver is placed last among the current field — placement equals
+ * the number of players still in the game at the moment they leave (themselves
+ * included), which is their true finishing position. Leaving a lobby that has
+ * NOT started yet is free and must not call this. No-op for bots. Never throws
+ * into the caller.
+ */
+export const persistLeaverAsLoss = (game: Game, userId: string): void => {
+  if (!isRealPlayer(userId)) {
+    return;
+  }
+
+  const player = game.players.get(userId);
+  if (!player) {
+    return;
+  }
+
+  // Snapshot everything SYNCHRONOUSLY here: the caller deletes the player from
+  // game.players immediately after this returns, so placement (current field
+  // size, leaver included) and the guess counts must be read now, before the
+  // async DB write runs on a later microtask.
+  const placement = game.players.size;
+  const totalGuesses = player.totalGuesses;
+  const correctGuesses = player.correctGuesses;
+  const roomId = game.room.lobbyId;
+
+  void (async () => {
+    try {
+      await upsertPlayerStat(
+        {
+          userId,
+          placement,
+          won: false,
+          isDraw: false,
+          totalGuesses,
+          correctGuesses,
+        },
+        new Date(),
+      );
+
+      logger.info(
+        { roomId, userId, placement },
+        "Recorded leaver as a Battle Royale loss",
+      );
+    } catch (error) {
+      logger.error(
+        {
+          roomId,
+          userId,
+          err: error instanceof Error ? error.message : error,
+        },
+        "Failed to record leaver loss",
+      );
+    }
+  })();
 };
