@@ -341,7 +341,13 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
           roomServerOnlyData.playerData[targetId] ??
           serverOnlyBotData.get(roomId)?.[targetId];
         if (!roomServerOnlyData.playerData[userId].currentWordIsAttack) {
-          applyAttack(targetWord, guessCount, target, targetServerData);
+          applyAttack(
+            targetWord,
+            guessCount,
+            target,
+            targetServerData,
+            player.name,
+          );
         }
         applyCorrectGuessReward({
           player,

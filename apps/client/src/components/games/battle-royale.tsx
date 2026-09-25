@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { Socket } from "socket.io-client";
 import CountDownTimer from "../game-components/timer";
-import type { ClientGame, TargetType } from "@/types/battle-royale.types.ts";
+import type { ClientGame, TargetMode } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion, useAnimate } from "motion/react";
@@ -30,10 +30,14 @@ type BattleRoyaleProps = {
 const GUESS_LENGTH = 5;
 
 const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
-  // TODO: make the attack select show who youre selecting when you're attacking
   const [lobby, setLobby] = useState<ClientGame>();
   const [guess, setGuess] = useState("");
-  const [targetType, setTargetType] = useState<TargetType>("random");
+  // `targetMode` is the selection intent ("first"/"last" auto-track the live
+  // leader/trailer, "random" picks one opponent, "player" locks a specific
+  // opponent). `target` is always the concrete resolved opponent UUID that is
+  // both highlighted in the UI and sent to the server, so what you see hit is
+  // exactly who gets hit.
+  const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
   useBattleRoyaleSocket({ socketRef, setLobby });
@@ -62,27 +66,28 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
       return;
     }
 
-    br.sendGuess({ guess, target: targetType, socketRef });
+    // Always send the concrete resolved opponent UUID (never a policy string)
+    // so the server hits exactly who the UI is highlighting.
+    br.sendGuess({ guess, target, socketRef });
     setGuess("");
-  }, [animate, guess, lobby?.room.isStarted, scope, socketRef, targetType]);
+  }, [animate, guess, lobby?.room.isStarted, scope, socketRef, target]);
 
-  const isPolicyTarget = (
-    value: TargetType,
-  ): value is "first" | "last" | "random" =>
-    value === "first" || value === "last" || value === "random";
-
+  // Picking First/Last/Random from the AttackPicker: store the mode and resolve
+  // a concrete opponent UUID now. For "first"/"last" the effect below keeps the
+  // resolved target in sync as lives change; "random" locks the picked UUID
+  // until it is eliminated or Random is pressed again.
   const handleSelectTargetType = useCallback(
-    (type: TargetType) => {
-      setTargetType(type);
+    (mode: "first" | "last" | "random") => {
+      setTargetMode(mode);
       if (lobby?.players) {
-        setTarget(br.determineTarget(lobby.players, userId, type));
+        setTarget(br.determineTarget(lobby.players, userId, mode));
       }
     },
     [lobby?.players, userId],
   );
 
   const handleSelectOpponent = useCallback((id: string) => {
-    setTargetType(id);
+    setTargetMode("player");
     setTarget(id);
   }, []);
 
@@ -133,21 +138,37 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
     };
   }, [lobby?.players, userId]);
 
+  // Keep the resolved `target` in sync with the current roster/lives:
+  // - first/last: re-resolve every update so the highlight tracks the live
+  //   leader/trailer without the user re-clicking.
+  // - random: keep the picked opponent, only re-roll if they were eliminated.
+  // - player: keep the chosen opponent, fall back to "first" if eliminated.
   useEffect(() => {
     if (!lobby?.players) return;
 
-    const currentTarget = lobby.players[target];
-    if (currentTarget && !currentTarget.isEliminated) return;
+    const currentTarget = target ? lobby.players[target] : undefined;
+    const targetIsAlive = Boolean(currentTarget && !currentTarget.isEliminated);
 
-    // stale target: re-resolve from policy, or fall back to "first" if it was a specific player
-    if (isPolicyTarget(targetType)) {
-      setTarget(br.determineTarget(lobby.players, userId, targetType));
+    if (targetMode === "first" || targetMode === "last") {
+      const resolved = br.determineTarget(lobby.players, userId, targetMode);
+      if (resolved !== target) {
+        setTarget(resolved);
+      }
       return;
     }
 
-    setTargetType("first");
+    // "random" / "player": only act when the current target is gone.
+    if (targetIsAlive) return;
+
+    if (targetMode === "random") {
+      setTarget(br.determineTarget(lobby.players, userId, "random"));
+      return;
+    }
+
+    // "player" whose opponent was eliminated: fall back to the current leader.
+    setTargetMode("first");
     setTarget(br.determineTarget(lobby.players, userId, "first"));
-  }, [lobby?.players, target, targetType, userId]);
+  }, [lobby?.players, target, targetMode, userId]);
 
   return (
     <motion.div
@@ -196,7 +217,7 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         ) : (
           <div className="text-xs text-center font-semibold">
             <p>Target</p>
-            <AttackPicker target={targetType} setTarget={handleSelectTargetType} />
+            <AttackPicker mode={targetMode} onSelect={handleSelectTargetType} />
           </div>
         )}
 
@@ -206,6 +227,14 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
             guess={guess}
             queue={lobby?.players[userId]?.display_queue}
             currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
+            attackerInitials={
+              lobby?.players[userId]?.currentWordIsAttack
+                ? br.getInitials(
+                    lobby.players[userId]?.currentWordAttackerName ??
+                      lobby.players[userId]?.lastAttackerName,
+                  )
+                : undefined
+            }
           />
         </div>
 

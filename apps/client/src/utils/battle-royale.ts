@@ -61,6 +61,29 @@ export const leave = (socketRef: SocketRef) => {
   });
 };
 
+/**
+ * Derives up-to-two-character initials from a player's display name for the
+ * attacker badge / "Eliminated by" label.
+ * - Multi-word names use the first letter of the first two words ("Jane Doe" -> "JD").
+ * - Single-word names use the first two characters ("Player" -> "PL", "bot0" -> "BO").
+ * Falls back to "?" when the name is empty.
+ */
+export const getInitials = (name: string | undefined): string => {
+  const trimmed = name?.trim() ?? "";
+
+  if (!trimmed) {
+    return "?";
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+
+  if (words.length >= 2) {
+    return `${words[0]![0]!}${words[1]![0]!}`.toUpperCase();
+  }
+
+  return trimmed.slice(0, 2).toUpperCase();
+};
+
 export const determineTarget = (
   playerDisplayData: Record<string, PlayerDisplay>,
   selfId: string,

@@ -233,6 +233,74 @@ Production database changes should be made through migrations rather than manual
 
 The migration files in Git should be treated as the source of truth for Supabase-specific database functionality.
 
+### Migration ownership (which tool owns what)
+
+This repo uses two migration tools with a deliberate split:
+
+* **Drizzle** (`packages/db`) owns the base application tables (`profiles`,
+  `friendships`, `game_player_stats`) and provides the TypeScript types for
+  **all** tables, including the duel tables.
+* **Supabase migrations** (`supabase/migrations/`) own the duel tables'
+  structure and Supabase-specific concerns (Row Level Security, realtime
+  publication, replica identity).
+
+The duel tables (`duels`, `duel_participants`, `duel_secrets`) are defined in
+`packages/db/src/schema.ts` for types only. **Do not run `drizzle-kit generate`
+for them** — Drizzle's snapshot does not track them, so it would emit a
+colliding `CREATE TABLE` migration. Evolve the duel schema by adding a new file
+under `supabase/migrations/`.
+
+The duel migrations are ordered and idempotent, so they are safe to run against
+a fresh database or one that already has the duel tables:
+
+1. `..._create_duel_tables.sql` — `CREATE TABLE IF NOT EXISTS` for `duels` and
+   `duel_participants` (no-op where they already exist).
+2. `..._split_duel_word_into_secrets.sql` — creates `duel_secrets`, backfills
+   existing `duels.word` values into it, then drops the `word` column. This
+   keeps the answer word out of the browser (it is never selected by the client
+   or streamed over realtime).
+3. `..._enable_duel_realtime.sql` — adds `duels` and `duel_participants` to the
+   `supabase_realtime` publication (never `duel_secrets`), enables RLS with
+   participant-only read policies, and sets `REPLICA IDENTITY FULL`.
+
+### Deploying database changes to production
+
+Because production already has the duel tables (with data), deploy in this order.
+The word-split migration drops a column after backfilling — that step is
+irreversible, so back up first.
+
+1. Back up the production database (Supabase dashboard → Database → Backups, or
+   `pg_dump`). Do not skip this.
+2. Link the production project once:
+
+   ```bash
+   pnpm exec supabase link --project-ref <your-prod-project-ref>
+   ```
+
+3. Apply pending migrations to production:
+
+   ```bash
+   pnpm exec supabase db push
+   ```
+
+4. Verify the production database **before** deploying code:
+   * `duels` has no `word` column.
+   * `duel_secrets` exists and its row count matches the number of duels
+     (backfill succeeded).
+   * The `supabase_realtime` publication includes `duels` and
+     `duel_participants` but **not** `duel_secrets`.
+   * RLS is enabled on all three duel tables; `duels` and `duel_participants`
+     have participant read policies; `duel_secrets` has none.
+5. Deploy the application code (client + server) **after** the migration
+   succeeds. The new code reads `duel_secrets`, which must exist first.
+6. Smoke test: play a duel with two accounts (guesses grade correctly, opponent
+   and completion notifications fire), and confirm in browser devtools that the
+   answer word never appears in any realtime or API payload.
+
+> Realtime RLS policies use `auth.uid()`, so the browser must subscribe with the
+> logged-in user's session (the SSR/auth-aware Supabase client), not a bare anon
+> key. If realtime goes silent after deploy, check the auth context first.
+
 ## Running the Application
 
 Once Docker Desktop and Supabase are running:

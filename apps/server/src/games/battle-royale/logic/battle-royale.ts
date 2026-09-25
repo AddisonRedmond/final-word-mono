@@ -172,52 +172,30 @@ export const handleStartGame = (
 
   timers.gameTimer = setInterval(() => {
     const now = Date.now();
+
+    // Pre-sweep active players (before this tick's expiry sweep).
     const activePlayers = Array.from(game.players.entries()).filter(
       ([, player]) => !player.isEliminated,
     );
 
-    if (activePlayers.length === 1) {
-      const [winnerId] = activePlayers[0] as [string, PlayerDisplay];
-      game.room.winnerId = winnerId;
-      game.room.isFinished = true;
-      logger.info(
-        { roomId: game.room.lobbyId, winnerId },
-        "Game ended: one player remains",
-      );
-      io.to(game.room.lobbyId).emit("lobby:update", {
-        ...game,
-        players: Object.fromEntries(game.players),
-      });
-      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
-      return;
-    }
-
-    if (activePlayers.length === 0) {
-      game.room.isFinished = true;
-      game.room.isDraw = true;
-      logger.info(
-        { roomId: game.room.lobbyId },
-        "Game ended: no active players remain",
-      );
-      io.to(game.room.lobbyId).emit("lobby:update", {
-        ...game,
-        players: Object.fromEntries(game.players),
-      });
-      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
-      return;
-    }
-
+    // Sweep expired players FIRST, before evaluating end conditions, so a bot
+    // (or player) whose life expired on the same tick the game ends still gets
+    // marked eliminated and disappears from the final lobby:update.
+    // life is an absolute timestamp, so use Number.isFinite rather than > 0.
     const expiringPlayers = activePlayers.filter(
-      ([, player]) => player.life > 0 && now >= player.life,
+      ([, player]) => Number.isFinite(player.life) && now >= player.life,
     );
 
-    if (expiringPlayers.length === 0) {
-      return;
-    }
-
-    if (expiringPlayers.length === activePlayers.length) {
+    // If the whole remaining field expires on the same tick, pick a winner by
+    // fewest total guesses (or declare a draw if the entire room expired at
+    // once), rather than letting everyone be eliminated into a false draw.
+    let simultaneousWinnerId: string | undefined;
+    if (
+      expiringPlayers.length > 0 &&
+      expiringPlayers.length === activePlayers.length
+    ) {
       if (activePlayers.length === game.players.size) {
-        game.room.isFinished = true;
+        // Entire room expired simultaneously -> genuine draw, no winner.
         game.room.isDraw = true;
         logger.info(
           { roomId: game.room.lobbyId, playerCount: game.players.size },
@@ -227,9 +205,8 @@ export const handleStartGame = (
         const [winnerId, winner] = expiringPlayers.reduce((best, current) =>
           current[1].totalGuesses < best[1].totalGuesses ? current : best,
         );
-        winner.isEliminated = false;
+        simultaneousWinnerId = winnerId;
         game.room.winnerId = winnerId;
-        game.room.isFinished = true;
         logger.info(
           {
             roomId: game.room.lobbyId,
@@ -240,32 +217,14 @@ export const handleStartGame = (
           "Game ended: fewest guesses won simultaneous expiration",
         );
       }
-
-      for (const [playerId, player] of expiringPlayers) {
-        if (
-          !game.room.winnerId ||
-          player !== game.players.get(game.room.winnerId)
-        ) {
-          player.isEliminated = true;
-          revealEliminatedPlayerWord(
-            player,
-            playerId,
-            game.room.lobbyId,
-            serverOnlyData,
-            serverOnlyBotData,
-          );
-        }
-      }
-
-      io.to(game.room.lobbyId).emit("lobby:update", {
-        ...game,
-        players: Object.fromEntries(game.players),
-      });
-      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
-      return;
     }
 
+    // Mark all expiring players eliminated (skipping any chosen winner) and
+    // reveal their words.
     for (const [playerId, player] of expiringPlayers) {
+      if (playerId === simultaneousWinnerId) {
+        continue;
+      }
       player.isEliminated = true;
       revealEliminatedPlayerWord(
         player,
@@ -276,10 +235,44 @@ export const handleStartGame = (
       );
     }
 
+    // Recompute active players after the sweep, then evaluate end conditions.
+    const remainingPlayers = Array.from(game.players.entries()).filter(
+      ([, player]) => !player.isEliminated,
+    );
+
+    if (remainingPlayers.length === 1) {
+      const [winnerId] = remainingPlayers[0] as [string, PlayerDisplay];
+      game.room.winnerId = winnerId;
+      game.room.isFinished = true;
+      logger.info(
+        { roomId: game.room.lobbyId, winnerId },
+        "Game ended: one player remains",
+      );
+    } else if (remainingPlayers.length === 0) {
+      game.room.isFinished = true;
+      // Only force a draw if one wasn't already resolved to a winner above.
+      if (!game.room.winnerId) {
+        game.room.isDraw = true;
+      }
+      logger.info(
+        { roomId: game.room.lobbyId },
+        "Game ended: no active players remain",
+      );
+    }
+
+    // Early-return only when nothing changed and the game is still running.
+    if (expiringPlayers.length === 0 && !game.room.isFinished) {
+      return;
+    }
+
     io.to(game.room.lobbyId).emit("lobby:update", {
       ...game,
       players: Object.fromEntries(game.players),
     });
+
+    if (game.room.isFinished) {
+      cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
+    }
   }, 1000);
 
   timers.matchTimer = scheduleMatchTimeLimit({
@@ -445,6 +438,7 @@ export const applyCorrectGuessReward = ({
     return;
   }
   const nextWord = serverData.queue.shift();
+  const nextAttacker = serverData.attackerQueue?.shift();
   if (!serverData.currentWordIsAttack) {
     player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
   }
@@ -457,6 +451,10 @@ export const applyCorrectGuessReward = ({
 
   serverData.word = nextWord ?? getRandomWord();
   serverData.currentWordIsAttack = nextWord !== undefined;
+  // Mirror onto display data so the client can badge the attack word with the
+  // attacker's initials while the player is guessing it.
+  player.currentWordIsAttack = serverData.currentWordIsAttack;
+  player.currentWordAttackerName = nextWord !== undefined ? nextAttacker : undefined;
 };
 
 export const advanceToNextWord = ({
@@ -478,6 +476,7 @@ export const advanceToNextWord = ({
   }
 
   const nextWord = serverData.queue.shift();
+  const nextAttacker = serverData.attackerQueue?.shift();
 
   player.currentWordGuesses = 0;
   player.noMatch = [];
@@ -486,6 +485,10 @@ export const advanceToNextWord = ({
 
   serverData.word = nextWord ?? getRandomWord();
   serverData.currentWordIsAttack = nextWord !== undefined;
+  // Mirror onto display data so the client can badge the attack word with the
+  // attacker's initials while the player is guessing it.
+  player.currentWordIsAttack = serverData.currentWordIsAttack;
+  player.currentWordAttackerName = nextWord !== undefined ? nextAttacker : undefined;
 };
 
 export const applyAttack = (
@@ -493,6 +496,7 @@ export const applyAttack = (
   guessCount: number,
   target?: PlayerDisplay,
   targetServerData?: PlayerServerData | BotServerData,
+  attackerName?: string,
 ) => {
   if (!target || target.isEliminated || !guessedWord) {
     logger.warn(
@@ -504,6 +508,13 @@ export const applyAttack = (
       "Attack skipped",
     );
     return;
+  }
+
+  // Record who last attacked this player so the results screen can show
+  // "Eliminated by X" (the most recent attacker, even if their word is still
+  // queued behind earlier attacks).
+  if (attackerName) {
+    target.lastAttackerName = attackerName;
   }
 
   const attackQueueIsFull =
@@ -518,6 +529,9 @@ export const applyAttack = (
     );
   } else if (targetServerData) {
     targetServerData.queue.push(guessedWord.toUpperCase());
+    // Track the sender in lockstep with the word so the per-word badge shows
+    // the correct attacker when this specific word is later consumed.
+    (targetServerData.attackerQueue ??= []).push(attackerName ?? "");
   }
 
   let lettersToReveal = 0;
