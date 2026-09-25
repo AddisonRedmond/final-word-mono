@@ -1,5 +1,5 @@
 import { AnimatePresence, useAnimate } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Button from "@/components/button";
 import { DuelBoard, StatusBadge } from "@/components/duels";
@@ -49,72 +49,34 @@ const Duels = () => {
 
 	const currentUserId = useAuthStore((state) => state.user?.id);
 
-	// Tracks the latest friends list so realtime event handlers can resolve
-	// names without being torn down and recreated whenever friends change.
-	const friendsRef = useRef<Friend[]>([]);
-
 	const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
-	const nameForUser = useCallback(
-		(userId: string) => {
-			if (userId === currentUserId) {
-				return "You";
+	// Toast notifications (invited / opponentFinished / duelCompleted) are owned
+	// app-wide by <DuelNotifications /> so they fire on any page. Here we only
+	// react to completion to keep the open board's result view in sync — no
+	// toasts, so there's no duplication with the app-level provider.
+	const handleRealtimeEvent = useCallback((event: DuelRealtimeEvent) => {
+		if (event.type !== "duelCompleted") {
+			return;
+		}
+
+		// If this is the duel currently open on the board, patch its completion
+		// state so the result view and the acknowledge-on-close flow reflect the
+		// final outcome without waiting on a manual action.
+		setActiveDuelData((current) => {
+			if (!current || current.duel.id !== event.duelId) {
+				return current;
 			}
-			return (
-				friendsRef.current.find((friend) => friend.id === userId)?.name ??
-				"Your opponent"
-			);
-		},
-		[currentUserId],
-	);
-
-	const handleRealtimeEvent = useCallback(
-		(event: DuelRealtimeEvent) => {
-			switch (event.type) {
-				case "invited":
-					toast(
-						`${nameForUser(event.initiatedBy)} challenged you to a duel`,
-						"info",
-					);
-					void refetchDuels();
-					break;
-				case "opponentFinished":
-					toast(`${nameForUser(event.userId)} finished their duel`, "info");
-					void refetchDuels();
-					break;
-				case "duelCompleted": {
-					const message =
-						event.winner === null
-							? "A duel ended in a draw"
-							: event.winner === currentUserId
-								? "You won a duel!"
-								: `${nameForUser(event.winner)} won the duel`;
-					toast(message, event.winner === currentUserId ? "success" : "info");
-
-					// If this is the duel currently open on the board, patch its
-					// completion state so the result view and the acknowledge-on-close
-					// flow reflect the final outcome without waiting on a manual action.
-					setActiveDuelData((current) => {
-						if (!current || current.duel.id !== event.duelId) {
-							return current;
-						}
-						return {
-							...current,
-							duel: {
-								...current.duel,
-								completed: true,
-								winner: event.winner,
-							},
-						};
-					});
-
-					void refetchDuels();
-					break;
-				}
-			}
-		},
-		[currentUserId, nameForUser, refetchDuels],
-	);
+			return {
+				...current,
+				duel: {
+					...current.duel,
+					completed: true,
+					winner: event.winner,
+				},
+			};
+		});
+	}, []);
 
 	const participantsByDuel = useDuelRealtime(duelIds, {
 		currentUserId,
@@ -129,10 +91,6 @@ const Duels = () => {
 			email: friend.email ?? "",
 			status: friend.status,
 		}));
-
-	useEffect(() => {
-		friendsRef.current = friends;
-	}, [friends]);
 
 	/*
 	 * While a board is open, keep its participant list in sync with realtime so

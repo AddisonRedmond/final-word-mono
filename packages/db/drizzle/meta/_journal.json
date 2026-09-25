@@ -8,6 +8,27 @@
       "when": 1790344026903,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790430426903,
+      "tag": "0001_battle_royale_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790516826903,
+      "tag": "0002_won_last_game",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790603226903,
+      "tag": "0003_average_placement",
+      "breakpoints": true
     }
   ]
 }

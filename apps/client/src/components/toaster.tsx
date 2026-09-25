@@ -1,33 +1,46 @@
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 
-import { type ToastVariant, useToastStore } from "@/state/toast-store";
-
-const variantClasses: Record<ToastVariant, string> = {
-	info: "bg-stone-800 text-white",
-	success: "bg-emerald-500 text-white",
-	error: "bg-red-500 text-white",
-};
+import { useToastStore } from "@/state/toast-store";
 
 const Toaster: React.FC = () => {
 	const toasts = useToastStore((state) => state.toasts);
 	const dismiss = useToastStore((state) => state.dismiss);
 
 	return (
-		<div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4">
+		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-end gap-2 px-4 sm:inset-x-auto sm:right-4">
 			<LazyMotion features={domAnimation} strict>
 				<AnimatePresence initial={false}>
 					{toasts.map((toast) => (
-						<m.button
-							animate={{ opacity: 1, y: 0, scale: 1 }}
-							className={`pointer-events-auto max-w-sm rounded-md px-4 py-2 text-center font-semibold text-sm shadow-lg ${variantClasses[toast.variant]}`}
-							exit={{ opacity: 0, y: -16, scale: 0.96 }}
-							initial={{ opacity: 0, y: -16, scale: 0.96 }}
+						<m.div
+							animate={{ opacity: 1, x: 0, scale: 1 }}
+							className="pointer-events-auto flex max-w-sm items-center gap-3 rounded-md bg-green-400 px-4 py-2 font-semibold text-sm text-white shadow-lg"
+							exit={{ opacity: 0, x: 16, scale: 0.96 }}
+							initial={{ opacity: 0, x: 16, scale: 0.96 }}
 							key={toast.id}
-							onClick={() => dismiss(toast.id)}
-							type="button"
 						>
-							{toast.message}
-						</m.button>
+							<span>{toast.message}</span>
+							<button
+								aria-label="Dismiss notification"
+								className="-mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+								onClick={() => dismiss(toast.id)}
+								type="button"
+							>
+								<svg
+									aria-hidden="true"
+									fill="none"
+									height="14"
+									stroke="currentColor"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth="2.5"
+									viewBox="0 0 24 24"
+									width="14"
+								>
+									<path d="M18 6 6 18" />
+									<path d="m6 6 12 12" />
+								</svg>
+							</button>
+						</m.div>
 					))}
 				</AnimatePresence>
 			</LazyMotion>

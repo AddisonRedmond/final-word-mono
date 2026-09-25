@@ -15,6 +15,7 @@ import {
   Max_Attack_Words,
 } from "./logic/battle-royale.js";
 import { runBots } from "./logic/battle-royale-bots.js";
+import { persistLeaverAsLoss } from "./stats.js";
 import logger from "../../utils/logger.js";
 import {
   MAX_PLAYERS,
@@ -83,6 +84,14 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         );
         ack?.({ ok: false });
         return;
+      }
+
+      // Leaving a game that is already underway counts as a loss (prevents
+      // rage-quitting to protect stats). Leaving a lobby that hasn't started
+      // yet is free. Record BEFORE removing the player so they are still in
+      // game.players and their placement reflects the current field size.
+      if (game.room.isStarted && !game.room.isFinished) {
+        persistLeaverAsLoss(game, userId);
       }
 
       // might have to change this, to a different flag so eliminated users dont unrender

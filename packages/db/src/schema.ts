@@ -4,6 +4,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   uuid,
@@ -23,14 +24,49 @@ import {
  * Those run AFTER the Drizzle tables exist.
  */
 
-export const gamePlayerStats = pgTable("game_player_stats", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  gameId: uuid("game_id").notNull(),
-  userId: uuid("user_id").notNull(),
-  placement: integer("placement"),
-  totalGuesses: integer("total_guesses").notNull(),
-  correctGuesses: integer("correct_guesses").notNull(),
+/**
+ * Aggregate Battle Royale statistics — ONE row per user (userId is the PK).
+ *
+ * When a match finishes, the realtime game server (apps/server) upserts each
+ * REAL player's row (bots excluded), incrementing the running totals with that
+ * match's outcome. There is no per-match history table; everything here is a
+ * maintained aggregate.
+ *
+ * `averagePlacement` is stored as a running average (bounded between 1 and the
+ * max lobby size) rather than a growing sum, updated each game as:
+ *   newAvg = (oldAvg * oldGamesPlayed + placement) / (oldGamesPlayed + 1)
+ * Other rates are still derived on read:
+ *   - win rate = wins / gamesPlayed
+ *   - losses   = gamesPlayed - wins - draws
+ * (gamesPlayed is guaranteed > 0 for any row that exists, since a row is only
+ * created on a player's first completed match.)
+ */
+export const battleRoyaleStats = pgTable("battle_royale_stats", {
+  // One row per user — the aggregate key.
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  gamesPlayed: integer("games_played").notNull().default(0),
+  wins: integer("wins").notNull().default(0),
+  draws: integer("draws").notNull().default(0),
+  // Running average finishing placement (1 = won). Bounded, updated per game.
+  averagePlacement: real("average_placement").notNull().default(0),
+  // Best (lowest) placement ever achieved; 1 means at least one win.
+  bestPlacement: integer("best_placement"),
+  // Running totals across all matches, for lifetime figures and averages.
+  totalGuesses: integer("total_guesses").notNull().default(0),
+  totalCorrectGuesses: integer("total_correct_guesses").notNull().default(0),
+  // Consecutive wins ending at the most recent game, and the best ever run.
+  currentWinStreak: integer("current_win_streak").notNull().default(0),
+  bestWinStreak: integer("best_win_streak").notNull().default(0),
+  // Whether the user's most recently completed match was a win. Overwritten
+  // every game (not accumulated) so the UI can react to the latest result.
+  wonLastGame: boolean("won_last_game").notNull().default(false),
+  lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
@@ -148,8 +184,8 @@ export const profiles = pgTable("profiles", {
     .notNull(),
 });
 
-export type GamePlayerStats = typeof gamePlayerStats.$inferSelect;
-export type NewGamePlayerStats = typeof gamePlayerStats.$inferInsert;
+export type BattleRoyaleStats = typeof battleRoyaleStats.$inferSelect;
+export type NewBattleRoyaleStats = typeof battleRoyaleStats.$inferInsert;
 
 export type Duel = typeof duels.$inferSelect;
 export type NewDuel = typeof duels.$inferInsert;

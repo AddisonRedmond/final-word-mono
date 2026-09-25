@@ -53,7 +53,7 @@ try {
       public.duel_secrets,
       public.duels,
       public.friendships,
-      public.game_player_stats,
+      public.battle_royale_stats,
       public.profiles
     cascade;
     drop type if exists public.friend_status;

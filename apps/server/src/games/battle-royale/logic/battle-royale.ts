@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import words from "./words.js";
 import logger from "../../../utils/logger.js";
 import { scheduleMatchTimeLimit } from "./match-timer.js";
+import { persistBattleRoyaleStats } from "../stats.js";
 import {
   ATTACK_WORD_BONUS_MS,
   getGuessBonusMs,
@@ -66,6 +67,16 @@ export const cleanupGame = (
     if (matchTimer) {
       clearTimeout(matchTimer);
     }
+  }
+
+  // Persist aggregate stats for genuinely finished matches only. cleanupGame is
+  // also called when a lobby empties out (players disconnected before a result)
+  // — those aren't real games and must not count. We read the game before the
+  // delete below, and fire-and-forget so a slow/failed write never blocks
+  // teardown (persistBattleRoyaleStats swallows its own errors).
+  const finishedGame = games.get(roomId);
+  if (finishedGame?.room.isFinished) {
+    void persistBattleRoyaleStats(finishedGame);
   }
 
   games.delete(roomId);

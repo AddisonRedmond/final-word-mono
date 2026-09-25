@@ -24,7 +24,7 @@ const EXPECTED_TABLES = [
   "duel_secrets",
   "duels",
   "friendships",
-  "game_player_stats",
+  "battle_royale_stats",
   "profiles",
 ];
 
