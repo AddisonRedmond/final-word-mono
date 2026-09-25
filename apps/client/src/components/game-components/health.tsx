@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useTimer } from "react-timer-hook";
+import { useServerClockStore } from "@/state/server-clock-store";
 
 type HealthProps = {
   expiryTimestamp?: number;
@@ -10,11 +11,15 @@ const MAX_HEALTH_SECONDS = 1.5 * 60;
 const Health: React.FC<HealthProps> = ({ expiryTimestamp }) => {
   const hasExpiryTimestamp =
     typeof expiryTimestamp === "number" && Number.isFinite(expiryTimestamp);
+  // Convert the server-issued life timestamp onto the client clock.
+  const offsetMs = useServerClockStore((state) => state.offsetMs);
+  const clientExpiry = hasExpiryTimestamp
+    ? expiryTimestamp - offsetMs
+    : Date.now();
+
   const { totalSeconds, restart } = useTimer({
     autoStart: hasExpiryTimestamp,
-    expiryTimestamp: new Date(
-      hasExpiryTimestamp ? expiryTimestamp : Date.now(),
-    ),
+    expiryTimestamp: new Date(clientExpiry),
   });
 
   useEffect(() => {
@@ -22,8 +27,8 @@ const Health: React.FC<HealthProps> = ({ expiryTimestamp }) => {
       return;
     }
 
-    restart(new Date(expiryTimestamp), true);
-  }, [expiryTimestamp, hasExpiryTimestamp, restart]);
+    restart(new Date(clientExpiry), true);
+  }, [clientExpiry, hasExpiryTimestamp, restart]);
 
   const remainingSeconds = Math.max(totalSeconds, 0);
   const healthPercent = Math.min(

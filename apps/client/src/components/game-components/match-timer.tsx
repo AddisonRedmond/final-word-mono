@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useTimer } from "react-timer-hook";
+import { useServerClockStore } from "@/state/server-clock-store";
 
 type MatchTimerProps = {
   expiryTimestamp?: number;
@@ -8,12 +9,15 @@ type MatchTimerProps = {
 const MatchTimer: React.FC<MatchTimerProps> = ({ expiryTimestamp }) => {
   const hasExpiryTimestamp =
     typeof expiryTimestamp === "number" && Number.isFinite(expiryTimestamp);
+  // Convert the server-issued match-end timestamp onto the client clock.
+  const offsetMs = useServerClockStore((state) => state.offsetMs);
+  const clientExpiry = hasExpiryTimestamp
+    ? expiryTimestamp - offsetMs
+    : Date.now();
 
   const { totalSeconds, restart } = useTimer({
     autoStart: hasExpiryTimestamp,
-    expiryTimestamp: new Date(
-      hasExpiryTimestamp ? expiryTimestamp : Date.now(),
-    ),
+    expiryTimestamp: new Date(clientExpiry),
   });
 
   useEffect(() => {
@@ -21,8 +25,8 @@ const MatchTimer: React.FC<MatchTimerProps> = ({ expiryTimestamp }) => {
       return;
     }
 
-    restart(new Date(expiryTimestamp), true);
-  }, [expiryTimestamp, hasExpiryTimestamp, restart]);
+    restart(new Date(clientExpiry), true);
+  }, [clientExpiry, hasExpiryTimestamp, restart]);
 
   if (!hasExpiryTimestamp) {
     return null;

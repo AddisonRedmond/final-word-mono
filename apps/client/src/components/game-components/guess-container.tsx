@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
+import { Swords } from "lucide-react";
 import type { RevealedLetters } from "@/types/battle-royale.types";
 
 type TileVariant = "default" | "correct" | "present" | "absent" | "hopper";
@@ -8,6 +9,9 @@ type GuessContainerProps = {
   queue?: RevealedLetters[];
   fullMatches?: Record<number, string>;
   currentWordGuesses?: number;
+  // Initials of the attacker who sent the current word, shown as a badge when
+  // the word being guessed arrived as an attack. Undefined = not an attack word.
+  attackerInitials?: string;
 };
 const variantClasses: Record<TileVariant, string> = {
   default: "bg-amber-50 text-stone-800 border border-amber-200/60",
@@ -90,6 +94,7 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
   queue,
   fullMatches,
   currentWordGuesses = 0,
+  attackerInitials,
 }) => {
   const guessLetters = Array.from(
     { length: GUESS_LENGTH },
@@ -102,7 +107,19 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
         <div className="relative isolate rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
           <HopperQueue queue={queue} />
 
-          <div className="z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
+          {/* Badge pinned to the active guess row so it reads as "this word
+              you're working on was sent by <attacker>". */}
+          <div className="relative z-10 flex items-center justify-evenly gap-x-1 p-2 text-xl font-bold">
+            {attackerInitials && (
+              <div
+                className="absolute -top-2 -right-2 z-20 flex items-center gap-x-1 rounded-full bg-red-500 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider text-white shadow-md"
+                title={`Attack word from ${attackerInitials}`}
+              >
+                <Swords className="size-3" />
+                {attackerInitials}
+              </div>
+            )}
+
             {guessLetters.map((letter, index) => (
               <GuessLetter
                 key={index}

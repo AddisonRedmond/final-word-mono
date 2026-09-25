@@ -11,6 +11,7 @@ import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import BattleRoyale from "@/components/games/battle-royale";
 import { AnimatePresence, motion } from "motion/react";
 import { useAuthStore } from "@/state/auth-store";
+import { useServerClockStore } from "@/state/server-clock-store";
 import HeadToHeadCard from "@/components/duel-card";
 
 export default function Home() {
@@ -51,6 +52,9 @@ export default function Home() {
 
     const handleConnect = () => {
       console.log("Socket.IO connected");
+      // Measure the client/server clock offset before rendering timers so
+      // countdowns and life bars reflect the server's clock, not the browser's.
+      void useServerClockStore.getState().sync(socket);
       setIsPlaying(true);
     };
 
@@ -60,6 +64,7 @@ export default function Home() {
     };
 
     const handleDisconnect = () => {
+      useServerClockStore.getState().reset();
       setIsPlaying(false);
     };
 

@@ -9,6 +9,20 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+/*
+ * MIGRATION OWNERSHIP
+ * -------------------
+ * Drizzle owns ALL table structure and migrations for this project. Every
+ * table below is created and evolved via `drizzle-kit` (see the committed
+ * baseline under ./drizzle). Add or change tables here, then run
+ * `pnpm db:generate` to produce a new migration.
+ *
+ * Supabase-specific concerns that Drizzle cannot express — Row Level Security
+ * policies, `supabase_realtime` publication membership, and replica identity —
+ * are tracked SEPARATELY as plain SQL migrations under `supabase/migrations/`.
+ * Those run AFTER the Drizzle tables exist.
+ */
+
 export const gamePlayerStats = pgTable("game_player_stats", {
   id: uuid("id").defaultRandom().primaryKey(),
   gameId: uuid("game_id").notNull(),
@@ -26,7 +40,6 @@ export const duels = pgTable("duels", {
   initiatedBy: uuid("initiated_by")
     .notNull()
     .references(() => profiles.id, { onDelete: "cascade" }),
-  word: text("word").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -35,6 +48,25 @@ export const duels = pgTable("duels", {
   winner: uuid("winner").references(() => profiles.id, {
     onDelete: "set null",
   }),
+});
+
+/**
+ * The answer word for a duel, deliberately split out of the `duels` table so
+ * it never reaches the browser.
+ *
+ * The client reads `duels` / `duel_participants` directly via Supabase
+ * realtime (anon key, subject to RLS), and those payloads would otherwise
+ * carry the word for still-active games. Keeping the secret in its own table
+ * with NO client-facing RLS SELECT policy (see supabase/migrations) means the
+ * anon/authenticated roles cannot read it at all. Server-side tRPC uses a
+ * privileged pooler connection that bypasses RLS, so grading and post-game
+ * reveal still work.
+ */
+export const duelSecrets = pgTable("duel_secrets", {
+  duelId: uuid("duel_id")
+    .primaryKey()
+    .references(() => duels.id, { onDelete: "cascade" }),
+  word: text("word").notNull(),
 });
 
 export const duelParticipants = pgTable(
@@ -77,10 +109,6 @@ export const friendStatusEnum = pgEnum("friend_status", [
  * composite primary key (requesterId, addresseeId) guarantees uniqueness and
  * the ON DELETE CASCADE on both FK columns ensures orphaned rows are cleaned
  * up automatically if a user account is removed.
- *
- * There is also a CHECK constraint enforced via a unique index that prevents
- * duplicate inverse rows (A→B and B→A at the same time) — see the
- * `uniqueIndex` below.
  */
 export const friendships = pgTable(
   "friendships",
@@ -125,6 +153,9 @@ export type NewGamePlayerStats = typeof gamePlayerStats.$inferInsert;
 
 export type Duel = typeof duels.$inferSelect;
 export type NewDuel = typeof duels.$inferInsert;
+
+export type DuelSecret = typeof duelSecrets.$inferSelect;
+export type NewDuelSecret = typeof duelSecrets.$inferInsert;
 
 export type DuelParticipant = typeof duelParticipants.$inferSelect;
 export type NewDuelParticipant = typeof duelParticipants.$inferInsert;

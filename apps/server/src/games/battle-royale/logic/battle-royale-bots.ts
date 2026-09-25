@@ -9,7 +9,7 @@ import {
   applyCorrectGuessReward,
   determineTarget,
 } from "./battle-royale.js";
-import logger from "./logger.js";
+import logger from "../../../utils/logger.js";
 
 type BotGuessResult =
   | {
@@ -142,8 +142,19 @@ export const runBots = (
         continue;
       }
 
-      // The bot's life timer expired.
+      // The bot's life timer expired. Mark it eliminated and reveal its word
+      // immediately so it unrenders from opponents promptly, instead of waiting
+      // up to a full second for gameTimer's slower sweep.
       if (now >= botDisplayData.life) {
+        botDisplayData.isEliminated = true;
+
+        const revealed: Record<number, string> = {};
+        botServerData.word.split("").forEach((letter, index) => {
+          revealed[index] = letter;
+        });
+        botDisplayData.revealed_letters = revealed;
+
+        onUpdate();
         continue;
       }
 
@@ -190,7 +201,13 @@ export const runBots = (
             serverOnlyBotdata[targetId] ?? playerServerData[targetId];
 
           if (!serverOnlyBotdata[botId].currentWordIsAttack) {
-            applyAttack(guessedWord, guessCount, target, targetServerData);
+            applyAttack(
+              guessedWord,
+              guessCount,
+              target,
+              targetServerData,
+              botDisplayData.name,
+            );
           }
           applyCorrectGuessReward({
             player: botDisplayData,

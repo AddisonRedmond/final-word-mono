@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import type { PlayerDisplay } from "@/types/battle-royale.types";
+import { getInitials } from "@/utils/battle-royale";
 
 type EliminatedProps = {
   userData: PlayerDisplay;
@@ -27,6 +28,9 @@ const Eliminated = ({
   handleLeave,
 }: EliminatedProps) => {
   const survivalTime = formatDuration(userData.life - gameStartTimestamp);
+  const eliminatedBy = userData.lastAttackerName
+    ? getInitials(userData.lastAttackerName)
+    : "Timer";
 
   return (
     <AnimatePresence>
@@ -66,6 +70,12 @@ const Eliminated = ({
               <h2 className="mt-2 wrap-break-word text-4xl font-black tracking-wide text-red-400">
                 {userData.name}
               </h2>
+              <p className="mt-3 text-sm font-semibold text-zinc-300">
+                Eliminated by{" "}
+                <span className="font-black uppercase tracking-wider text-red-400">
+                  {eliminatedBy}
+                </span>
+              </p>
               <div className="mt-7 grid grid-cols-3 divide-x divide-white/15 border-y border-white/15 py-4">
                 <div className="px-2">
                   <p className="text-xl font-bold tabular-nums">

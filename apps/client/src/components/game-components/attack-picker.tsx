@@ -1,8 +1,8 @@
-import type { TargetType } from "@/types/battle-royale.types";
+import type { TargetMode } from "@/types/battle-royale.types";
 
 type AttackPickerProps = {
-  target: TargetType;
-  setTarget: (target: TargetType) => void;
+  mode: TargetMode;
+  onSelect: (mode: "first" | "last" | "random") => void;
 };
 
 type TargetButtonProps = {
@@ -43,25 +43,25 @@ const TargetButton: React.FC<TargetButtonProps> = ({
   );
 };
 
-const AttackPicker: React.FC<AttackPickerProps> = ({ target, setTarget }) => {
+const AttackPicker: React.FC<AttackPickerProps> = ({ mode, onSelect }) => {
   return (
     <div className="flex gap-x-3 rounded-full px-4 py-2 font-semibold shadow-lg">
       <TargetButton
         label="First"
-        selected={target === "first"}
-        onClick={() => setTarget("first")}
+        selected={mode === "first"}
+        onClick={() => onSelect("first")}
       />
 
       <TargetButton
         label="Random"
-        selected={target === "random"}
-        onClick={() => setTarget("random")}
+        selected={mode === "random"}
+        onClick={() => onSelect("random")}
       />
 
       <TargetButton
         label="Last"
-        selected={target === "last"}
-        onClick={() => setTarget("last")}
+        selected={mode === "last"}
+        onClick={() => onSelect("last")}
       />
     </div>
   );

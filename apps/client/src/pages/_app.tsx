@@ -1,23 +1,22 @@
-
 import type { AppType } from "next/app";
 import { Geist } from "next/font/google";
 import { api } from "@/utils/api";
 import "@/styles/globals.css";
 import Background from "@/components/background/background";
+import Toaster from "@/components/toaster";
 
 const geist = Geist({
-  subsets: ["latin"],
+	subsets: ["latin"],
 });
 
 const MyApp: AppType = ({ Component, pageProps }) => {
-
-
-  return (
-    <div className={geist.className}>
-      <Background />
-      <Component {...pageProps} />
-    </div>
-  );
+	return (
+		<div className={geist.className}>
+			<Background />
+			<Toaster />
+			<Component {...pageProps} />
+		</div>
+	);
 };
 
 export default api.withTRPC(MyApp);
