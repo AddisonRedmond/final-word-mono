@@ -1,19 +1,26 @@
--- Realtime + Row Level Security for the duel feature.
+-- Duel Row Level Security + realtime configuration.
 --
--- Table definitions (duels, duel_participants, duel_secrets) are owned by
--- Drizzle (packages/db). This migration only layers on the Supabase-specific
--- concerns: realtime publication membership, RLS policies, and replica
--- identity. It must run AFTER the Drizzle tables exist.
+-- OWNERSHIP: Table STRUCTURE (duels, duel_participants, duel_secrets and every
+-- other table) is owned by Drizzle — see packages/db/drizzle. This migration
+-- tracks ONLY the Supabase-specific concerns Drizzle cannot express:
+--   * Row Level Security policies
+--   * supabase_realtime publication membership
+--   * REPLICA IDENTITY FULL
 --
--- Every statement is guarded so this migration is safe to re-run and does not
--- fail if the Drizzle tables have not been created yet.
+-- ORDERING: this must run AFTER the Drizzle baseline creates the duel tables.
+-- Every block is guarded on the table existing (to_regclass) and every object
+-- is created conditionally, so the migration is:
+--   * order-forgiving — if it runs before Drizzle (e.g. a bare `supabase db
+--     reset` where the Drizzle migrate step has not happened yet) it simply
+--     no-ops instead of erroring; re-run it after Drizzle to apply.
+--   * idempotent — safe to run more than once.
 
 -- ---------------------------------------------------------------------------
 -- Realtime publication membership
 -- ---------------------------------------------------------------------------
 -- Only tables in the supabase_realtime publication stream postgres_changes.
--- Note: duel_secrets is intentionally NEVER added — the answer word must not
--- reach the browser.
+-- duel_secrets is intentionally NEVER added — the answer word must not reach
+-- the browser.
 do $$
 begin
   if to_regclass('public.duels') is not null
