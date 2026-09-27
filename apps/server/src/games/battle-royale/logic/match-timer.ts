@@ -81,9 +81,13 @@ export const scheduleMatchTimeLimit = ({
       game.room.winnerId = winnerId;
       game.room.isFinished = true;
 
+      // All non-winners are eliminated at the cap simultaneously; they share
+      // one timestamp so placement ties are broken by performance.
+      const eliminatedAt = Date.now();
       for (const [playerId, player] of activePlayers) {
         if (playerId !== winnerId) {
           player.isEliminated = true;
+          player.endTimeStamp = eliminatedAt;
           revealEliminatedPlayerWord(
             player,
             playerId,
