@@ -24,14 +24,17 @@ type RankedPlayer = {
  * Assign each REAL player a finishing placement relative to the FULL lobby
  * (bots included), then return only the real players.
  *
- * Placement reflects where the player actually finished among everyone they
- * played against — losing to a bot counts as 2nd, matching what the player saw
- * on screen. The winner (room.winnerId, bot or human) is placement 1; everyone
- * else is ranked 2..N using the same tiebreak the game uses to resolve a
- * time-limit winner (more correct guesses first, then fewer total guesses). In
- * a draw (no winnerId) everyone shares placement 1 and no win is recorded. We
- * can't do better than this ordering without recording elimination order,
- * which the game does not currently track.
+ * Placement reflects true SURVIVAL ORDER — who lasted longest. The winner
+ * (room.winnerId, bot or human) is placement 1; everyone else is ranked by when
+ * they were eliminated (endTimeStamp), latest-eliminated getting the better
+ * placement. This matches how a battle royale actually finishes: outlasting an
+ * opponent beats them, regardless of who made more correct guesses.
+ *
+ * Players eliminated on the same tick (a simultaneous life-expiry sweep, or all
+ * non-winners at the match time cap) share one endTimeStamp and are treated as
+ * a survival tie, broken by performance (more correct guesses, then fewer total
+ * guesses). In a draw (no winnerId) everyone shares placement 1 and no win is
+ * recorded.
  */
 const rankPlayers = (game: Game): RankedPlayer[] => {
   const allPlayers = Array.from(game.players.entries());
@@ -49,7 +52,10 @@ const rankPlayers = (game: Game): RankedPlayer[] => {
       }));
   }
 
-  // Order the whole lobby: winner first, then the rest by the game's tiebreak.
+  // Order the whole lobby by survival:
+  //   1. the winner (last standing) always first
+  //   2. then latest elimination first (survived longer = better placement)
+  //   3. tiebreak same-tick eliminations by performance
   const ordered = [...allPlayers].sort(([idA, a], [idB, b]) => {
     if (idA === winnerId) {
       return -1;
@@ -57,6 +63,16 @@ const rankPlayers = (game: Game): RankedPlayer[] => {
     if (idB === winnerId) {
       return 1;
     }
+
+    // Later elimination ranks higher. A missing endTimeStamp (never stamped)
+    // is treated as eliminated earliest (0), so it sorts to the back.
+    const endA = a.endTimeStamp ?? 0;
+    const endB = b.endTimeStamp ?? 0;
+    if (endA !== endB) {
+      return endB - endA;
+    }
+
+    // Same elimination tick -> break by performance.
     if (a.correctGuesses !== b.correctGuesses) {
       return b.correctGuesses - a.correctGuesses;
     }
@@ -220,10 +236,23 @@ export const persistLeaverAsLoss = (game: Game, userId: string): void => {
   }
 
   // Snapshot everything SYNCHRONOUSLY here: the caller deletes the player from
-  // game.players immediately after this returns, so placement (current field
-  // size, leaver included) and the guess counts must be read now, before the
-  // async DB write runs on a later microtask.
-  const placement = game.players.size;
+  // game.players immediately after this returns, so placement and the guess
+  // counts must be read now, before the async DB write runs on a later
+  // microtask.
+  //
+  // Placement = the number of players still ALIVE (not eliminated) at the
+  // moment of leaving, the quitter included. Everyone already eliminated
+  // finished BEHIND the quitter (better placement number for the quitter),
+  // and everyone still alive outlasted them. Eliminated players — including
+  // eliminated bots — remain in game.players with isEliminated=true, so we must
+  // count only the living rather than use game.players.size (which would
+  // record dead-last among the entire original lobby, e.g. 99).
+  const aliveCount = Array.from(game.players.values()).filter(
+    (p) => !p.isEliminated,
+  ).length;
+  // Guard: the leaver should be alive (you can't "leave" an eliminated slot),
+  // but clamp to >= 1 defensively so placement is never 0.
+  const placement = Math.max(1, aliveCount);
   const totalGuesses = player.totalGuesses;
   const correctGuesses = player.correctGuesses;
   const roomId = game.room.lobbyId;

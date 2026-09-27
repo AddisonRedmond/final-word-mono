@@ -1,46 +1,48 @@
 import GameCard from "../game-card";
+import BattleRoyaleRules from "../game-components/battle-royale-rules";
 
 type BattleRoyalCardProps = {
-  handlePlay: () => void;
+	handlePlay: () => void;
 };
 
 const PlayButton: React.FC<{ onPlay: () => void }> = ({ onPlay }) => {
-  return (
-    <button
-      onClick={onPlay}
-      className="flex items-center gap-2 w-full justify-center bg-green-400 hover:bg-green-300 active:scale-95 transition-all rounded-md py-2 text-white text-xs font-bold uppercase tracking-widest"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className="w-3 h-3"
-      >
-        <path d="M8 5v14l11-7z" />
-      </svg>
-      Play
-    </button>
-  );
+	return (
+		<button
+			className="flex w-full items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-white text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+			onClick={onPlay}
+		>
+			<svg
+				className="h-3 w-3"
+				fill="currentColor"
+				viewBox="0 0 24 24"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<path d="M8 5v14l11-7z" />
+			</svg>
+			Play
+		</button>
+	);
 };
 
 const BattleRoyalCard: React.FC<BattleRoyalCardProps> = ({ handlePlay }) => {
-  return (
-    <GameCard
-      title="Battle Royale"
-      desc="100 players. Last solver standing wins."
-      badge="Live"
-      badgeVariant="green"
-      tiles={[
-        { word: "B", variant: "correct" },
-        { word: "A", variant: "present" },
-        { word: "T", variant: "absent" },
-        { word: "T", variant: "correct" },
-        { word: "L", variant: "correct" },
-        { word: "E", variant: "present" },
-      ]}
-    >
-      <PlayButton onPlay={handlePlay} />
-    </GameCard>
-  );
+	return (
+		<GameCard
+			badge="Live"
+			badgeVariant="green"
+			desc="100 players. Last solver standing wins."
+			tiles={[
+				{ word: "B", variant: "correct" },
+				{ word: "A", variant: "present" },
+				{ word: "T", variant: "absent" },
+				{ word: "T", variant: "correct" },
+				{ word: "L", variant: "correct" },
+				{ word: "E", variant: "present" },
+			]}
+			title="Battle Royale"
+		>
+			<PlayButton onPlay={handlePlay} />
+			<BattleRoyaleRules />
+		</GameCard>
+	);
 };
 export default BattleRoyalCard;

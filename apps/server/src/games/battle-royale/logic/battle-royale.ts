@@ -231,12 +231,16 @@ export const handleStartGame = (
     }
 
     // Mark all expiring players eliminated (skipping any chosen winner) and
-    // reveal their words.
+    // reveal their words. Everyone expiring on this tick shares one timestamp
+    // so final placement treats them as a survival-time tie (broken by
+    // performance in rankPlayers).
+    const eliminatedAt = Date.now();
     for (const [playerId, player] of expiringPlayers) {
       if (playerId === simultaneousWinnerId) {
         continue;
       }
       player.isEliminated = true;
+      player.endTimeStamp = eliminatedAt;
       revealEliminatedPlayerWord(
         player,
         playerId,

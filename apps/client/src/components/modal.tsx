@@ -1,4 +1,5 @@
-import { useEffect, type HTMLAttributes, type ReactNode } from "react";
+import { useEffect, useState, type HTMLAttributes, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import Button from "./button";
 
@@ -8,6 +9,14 @@ interface ModalProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const Modal = ({ children, className = "", onClose, ...props }: ModalProps) => {
+  // Only render into a portal after mount so SSR (where `document` is
+  // undefined) is skipped and hydration stays consistent.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!onClose) {
       return;
@@ -23,7 +32,11 @@ const Modal = ({ children, className = "", onClose, ...props }: ModalProps) => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  return (
+  if (!mounted) {
+    return null;
+  }
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -50,7 +63,8 @@ const Modal = ({ children, className = "", onClose, ...props }: ModalProps) => {
 
         {children}
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 };
 

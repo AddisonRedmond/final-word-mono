@@ -8,6 +8,7 @@ import {
   applyAttack,
   applyCorrectGuessReward,
   determineTarget,
+  Max_Attack_Words,
 } from "./battle-royale.js";
 import logger from "../../../utils/logger.js";
 
@@ -147,6 +148,7 @@ export const runBots = (
       // up to a full second for gameTimer's slower sweep.
       if (now >= botDisplayData.life) {
         botDisplayData.isEliminated = true;
+        botDisplayData.endTimeStamp = now;
 
         const revealed: Record<number, string> = {};
         botServerData.word.split("").forEach((letter, index) => {
@@ -191,10 +193,22 @@ export const runBots = (
           const guessCount = botDisplayData.currentWordGuesses;
           const guessedWord = botServerData.word;
 
+          // Mirror the human path: prefer targets whose attack queue has room,
+          // so a bot doesn't waste attacks on someone who's already maxed out
+          // (the queue-full branch of applyAttack silently drops the word).
+          const isAttackable = (playerId: string) => {
+            const queueLength =
+              playerServerData[playerId]?.queue.length ??
+              serverOnlyBotdata[playerId]?.queue.length ??
+              0;
+            return queueLength < Max_Attack_Words;
+          };
+
           const targetId = determineTarget(
             playerData,
             botId,
             botServerData.target,
+            isAttackable,
           );
           const target = playerData.get(targetId);
           const targetServerData =
