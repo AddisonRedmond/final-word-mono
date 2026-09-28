@@ -1,4 +1,4 @@
-import words from "./words";
+import { FIVE_LETTER_WORDS as words } from "@/shared/words";
 import type { DuelParticipant } from "@/db/schema";
 
 export const WORD_LENGTH = 5;

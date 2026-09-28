@@ -7,6 +7,7 @@ import type {
 } from "types/battle-royale.types.js";
 import logger from "../../../utils/logger.js";
 import { MATCH_TIME_LIMIT_MS } from "shared/battle-royale.js";
+import { persistEliminatedAsLoss } from "../stats.js";
 
 type RevealEliminatedPlayerWord = (
   player: PlayerDisplay,
@@ -84,10 +85,12 @@ export const scheduleMatchTimeLimit = ({
       // All non-winners are eliminated at the cap simultaneously; they share
       // one timestamp so placement ties are broken by performance.
       const eliminatedAt = Date.now();
+      const eliminatedThisTick: string[] = [];
       for (const [playerId, player] of activePlayers) {
         if (playerId !== winnerId) {
           player.isEliminated = true;
           player.endTimeStamp = eliminatedAt;
+          eliminatedThisTick.push(playerId);
           revealEliminatedPlayerWord(
             player,
             playerId,
@@ -96,6 +99,12 @@ export const scheduleMatchTimeLimit = ({
             serverOnlyBotData,
           );
         }
+      }
+
+      // Record the real players eliminated at the cap as losses now; the winner
+      // is recorded by the finish/cleanup path. Skips bots + already-recorded.
+      if (eliminatedThisTick.length > 0) {
+        persistEliminatedAsLoss(game, eliminatedThisTick);
       }
 
       logger.info(

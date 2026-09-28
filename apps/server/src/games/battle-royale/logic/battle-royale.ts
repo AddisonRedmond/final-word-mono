@@ -15,7 +15,10 @@ import { randomUUID } from "node:crypto";
 import words from "./words.js";
 import logger from "../../../utils/logger.js";
 import { scheduleMatchTimeLimit } from "./match-timer.js";
-import { persistBattleRoyaleStats } from "../stats.js";
+import {
+  persistBattleRoyaleStats,
+  persistEliminatedAsLoss,
+} from "../stats.js";
 import {
   ATTACK_WORD_BONUS_MS,
   getGuessBonusMs,
@@ -48,25 +51,35 @@ export const cleanupGame = (
     const { startTimer, gameTimer, botTicker, updateTicker, matchTimer } =
       roomServerOnlyData.timers;
 
+    // Track which timers were actually armed so the log reflects real teardown.
+    const clearedTimers: string[] = [];
+
     if (startTimer) {
       clearTimeout(startTimer);
+      clearedTimers.push("startTimer");
     }
 
     if (gameTimer) {
       clearInterval(gameTimer);
+      clearedTimers.push("gameTimer");
     }
 
     if (botTicker) {
       clearInterval(botTicker);
+      clearedTimers.push("botTicker");
     }
 
     if (updateTicker) {
       clearTimeout(updateTicker);
+      clearedTimers.push("updateTicker");
     }
 
     if (matchTimer) {
       clearTimeout(matchTimer);
+      clearedTimers.push("matchTimer");
     }
+
+    logger.info({ roomId, clearedTimers }, "Cleared Battle Royale room timers");
   }
 
   // Persist aggregate stats for genuinely finished matches only. cleanupGame is
@@ -235,12 +248,14 @@ export const handleStartGame = (
     // so final placement treats them as a survival-time tie (broken by
     // performance in rankPlayers).
     const eliminatedAt = Date.now();
+    const eliminatedThisTick: string[] = [];
     for (const [playerId, player] of expiringPlayers) {
       if (playerId === simultaneousWinnerId) {
         continue;
       }
       player.isEliminated = true;
       player.endTimeStamp = eliminatedAt;
+      eliminatedThisTick.push(playerId);
       revealEliminatedPlayerWord(
         player,
         playerId,
@@ -248,6 +263,13 @@ export const handleStartGame = (
         serverOnlyData,
         serverOnlyBotData,
       );
+    }
+
+    // Record each real player eliminated on this tick as a loss NOW, at the
+    // moment their outcome is decided (Option 1: record-at-outcome). Bots and
+    // already-recorded players are skipped inside the helper.
+    if (eliminatedThisTick.length > 0) {
+      persistEliminatedAsLoss(game, eliminatedThisTick);
     }
 
     // Recompute active players after the sweep, then evaluate end conditions.
