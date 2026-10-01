@@ -49,12 +49,12 @@ const RaceOpponents = memo(
 									transition={{ duration: 0.25, ease: "easeOut" }}
 								>
 									<div className="flex w-full items-center justify-between gap-x-1">
-										<span className="grid size-7 place-content-center rounded-md bg-zinc-800 font-bold text-white text-xs">
+										<span className="font-semibold text-[9px] leading-none">
 											{getInitials(opponent.name)}
 										</span>
 										{opponent.qualified && (
-											<span className="grid size-5 place-content-center rounded-full bg-emerald-500 text-white">
-												<Check className="size-3.5" />
+											<span className="grid size-4 place-content-center rounded-full bg-emerald-500 text-white">
+												<Check className="size-3" />
 											</span>
 										)}
 									</div>
