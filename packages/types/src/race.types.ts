@@ -63,4 +63,16 @@ export type ClientRaceMatch = {
 // Race is a solo race-to-qualify with independent per-player words: there is
 // NO attack queue, currentWordIsAttack, currentWordAttackerName, or
 // lastAttackerName carried over from Battle Royale.
-export type RacePlayerServerData = { word: string; lastAcceptedGuessAt: number };
+export type RacePlayerServerData = {
+  word: string;
+  lastAcceptedGuessAt: number;
+  // Accumulated keyboard hints for the CURRENT word, mirroring Battle Royale's
+  // per-player revealed/partial/absent sets. Reset whenever a new word is
+  // assigned (round begin or after a correct guess). The partial set honours
+  // the duplicate-letter rule: a letter stays yellow while an occurrence is
+  // still unrevealed (e.g. the second P in APPLE), so it never looks fully
+  // solved while a duplicate remains unfound.
+  revealedLetters?: Record<number, string>;
+  partialMatches?: string[];
+  noMatch?: string[];
+};

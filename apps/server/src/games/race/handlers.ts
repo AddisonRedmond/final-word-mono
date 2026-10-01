@@ -20,7 +20,11 @@ import {
   startMatch,
   type StartMatchDeps,
 } from "./logic/race.js";
-import { applyGuess } from "./logic/round.js";
+import {
+  applyGuess,
+  calculateKeyboardMatches,
+  mergeKeyboardMatches,
+} from "./logic/round.js";
 import { persistLeaverAsLoss, persistRaceStats } from "./stats.js";
 import { config, matches, serverOnlyBotData, serverOnlyData } from "./state.js";
 
@@ -277,6 +281,11 @@ export const registerRaceHandlers = (nsp: Namespace) => {
 
       const now = Date.now();
 
+      // The word this guess is graded against (before applyGuess may reassign a
+      // fresh word on a correct guess). The keyboard hints are computed against
+      // THIS word so the duplicate-letter rule uses the right target.
+      const guessedWord = serverData.word;
+
       // Grade + apply qualification purely (Req 4.3–4.5). `applyGuess` reads the
       // player's per-round state plus the server-only assigned word and returns
       // the fields to update without mutating anything in place.
@@ -298,7 +307,24 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         now,
       );
 
-      logger.warn(serverData.word);
+      // Accumulate keyboard hints for the current word, applying the
+      // duplicate-letter rule (a letter stays yellow while it has an unrevealed
+      // occurrence — e.g. the second P in APPLE). This mirrors Battle Royale so
+      // the keyboard never shows a duplicate letter as fully solved while one of
+      // its copies is still unfound.
+      const rawMatches = calculateKeyboardMatches(guessedWord, guess);
+      const mergedMatches = mergeKeyboardMatches(
+        guessedWord,
+        {
+          revealedLetters: serverData.revealedLetters ?? {},
+          partialMatches: serverData.partialMatches ?? [],
+          noMatch: serverData.noMatch ?? [],
+        },
+        rawMatches,
+      );
+      serverData.revealedLetters = mergedMatches.revealedLetters;
+      serverData.partialMatches = mergedMatches.partialMatches;
+      serverData.noMatch = mergedMatches.noMatch;
 
       // Merge the returned fields back onto the display player and store the
       // (possibly new) assigned word server-side.
@@ -312,10 +338,25 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       player.lastFeedback = result.feedback;
       serverData.word = result.word;
 
-      // Acknowledge with per-letter feedback (Req 10.6).
+      logger.info(serverData.word);
+
+      // A correct guess draws a fresh word (word changed): reset the accumulated
+      // keyboard hints so the next word starts with a clean keyboard.
+      if (result.word !== guessedWord) {
+        serverData.revealedLetters = {};
+        serverData.partialMatches = [];
+        serverData.noMatch = [];
+      }
+
+      // Acknowledge with per-letter feedback (Req 10.6) plus the accumulated
+      // keyboard hints so the client can colour keys with the duplicate-letter
+      // rule applied (identical to Battle Royale).
       socket.emit("guess:ack", {
         isMatch: result.isMatch,
         perLetter: result.feedback ?? [],
+        revealedLetters: serverData.revealedLetters,
+        partialMatches: serverData.partialMatches,
+        noMatch: serverData.noMatch,
       });
 
       // Final_Round first-correct-guess win (Req 6.1, 6.2): a correct guess on

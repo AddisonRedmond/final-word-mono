@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
 	EliminatedEvent,
+	GuessAck,
 	MatchResult,
 	RoundTransition as RoundTransitionPayload,
 } from "@/hooks/useRaceSocket";
@@ -120,13 +121,38 @@ describe("LobbyView (Req 10.1)", () => {
 // -- RoundBoard (Req 10.2, 10.6) --------------------------------------------
 
 describe("RoundBoard (Req 10.2, 10.6)", () => {
+	// Build a `guess:ack` the way the server now sends it: per-letter grading
+	// plus the server-accumulated keyboard hints (revealed/partial/absent) with
+	// the duplicate-letter rule already applied. The component reads the keyboard
+	// colours and corner hints from these server sets (no client re-grading).
+	const makeAck = (
+		perLetter: LetterFeedback[],
+		keyboard?: {
+			revealedLetters?: Record<number, string>;
+			partialMatches?: string[];
+			noMatch?: string[];
+		},
+	): GuessAck => ({
+		isMatch: perLetter.every((l) => l.state === "correct"),
+		perLetter,
+		revealedLetters: keyboard?.revealedLetters ?? {},
+		partialMatches: keyboard?.partialMatches ?? [],
+		noMatch: keyboard?.noMatch ?? [],
+	});
+
 	// Round 0 of the shipped RACE_CONFIG: 4-letter words, qualify with 3.
+	// Guess "WORD" vs some target: W correct(0), O present, R absent, D correct(3).
 	const feedback: LetterFeedback[] = [
 		{ index: 0, letter: "W", state: "correct" },
 		{ index: 1, letter: "O", state: "present" },
 		{ index: 2, letter: "R", state: "absent" },
 		{ index: 3, letter: "D", state: "correct" },
 	];
+	const feedbackAck = makeAck(feedback, {
+		revealedLetters: { 0: "W", 3: "D" },
+		partialMatches: ["O"],
+		noMatch: ["R"],
+	});
 
 	it("renders the round number, word-length/qualifying text, progress and the timer", () => {
 		const match = makeMatch(
@@ -137,7 +163,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 
 		render(
 			<RoundBoard
-				lastFeedback={undefined}
+				lastAck={undefined}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -165,7 +191,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 
 		render(
 			<RoundBoard
-				lastFeedback={undefined}
+				lastAck={undefined}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -198,7 +224,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 
 		const { container } = render(
 			<RoundBoard
-				lastFeedback={feedback}
+				lastAck={feedbackAck}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -237,7 +263,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 
 		render(
 			<RoundBoard
-				lastFeedback={undefined}
+				lastAck={undefined}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -265,7 +291,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 
 		render(
 			<RoundBoard
-				lastFeedback={undefined}
+				lastAck={undefined}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -291,9 +317,15 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 			{ index: 2, letter: "U", state: "absent" },
 			{ index: 3, letter: "B", state: "absent" },
 		];
+		// Server-accumulated keyboard after the first guess.
+		const firstAck = makeAck(first, {
+			revealedLetters: {},
+			partialMatches: ["T"],
+			noMatch: ["S", "U", "B"],
+		});
 		const { rerender } = render(
 			<RoundBoard
-				lastFeedback={first}
+				lastAck={firstAck}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -314,9 +346,16 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 			{ index: 2, letter: "O", state: "absent" },
 			{ index: 3, letter: "M", state: "absent" },
 		];
+		// Accumulated keyboard after the second guess of the SAME word: the server
+		// persists the earlier S(absent)/T(present) and adds A(correct).
+		const secondAck = makeAck(second, {
+			revealedLetters: { 0: "A" },
+			partialMatches: ["T"],
+			noMatch: ["S", "U", "B", "O", "M"],
+		});
 		rerender(
 			<RoundBoard
-				lastFeedback={second}
+				lastAck={secondAck}
 				match={match}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -337,7 +376,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 		);
 		rerender(
 			<RoundBoard
-				lastFeedback={undefined}
+				lastAck={undefined}
 				match={advanced}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -364,9 +403,14 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 			{ index: 2, letter: "S", state: "absent" },
 			{ index: 3, letter: "T", state: "correct" },
 		];
+		const round0Ack = makeAck(round0Feedback, {
+			revealedLetters: { 3: "T" },
+			partialMatches: ["R"],
+			noMatch: ["Q", "S"],
+		});
 		const { rerender } = render(
 			<RoundBoard
-				lastFeedback={round0Feedback}
+				lastAck={round0Ack}
 				match={round0}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -392,7 +436,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 		);
 		rerender(
 			<RoundBoard
-				lastFeedback={round0Feedback}
+				lastAck={round0Ack}
 				match={round1}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -418,16 +462,21 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 		);
 
 		// The winning guess for the first word: every position correct (WORD).
-		const winningAck: LetterFeedback[] = [
+		const winningFeedback: LetterFeedback[] = [
 			{ index: 0, letter: "W", state: "correct" },
 			{ index: 1, letter: "O", state: "correct" },
 			{ index: 2, letter: "R", state: "correct" },
 			{ index: 3, letter: "D", state: "correct" },
 		];
+		const winningAck = makeAck(winningFeedback, {
+			revealedLetters: { 0: "W", 1: "O", 2: "R", 3: "D" },
+			partialMatches: [],
+			noMatch: [],
+		});
 
 		const { container, rerender } = render(
 			<RoundBoard
-				lastFeedback={winningAck}
+				lastAck={winningAck}
 				match={word0}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -454,7 +503,7 @@ describe("RoundBoard (Req 10.2, 10.6)", () => {
 		);
 		rerender(
 			<RoundBoard
-				lastFeedback={winningAck}
+				lastAck={winningAck}
 				match={word1}
 				onGuess={() => {}}
 				onLeave={() => {}}
@@ -564,7 +613,7 @@ describe("EliminationView (Req 10.4)", () => {
 // -- ResultView (Req 10.5) --------------------------------------------------
 
 describe("ResultView (Req 10.5)", () => {
-	it("announces victory and lists placements when this player wins", () => {
+	it("announces victory with the winner's name when this player wins", () => {
 		const match = makeMatch(
 			"finished",
 			{
@@ -593,12 +642,14 @@ describe("ResultView (Req 10.5)", () => {
 
 		expect(screen.getByText("Victory")).toBeDefined();
 		expect(screen.getByText("You had the FINAL WORD")).toBeDefined();
-		// Placement ordering resolves ids to names.
-		expect(screen.getByText("Alice (you)")).toBeDefined();
-		expect(screen.getByText("Bob")).toBeDefined();
+		// The winner's own name is shown as the headline on the victory card.
+		expect(screen.getByText("Alice")).toBeDefined();
+		// The restyled card shows no placements list, so other players' names
+		// (and the opponent "Bob") are not rendered.
+		expect(screen.queryByText("Bob")).toBeNull();
 	});
 
-	it("shows the winner name and own placement when this player loses", () => {
+	it("shows the eliminated card with the winner name and own placement when this player loses", () => {
 		const match = makeMatch(
 			"finished",
 			{
@@ -625,17 +676,17 @@ describe("ResultView (Req 10.5)", () => {
 			/>,
 		);
 
-		// The "Winner" label headline shows above the resolved winner name. The
-		// restyled card shows it both as the header band and the label line.
-		expect(screen.getAllByText("Winner").length).toBeGreaterThan(0);
-		// Winner id resolves to the winner's display name — it shows both in the
-		// headline and as the top row of the placements list.
-		expect(screen.getAllByText("Zoe").length).toBeGreaterThan(0);
+		// A non-winner sees the "Eliminated" header band and a "Winner" label
+		// above the resolved winner name.
+		expect(screen.getByText("Eliminated")).toBeDefined();
+		expect(screen.getByText("Winner")).toBeDefined();
+		// Winner id resolves to the winner's display name.
+		expect(screen.getByText("Zoe")).toBeDefined();
 		// This player did not win, so no victory headline.
 		expect(screen.queryByText("You had the FINAL WORD")).toBeNull();
-		// Own placement is 2nd in the ["w", "me"] ordering — surfaced both in the
-		// "You finished" line and as the ordinal prefix of the ranking row.
-		expect(screen.getAllByText("2nd").length).toBeGreaterThan(0);
+		// Own placement is 2nd in the ["w", "me"] ordering — shown in the
+		// "You finished" line.
+		expect(screen.getByText("2nd")).toBeDefined();
 	});
 
 	it("renders a draw with no winner", () => {

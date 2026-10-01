@@ -1,7 +1,8 @@
 import { useAnimate } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GuessAck } from "@/hooks/useRaceSocket";
 import { eliminationCount, RACE_CONFIG } from "@/shared/race";
-import type { ClientRaceMatch, LetterFeedback } from "@/types/race.types";
+import type { ClientRaceMatch } from "@/types/race.types";
 import { isValidGuess } from "@/utils/race";
 import GuessTiles, { type TileSlot } from "../../game-components/guess-tiles";
 import Keyboard from "../../game-components/keyboard";
@@ -14,8 +15,12 @@ type RoundBoardProps = {
 	match: ClientRaceMatch;
 	/** This player's id. */
 	userId: string;
-	/** Latest per-letter grading feedback from `guess:ack`. */
-	lastFeedback: LetterFeedback[] | undefined;
+	/**
+	 * Latest `guess:ack` from the Race socket. Carries both the per-letter
+	 * grading and the server-accumulated keyboard hints (revealed/partial/absent)
+	 * for the current word, with the duplicate-letter rule already applied.
+	 */
+	lastAck: GuessAck | undefined;
 	/** Emit a guess for the player's current word. */
 	onGuess: (guess: string) => void;
 	/** Leave the match. */
@@ -51,13 +56,15 @@ type RoundBoardProps = {
 const RoundBoard: React.FC<RoundBoardProps> = ({
 	match,
 	userId,
-	lastFeedback,
+	lastAck,
 	onGuess,
 	onLeave,
 }) => {
 	const player = match.players[userId];
 	const roundIndex = match.room.currentRoundIndex;
 	const roundConfig = RACE_CONFIG.rounds[roundIndex];
+
+	const lastFeedback = lastAck?.perLetter;
 
 	// Fall back to the length of the last graded feedback if the config is ever
 	// out of range, so the input length still matches the server's word.
@@ -106,22 +113,20 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 	// or a new round.
 	const wordKey = `${roundIndex}:${completedWords}`;
 
-	// Accumulated per-letter feedback for the current word. Unlike Battle Royale
-	// (whose server persists revealed/partial/absent letters per player), Race
-	// only sends the LATEST guess's grading in each `guess:ack`. So we merge each
-	// ack into this map ourselves — letter -> best state seen so far — and reset
-	// it whenever the word changes. `correctByIndex` keeps the position of every
-	// letter graded `correct` for the per-tile corner hints.
-	const [accumulated, setAccumulated] = useState<{
+	// Keyboard hints for the CURRENT word. The server computes and accumulates
+	// these per word (revealed/partial/absent) with the duplicate-letter rule
+	// already applied — so a letter like the second P in APPLE stays yellow
+	// while a copy is still unfound, instead of going fully green. We just mirror
+	// the latest ack for the current word here (no client-side re-grading).
+	const [matches, setMatches] = useState<{
 		wordKey: string;
-		letterState: Record<string, LetterFeedback["state"]>;
-		correctByIndex: Record<number, string>;
-	}>({ wordKey, letterState: {}, correctByIndex: {} });
+		revealedLetters: Record<number, string>;
+		partialMatches: string[];
+		noMatch: string[];
+	}>({ wordKey, revealedLetters: {}, partialMatches: [], noMatch: [] });
 
-	// Reset the in-progress guess whenever a new word is graded (the completed
-	// count advances) or the round changes, so stale letters don't linger. The
-	// accumulated hints are reset in the same breath (see the merge effect
-	// below, which re-seeds on a new wordKey).
+	// Reset the in-progress guess whenever a new word is graded (completedWords
+	// advances) or the round changes, so stale letters don't linger.
 	const wordKeyRef = useRef(wordKey);
 	useEffect(() => {
 		if (wordKeyRef.current !== wordKey) {
@@ -130,85 +135,53 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 		}
 	}, [wordKey]);
 
-	// Merge each incoming `guess:ack` feedback into the accumulated maps so the
-	// keyboard and corner hints PERSIST across every guess of the current word,
-	// rather than being overwritten by the latest guess. When the word changes
-	// we start from a clean slate (an empty accumulation for the new wordKey).
-	// State priority is correct > present > absent, so a letter never downgrades
-	// (e.g. a later "absent" can't erase an earlier "present"/"correct").
-	const stateRank: Record<LetterFeedback["state"], number> = {
-		absent: 0,
-		present: 1,
-		correct: 2,
-	};
-
-	// Remember the last feedback object we merged so we consume each `guess:ack`
-	// exactly once. This matters on a CORRECT guess: the server sends the
-	// all-`correct` ack for the solved word AND then a snapshot with the
-	// advanced `completedWords` (a new word). Those two arrive as separate
-	// updates, so `lastFeedback` still points at the solved word's grading when
-	// `wordKey` flips. Without this guard the effect would re-seed the new word
-	// empty and then immediately merge that STALE all-correct feedback back in,
-	// leaving the previous word's corner hints on the fresh tiles. By marking
-	// the carried-over feedback as already-consumed when the word changes, the
-	// new word truly starts blank and only feedback that arrives AFTER the change
-	// is merged.
-	const lastMergedFeedbackRef = useRef<LetterFeedback[] | undefined>(undefined);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: stateRank is a stable literal; keying the effect on wordKey/lastFeedback is intentional.
+	// Apply each incoming `guess:ack`'s server-accumulated keyboard hints to the
+	// current word, consuming each ack exactly once. Two cases need care:
+	//   - New word (wordKey changed): drop the previous word's hints and start
+	//     blank. On a CORRECT guess the server sends the solved word's ack AND
+	//     then a snapshot advancing completedWords; those arrive separately, so
+	//     `lastAck` still points at the solved word's ack when the word changes.
+	//     We mark that carried-over ack consumed so it is NOT re-applied to the
+	//     fresh word (which would wrongly inherit the solved word's corner hints).
+	//   - Stale previous-round ack: an ack whose grading length doesn't match the
+	//     current round's word length belongs to a previous round and is ignored.
+	const lastAppliedAckRef = useRef<GuessAck | undefined>(undefined);
 	useEffect(() => {
-		setAccumulated((prev) => {
-			const wordChanged = prev.wordKey !== wordKey;
+		const wordChanged = matches.wordKey !== wordKey;
 
-			// New word: drop everything and re-seed empty. Any `lastFeedback` still
-			// hanging around belongs to the PREVIOUS (just-solved) word, so mark it
-			// consumed and do not merge it into the fresh word.
-			if (wordChanged) {
-				lastMergedFeedbackRef.current = lastFeedback;
-				return { wordKey, letterState: {}, correctByIndex: {} };
-			}
+		if (wordChanged) {
+			// Fresh word: start blank and mark any carried-over ack as consumed.
+			lastAppliedAckRef.current = lastAck;
+			setMatches({
+				wordKey,
+				revealedLetters: {},
+				partialMatches: [],
+				noMatch: [],
+			});
+			return;
+		}
 
-			// Same word, but this exact feedback object was already merged (e.g. an
-			// unrelated re-render): nothing to do.
-			if (!lastFeedback || lastFeedback === lastMergedFeedbackRef.current) {
-				return prev;
-			}
+		// Nothing new to apply, or this exact ack was already applied.
+		if (!lastAck || lastAck === lastAppliedAckRef.current) {
+			return;
+		}
 
-			// Ignore feedback that doesn't match the CURRENT round's word length —
-			// it belongs to a previous round (the parent hook still holds the last
-			// round's `guess:ack` when the new round's board first renders). Merging
-			// it would carry stale keyboard colours / corner hints into the fresh
-			// round. It is NOT marked consumed, so a same-length current-round ack
-			// arriving later is still merged.
-			if (lastFeedback.length !== wordLength) {
-				return prev;
-			}
+		// Guard against a stale previous-round ack carrying over into a new round.
+		if (
+			lastAck.perLetter.length > 0 &&
+			lastAck.perLetter.length !== wordLength
+		) {
+			return;
+		}
 
-			lastMergedFeedbackRef.current = lastFeedback;
-
-			if (lastFeedback.length === 0) {
-				return prev;
-			}
-
-			const letterState = { ...prev.letterState };
-			const correctByIndex = { ...prev.correctByIndex };
-
-			for (const entry of lastFeedback) {
-				const letter = entry.letter.toUpperCase();
-				const existing = letterState[letter];
-				if (
-					existing === undefined ||
-					stateRank[entry.state] > stateRank[existing]
-				) {
-					letterState[letter] = entry.state;
-				}
-				if (entry.state === "correct") {
-					correctByIndex[entry.index] = letter;
-				}
-			}
-
-			return { wordKey, letterState, correctByIndex };
+		lastAppliedAckRef.current = lastAck;
+		setMatches({
+			wordKey,
+			revealedLetters: lastAck.revealedLetters ?? {},
+			partialMatches: lastAck.partialMatches ?? [],
+			noMatch: lastAck.noMatch ?? [],
 		});
-	}, [lastFeedback, wordKey]);
+	}, [lastAck, wordKey, wordLength, matches.wordKey]);
 
 	const handleLetter = useCallback(
 		(letter: string) => {
@@ -262,30 +235,22 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [handleBackspace, handleLetter, handleSubmit]);
 
-	// Derive keyboard colouring + corner hints from the ACCUMULATED feedback for
-	// the current word (persisted across guesses, reset on a correct guess), so
-	// each guess adds to the indications rather than overwriting them:
-	//   - fullMatch: Record<index, letter> of every position graded `correct`.
+	// Keyboard colouring + corner hints come straight from the server-accumulated
+	// hints for the current word (duplicate-letter rule already applied):
+	//   - fullMatch: Record<index, letter> of every position revealed `correct`.
 	//     The Keyboard checks `Object.values(fullMatch).includes(letter)`, so
 	//     this colours those keys green; it also drives the per-tile corner hint.
-	//   - partialMatch: letters ever graded `present` (and not since upgraded to
-	//     correct).
-	//   - noMatch: letters ever graded `absent`.
-	const { fullMatch, partialMatch, noMatch } = useMemo(() => {
-		const fullMatch: Record<number, string> = { ...accumulated.correctByIndex };
-		const partialMatch: string[] = [];
-		const noMatch: string[] = [];
-
-		for (const [letter, state] of Object.entries(accumulated.letterState)) {
-			if (state === "present") {
-				partialMatch.push(letter);
-			} else if (state === "absent") {
-				noMatch.push(letter);
-			}
-		}
-
-		return { fullMatch, partialMatch, noMatch };
-	}, [accumulated]);
+	//   - partialMatch: letters present but with an occurrence still unfound (so
+	//     a duplicate like the second P in APPLE stays yellow, not green).
+	//   - noMatch: letters absent from the word.
+	const { fullMatch, partialMatch, noMatch } = useMemo(
+		() => ({
+			fullMatch: matches.revealedLetters,
+			partialMatch: matches.partialMatches,
+			noMatch: matches.noMatch,
+		}),
+		[matches],
+	);
 
 	// Build the active guess row exactly like Battle Royale's `GuessContainer`:
 	// the in-progress guess renders on green tiles, and each known correct letter

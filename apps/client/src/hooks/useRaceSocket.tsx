@@ -31,6 +31,12 @@ export type GuessAck = {
 	isMatch: boolean;
 	perLetter: LetterFeedback[];
 	throttled?: boolean;
+	// Accumulated keyboard hints for the current word, computed server-side with
+	// the duplicate-letter rule applied (a letter stays yellow while a copy is
+	// still unfound — e.g. the second P in APPLE). Mirrors Battle Royale.
+	revealedLetters?: Record<number, string>;
+	partialMatches?: string[];
+	noMatch?: string[];
 };
 
 type UseRaceSocketProps = {

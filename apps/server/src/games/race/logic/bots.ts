@@ -18,10 +18,23 @@ const getRandomInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
 /**
+ * Per-game chance that a lobby's bots are allowed to roll the top skill level
+ * (level 5). Decided ONCE when a lobby is filled with bots: with this
+ * probability the whole game may contain level-5 bots, otherwise bots are
+ * capped at level 4. See `fillLobbyWithBots`.
+ */
+export const LEVEL_5_GAME_CHANCE = 0.25;
+
+/**
  * Roll a bot skill level with a rough bell curve centered on level 3, matching
  * Battle Royale's `getRandomLevel` distribution so Race bots feel comparable.
+ *
+ * `allowLevel5` is decided once per game (see `LEVEL_5_GAME_CHANCE`): when the
+ * game is NOT level-5-enabled the curve spans levels 1–4; when it is, the top
+ * of the curve can produce a level-5 bot, making that game's bots noticeably
+ * faster/sharper.
  */
-const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
+const getRandomLevel = (allowLevel5: boolean): 1 | 2 | 3 | 4 | 5 => {
   const rolls = 3;
   const average =
     Array.from({ length: rolls }, () => Math.random()).reduce(
@@ -29,8 +42,9 @@ const getRandomLevel = (): 1 | 2 | 3 | 4 | 5 => {
       0,
     ) / rolls;
 
-  const level = Math.floor(average * 5) + 1;
-  return Math.min(5, Math.max(1, level)) as 1 | 2 | 3 | 4 | 5;
+  const maxLevel = allowLevel5 ? 5 : 4;
+  const level = Math.floor(average * maxLevel) + 1;
+  return Math.min(maxLevel, Math.max(1, level)) as 1 | 2 | 3 | 4 | 5;
 };
 
 /** A fresh display-side `RacePlayer` for a bot entering a lobby. */
@@ -46,10 +60,16 @@ const makeBotPlayer = (name: string): RacePlayer => ({
   correctLetters: 0,
 });
 
-/** A fresh server-only simulation record for a bot entering a lobby. */
-const makeBotServerData = (wordLength: number): RaceBotServerData => ({
+/**
+ * A fresh server-only simulation record for a bot entering a lobby.
+ * `allowLevel5` is the per-game flag threaded through from `fillLobbyWithBots`.
+ */
+const makeBotServerData = (
+  wordLength: number,
+  allowLevel5: boolean,
+): RaceBotServerData => ({
   word: getRandomWord(wordLength),
-  level: getRandomLevel(),
+  level: getRandomLevel(allowLevel5),
   botCompletedWords: 0,
   botGuesses: 0,
 });
@@ -87,11 +107,16 @@ export const fillLobbyWithBots = (
   // per-round words on begin. `rounds` is guaranteed non-empty by the schema.
   const firstRoundLength = config.rounds[0]?.wordLength ?? 5;
 
+  // Decide ONCE for this game whether its bots may roll the top skill level
+  // (level 5). With `LEVEL_5_GAME_CHANCE` probability the whole filled lobby is
+  // level-5-enabled; otherwise every bot is capped at level 4.
+  const allowLevel5 = Math.random() < LEVEL_5_GAME_CHANCE;
+
   const addedBotIds: string[] = [];
   for (let i = 0; i < botsToAdd; i++) {
     const botId = `bot${i}`;
     players.set(botId, makeBotPlayer(botId));
-    botData[botId] = makeBotServerData(firstRoundLength);
+    botData[botId] = makeBotServerData(firstRoundLength, allowLevel5);
     addedBotIds.push(botId);
   }
 
@@ -100,6 +125,7 @@ export const fillLobbyWithBots = (
       humansJoined: currentPlayerCount,
       botsAdded: botsToAdd,
       minLobbySize: config.minLobbySize,
+      allowLevel5,
     },
     "Added bots to race lobby: not enough humans joined to fill the field",
   );
@@ -148,7 +174,10 @@ const getBotThinkTime = (
  * chance rises modestly with the number of guesses the bot has already made on
  * the round so a stalled bot eventually progresses.
  */
-const rollBotCorrect = (level: 1 | 2 | 3 | 4 | 5, botGuesses: number): boolean => {
+const rollBotCorrect = (
+  level: 1 | 2 | 3 | 4 | 5,
+  botGuesses: number,
+): boolean => {
   const progressBonus = Math.min(botGuesses * 1.5, 15);
   const correctChance = BASE_CORRECT_CHANCE[level] + progressBonus;
   return Math.random() * 100 < correctChance;

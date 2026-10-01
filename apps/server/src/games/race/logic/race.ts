@@ -434,6 +434,11 @@ export const beginRound = (
     // simulation record — bots don't have a server-only player entry.
     if (roomServerOnlyData?.players[playerId]) {
       roomServerOnlyData.players[playerId].word = word;
+      // Fresh word for the new round: clear the accumulated keyboard hints so
+      // the board/keyboard start clean (no stale green/yellow carried over).
+      roomServerOnlyData.players[playerId].revealedLetters = {};
+      roomServerOnlyData.players[playerId].partialMatches = [];
+      roomServerOnlyData.players[playerId].noMatch = [];
     } else if (botData[playerId]) {
       botData[playerId].word = word;
       botData[playerId].botCompletedWords = 0;
@@ -469,6 +474,18 @@ export const beginRound = (
         botData,
         () => config.rounds[match.room.currentRoundIndex]?.wordLength ?? 5,
         (botId) => {
+          // Ignore progress from an ELIMINATED bot. Eliminated bots are never
+          // removed from `botData` and their per-round pacing is not reset on a
+          // new round (the reset loop above skips eliminated players), so a
+          // stale `guessTimeStamp` would otherwise let an eliminated bot "guess"
+          // on the first tick of a later round — on the FINAL round that falsely
+          // declared an already-eliminated bot the winner the instant the round
+          // began. An eliminated bot takes no further part in the match.
+          const botPlayer = match.players.get(botId);
+          if (!botPlayer || botPlayer.isEliminated) {
+            return;
+          }
+
           // On the FINAL round the first completed word wins outright (Req 6.1,
           // 6.2) — a bot that finishes its word wins immediately, exactly like a
           // human's first-correct-guess win. `finishMatch` is idempotent, so a

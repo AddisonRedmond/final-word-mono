@@ -87,6 +87,137 @@ export const gradeGuess = (guess: string, target: string): GradeResult => {
 };
 
 /**
+ * Accumulated per-word keyboard hints for a survivor, mirroring Battle Royale's
+ * `revealed_letters` / `partialMatches` / `noMatch`. These persist across every
+ * guess of the CURRENT word and are reset when a new word is assigned.
+ *
+ *   - `revealedLetters`: index -> letter for every position graded `correct`.
+ *   - `partialMatches`: letters known to be in the word but with at least one
+ *     occurrence still NOT found at its exact position (so the keyboard key
+ *     stays yellow — e.g. the second `P` in APPLE when only one P is placed).
+ *   - `noMatch`: letters known to be absent from the word entirely.
+ */
+export type KeyboardMatches = {
+  revealedLetters: Record<number, string>;
+  partialMatches: string[];
+  noMatch: string[];
+};
+
+/**
+ * Returns true when `letter` still has at least one occurrence in `word` that
+ * has NOT been revealed (found at its exact index). This is what keeps a letter
+ * yellow after one of its duplicates is placed: APPLE has two `P`s, so after a
+ * single `P` is revealed at index 2 the letter `P` still has an unrevealed
+ * occurrence at index 1 and must remain a partial (yellow) hint, rather than
+ * going fully green as if no `P`s remain.
+ *
+ * Ported verbatim (in behaviour) from Battle Royale's `hasUnrevealedOccurrence`
+ * so the two modes grade duplicate letters identically.
+ */
+export const hasUnrevealedOccurrence = (
+  word: string,
+  letter: string,
+  revealedLetters: Record<number, string>,
+): boolean => {
+  const normalizedWord = word.trim().toUpperCase();
+  const normalizedLetter = letter.toUpperCase();
+
+  const totalOccurrences = [...normalizedWord].filter(
+    (wordLetter) => wordLetter === normalizedLetter,
+  ).length;
+
+  const revealedOccurrences = Object.entries(revealedLetters).filter(
+    ([index, revealedLetter]) =>
+      normalizedWord[Number(index)] === normalizedLetter &&
+      revealedLetter.toUpperCase() === normalizedLetter,
+  ).length;
+
+  return revealedOccurrences < totalOccurrences;
+};
+
+/**
+ * Compute the single-guess keyboard match sets for `guess` against `target`,
+ * iterating over the TARGET positions exactly like Battle Royale's
+ * `calculateMatchObj`:
+ *   - a position where the guessed letter equals the target letter is a full
+ *     (green) match at that index;
+ *   - otherwise, if the guess contains the target's letter anywhere, that
+ *     target letter is a partial (yellow) hint;
+ *   - otherwise the guessed letter at that position is absent.
+ *
+ * This is the per-guess raw result. The caller merges it into the player's
+ * accumulated {@link KeyboardMatches} and re-applies {@link hasUnrevealedOccurrence}
+ * so a letter only stays yellow while an unfound occurrence remains.
+ */
+export const calculateKeyboardMatches = (
+  target: string,
+  guess: string,
+): KeyboardMatches => {
+  const normalizedTarget = target.trim().toUpperCase();
+  const normalizedGuess = guess.trim().toUpperCase();
+
+  const revealedLetters: Record<number, string> = {};
+  const partialMatches: string[] = [];
+  const noMatch: string[] = [];
+
+  normalizedTarget.split("").forEach((letter, index) => {
+    const guessedLetter = normalizedGuess[index];
+    if (!guessedLetter) {
+      return;
+    }
+
+    if (letter === guessedLetter) {
+      revealedLetters[index] = letter;
+      return;
+    }
+
+    if (normalizedGuess.includes(letter)) {
+      partialMatches.push(letter);
+      return;
+    }
+
+    noMatch.push(guessedLetter);
+  });
+
+  return { revealedLetters, partialMatches, noMatch };
+};
+
+/**
+ * Merge a single guess's raw match sets into a survivor's accumulated keyboard
+ * hints for the current word, applying the duplicate-letter rule so a letter
+ * stays yellow only while it still has an unrevealed occurrence.
+ *
+ * Mirrors the accumulation Battle Royale's guess handler performs:
+ *   - newly revealed positions are added to `revealedLetters`;
+ *   - partials accumulate (de-duped) but are then filtered to only those with
+ *     an unrevealed occurrence remaining in the target;
+ *   - absents accumulate (de-duped) minus any letter currently partial.
+ *
+ * The input `accumulated` is not mutated; a fresh {@link KeyboardMatches} is
+ * returned.
+ */
+export const mergeKeyboardMatches = (
+  target: string,
+  accumulated: KeyboardMatches,
+  guessResult: KeyboardMatches,
+): KeyboardMatches => {
+  const revealedLetters = {
+    ...accumulated.revealedLetters,
+    ...guessResult.revealedLetters,
+  };
+
+  const partialMatches = [
+    ...new Set([...accumulated.partialMatches, ...guessResult.partialMatches]),
+  ].filter((letter) => hasUnrevealedOccurrence(target, letter, revealedLetters));
+
+  const noMatch = [
+    ...new Set([...accumulated.noMatch, ...guessResult.noMatch]),
+  ].filter((letter) => !partialMatches.includes(letter));
+
+  return { revealedLetters, partialMatches, noMatch };
+};
+
+/**
  * The subset of a survivor's per-round state that `applyGuess` reads. Kept
  * structurally compatible with `RacePlayer` (plus the server-only assigned
  * `word`) so callers can spread a player + their `RacePlayerServerData.word`

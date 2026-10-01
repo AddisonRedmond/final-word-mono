@@ -87,7 +87,7 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave }) => {
 			case "round":
 				return (
 					<RoundBoard
-						lastFeedback={lastAck?.perLetter}
+						lastAck={lastAck}
 						match={match}
 						onGuess={sendGuess}
 						onLeave={leave}

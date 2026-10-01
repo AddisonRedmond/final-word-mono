@@ -1,7 +1,4 @@
-import type {
-  RaceMatch,
-  RacePlayerServerData,
-} from "types/race.types.js";
+import type { RaceMatch, RacePlayerServerData } from "types/race.types.js";
 import { RACE_CONFIG, type RaceConfig } from "shared/race.js";
 
 /**

@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import "dotenv/config";
 import logger from "./utils/logger.js";
 import { installSocketAuth } from "./socket/auth.js";
+import { installSingleConnection } from "./socket/single-connection.js";
 import { installTimeSync } from "./socket/time-sync.js";
 import { registerGames } from "./games/registry.js";
 
@@ -37,6 +38,10 @@ const io = new Server(server, {
 
 // Authenticate every socket before any game handlers run.
 installSocketAuth(io);
+
+// Reject a second connection from a user who already has an active socket.
+// Must run after auth so `socket.data.userId` is populated.
+installSingleConnection(io);
 
 // Let clients measure and correct for client/server clock skew.
 installTimeSync(io);
