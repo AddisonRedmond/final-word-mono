@@ -26,6 +26,12 @@ import {
 import { emitLobbyUpdate, scheduleLobbyUpdate } from "./lobby.js";
 import { getGuessContext, hasUnrevealedOccurrence } from "./guess.js";
 
+// Bots are keyed `bot0`/`bot1`/…, real players by Supabase auth UUID — so a
+// non-UUID id is a bot (the same detection stats.ts uses). Used by the leave
+// handler to decide whether any real human remains in the room.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Wires up all battle-royale socket event handlers on the shared Socket.IO
  * server. Called once at startup by the game module.
@@ -106,7 +112,25 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       socket.data.roomId = undefined;
       socket.leave(roomId);
 
-      if (game.players.size === 0) {
+      // Whether any real human remains in the room at all. A disconnect RETAINS
+      // the player (for reconnect), so only an explicit leave removes them; a
+      // human who is eliminated but still connected is a spectator and keeps
+      // the room alive. When the LAST human leaves, only bots (if any) remain —
+      // nobody is watching, so tear the room down. Every real player's stats
+      // were already recorded at their outcome (eliminated players at
+      // elimination; this leaver via persistLeaverAsLoss above), so cleanup has
+      // nothing left to persist and no bot is ever crowned.
+      const hasRealPlayer = Array.from(game.players.keys()).some((id) =>
+        UUID_RE.test(id),
+      );
+
+      if (game.players.size === 0 || !hasRealPlayer) {
+        if (game.players.size > 0 && !hasRealPlayer) {
+          logger.info(
+            { roomId, remainingBots: game.players.size },
+            "Battle Royale lobby cleaned up: last human left, only bots remain",
+          );
+        }
         cleanupGame(roomId, games, serverOnlyData, serverOnlyBotData);
       } else {
         scheduleLobbyUpdate(io, roomId, game);
@@ -215,8 +239,13 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
                 handleAddBots(numberOfBotsToAdd);
 
               logger.info(
-                { roomId, numberOfBotsToAdd },
-                "Adding bots to fill lobby",
+                {
+                  roomId,
+                  humansJoined: totalPlayersJoined,
+                  botsAdded: numberOfBotsToAdd,
+                  maxPlayers: MAX_PLAYERS,
+                },
+                "Added bots to Battle Royale lobby: not enough humans joined to fill the field",
               );
 
               serverOnlyBotData.set(roomId, roomBotServerData);

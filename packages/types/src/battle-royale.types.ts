@@ -20,6 +20,12 @@ export type PlayerDisplay = {
   totalGuesses: number;
   correctGuesses: number;
   currentWordGuesses: number;
+  // Server-side bookkeeping: set once this player's aggregate stats have been
+  // persisted for THIS match (at elimination, forfeit-on-leave, or finish), so
+  // every real player is recorded exactly once and never double-counted across
+  // the elimination/leave/finish/cleanup paths. Display-safe but read only by
+  // the server.
+  statsPersisted?: boolean;
   // Name of the last player to send this player an attack word. Drives the
   // "Eliminated by X" line on the results screen (who last attacked them).
   // Undefined means never attacked -> results screen shows "Timer".

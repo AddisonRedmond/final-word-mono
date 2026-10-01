@@ -171,7 +171,15 @@ const upsertPlayerStat = (result: PlayerStatResult, now: Date) => {
  */
 export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
   try {
-    const ranked = rankPlayers(game);
+    // Rank the FULL real field for correct placement ordering, but only WRITE
+    // players not already recorded this match (at elimination or forfeit-on-
+    // leave). Each real player is counted exactly once: the winner and any
+    // still-unrecorded players (e.g. survivors at the time cap) are written
+    // here; players recorded earlier keep their at-outcome placement. Bots are
+    // excluded by `rankPlayers`.
+    const ranked = rankPlayers(game).filter(
+      ({ userId }) => !game.players.get(userId)?.statsPersisted,
+    );
 
     if (ranked.length === 0) {
       return;
@@ -180,8 +188,14 @@ export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
     const now = new Date();
 
     await Promise.all(
-      ranked.map(({ userId, placement, won, player }) =>
-        upsertPlayerStat(
+      ranked.map(({ userId, placement, won, player }) => {
+        // Mark BEFORE the await so a concurrent path can't double-write.
+        player.statsPersisted = true;
+        logger.info(
+          { roomId: game.room.lobbyId, userId, placement, won },
+          "Saved Battle Royale stats for user (match finish)",
+        );
+        return upsertPlayerStat(
           {
             userId,
             placement,
@@ -191,8 +205,8 @@ export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
             correctGuesses: player.correctGuesses,
           },
           now,
-        ),
-      ),
+        );
+      }),
     );
 
     logger.info(
@@ -235,6 +249,13 @@ export const persistLeaverAsLoss = (game: Game, userId: string): void => {
     return;
   }
 
+  // Record each real player exactly once. A player eliminated earlier was
+  // already recorded at elimination, so leaving afterwards records nothing more.
+  if (player.statsPersisted) {
+    return;
+  }
+  player.statsPersisted = true;
+
   // Snapshot everything SYNCHRONOUSLY here: the caller deletes the player from
   // game.players immediately after this returns, so placement and the guess
   // counts must be read now, before the async DB write runs on a later
@@ -273,7 +294,7 @@ export const persistLeaverAsLoss = (game: Game, userId: string): void => {
 
       logger.info(
         { roomId, userId, placement },
-        "Recorded leaver as a Battle Royale loss",
+        "Saved Battle Royale stats for user (forfeit on leave)",
       );
     } catch (error) {
       logger.error(
@@ -286,4 +307,83 @@ export const persistLeaverAsLoss = (game: Game, userId: string): void => {
       );
     }
   })();
+};
+
+/**
+ * Record real players eliminated on a single game tick as losses, at the moment
+ * their outcome is decided (Option 1: record-at-outcome). Called from the game
+ * loop's expiry sweep and the match-timer cap right after players are marked
+ * `isEliminated`, so a human's result is written when they go out — not deferred
+ * to match finish. This is what lets a bots-only room simply be torn down when
+ * its last human leaves: every human was already recorded at elimination (or at
+ * forfeit-on-leave), so cleanup has nothing left to persist.
+ *
+ * `eliminatedIds` are the players eliminated on THIS tick (share one
+ * `endTimeStamp`). Their finishing placement is the field size at the moment of
+ * elimination: everyone still alive after the sweep outlasted them, and the
+ * whole tick shares the placement equal to `aliveAfterSweep + eliminatedThisTick`
+ * — a later elimination therefore yields a better (lower) placement. Bots and
+ * already-recorded players are skipped so every real player is counted exactly
+ * once. Fire-and-forget: DB failures are logged and swallowed so the game loop
+ * is never broken.
+ */
+export const persistEliminatedAsLoss = (
+  game: Game,
+  eliminatedIds: readonly string[],
+): void => {
+  // Field size at this tick = players still alive + everyone eliminated on this
+  // same tick (they all finish tied at that position, broken by performance in
+  // the read-side ranking). Bots are included in the count so placement matches
+  // the true field, exactly as `rankPlayers` orders the whole lobby.
+  const aliveAfterSweep = Array.from(game.players.values()).filter(
+    (p) => !p.isEliminated,
+  ).length;
+  const placement = Math.max(1, aliveAfterSweep + eliminatedIds.length);
+  const roomId = game.room.lobbyId;
+  const now = new Date();
+
+  for (const userId of eliminatedIds) {
+    if (!isRealPlayer(userId)) {
+      continue;
+    }
+
+    const player = game.players.get(userId);
+    if (!player || player.statsPersisted) {
+      continue;
+    }
+
+    // Mark before the async write so the finish/leave path can't also write.
+    player.statsPersisted = true;
+    const { totalGuesses, correctGuesses } = player;
+
+    void (async () => {
+      try {
+        await upsertPlayerStat(
+          {
+            userId,
+            placement,
+            won: false,
+            isDraw: false,
+            totalGuesses,
+            correctGuesses,
+          },
+          now,
+        );
+
+        logger.info(
+          { roomId, userId, placement },
+          "Saved Battle Royale stats for user (eliminated)",
+        );
+      } catch (error) {
+        logger.error(
+          {
+            roomId,
+            userId,
+            err: error instanceof Error ? error.message : error,
+          },
+          "Failed to record Battle Royale elimination loss",
+        );
+      }
+    })();
+  }
 };
