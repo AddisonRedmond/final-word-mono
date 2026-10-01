@@ -112,3 +112,8 @@ New RN app in the monorepo for native phone/tablet distribution, reusing shared 
 3. **Feature 1 — Polar Subscriptions** last. Introduces the daily usage counter and enforcement, activates Feature 3's daily-limit interaction, and retires/updates the beta chyron.
 
 Beta messaging is live from Feature 3 through the launch of Feature 1.
+
+
+TODO: add anonymous sign in option
+TODO: add cron for games that are 24 hours over due. Give duel initiator the ability to remove
+a user who hasn't declined or accepted a duel so the results can be calculated/clear up the maximum duels
