@@ -17,11 +17,28 @@ vi.mock("@/hooks/useIsGuest", () => ({
 
 // A registered-looking user id so the "play" branch could mount, though these
 // tests stay on the pre-play menu where the cards live.
+// `authResolved` gates the menu: when false the home screen holds a neutral
+// loading state (by design, to avoid flashing the wrong guest/registered UI
+// before the session resolves). Controllable per-test via this mock.
+const authResolvedMock = vi.fn<() => boolean>(() => true);
 vi.mock("@/state/auth-store", () => {
-	const state = { user: { id: "user-1" } };
-	const useAuthStore = (selector: (s: typeof state) => unknown) =>
-		selector(state);
+	const makeState = () => ({
+		user: { id: "user-1" },
+		authResolved: authResolvedMock(),
+	});
+	const useAuthStore = (
+		selector: (s: ReturnType<typeof makeState>) => unknown,
+	) => selector(makeState());
 	return { useAuthStore };
+});
+
+// Mark the guest welcome carousel as already seen so it never renders in these
+// card-gating tests (it is covered by its own unit tests).
+vi.mock("@/state/guest-welcome-store", () => {
+	const state = { hasSeenWelcome: true, markWelcomeSeen: vi.fn() };
+	const useGuestWelcomeStore = (selector: (s: typeof state) => unknown) =>
+		selector(state);
+	return { useGuestWelcomeStore };
 });
 
 vi.mock("@/state/game-session-store", () => {
@@ -74,6 +91,9 @@ import Home from "./index";
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	// Default to resolved so the gating tests below render the menu; the
+	// readiness test overrides this.
+	authResolvedMock.mockReturnValue(true);
 });
 
 describe("Home screen guest gating (R7.3, R7.5)", () => {
@@ -98,5 +118,18 @@ describe("Home screen guest gating (R7.3, R7.5)", () => {
 		expect(screen.getByText("Head to head")).toBeDefined();
 		expect(screen.getByText("Battle Royale")).toBeDefined();
 		expect(screen.getByText("Elimination Race")).toBeDefined();
+	});
+
+	it("holds the menu (no cards) until auth has resolved, to avoid flashing", () => {
+		// Session not yet read: the readiness gate keeps the menu hidden so the
+		// guest-vs-registered UI never flashes the wrong state on first paint.
+		authResolvedMock.mockReturnValue(false);
+		isGuestMock.mockReturnValue(false);
+
+		render(<Home />);
+
+		expect(screen.queryByText("Head to head")).toBeNull();
+		expect(screen.queryByText("Battle Royale")).toBeNull();
+		expect(screen.queryByText("Elimination Race")).toBeNull();
 	});
 });

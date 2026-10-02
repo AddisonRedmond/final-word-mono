@@ -11,7 +11,6 @@ import type { ClientGame, TargetMode } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion, useAnimate } from "motion/react";
-import GuestSignUpPrompt from "../guest/guest-sign-up-prompt";
 import GuessContainer from "../game-components/guess-container";
 import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
@@ -38,8 +37,8 @@ const GUESS_LENGTH = 5;
 
 const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
-  // Feature: anonymous-sign-in — the latest `join:error` reason; drives the
-  // guest sign-up prompt when it is `guest-mode-limit` (R6.5).
+  // Feature: anonymous-sign-in — the latest `join:error` reason, reported up to
+  // the home screen (below) which shows the single dismissible play-limit notice.
   const [joinError, setJoinError] = useState<string>();
   const [guess, setGuess] = useState("");
   // `targetMode` is the selection intent ("first"/"last" auto-track the live
@@ -201,13 +200,6 @@ const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => 
         onSelect={handleSelectOpponent}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
-        {/* Feature: anonymous-sign-in — a guest that already played Battle
-            Royale hits the one-game-per-mode limit: the server emits a
-            `join:error` with the guest-mode-limit reason and the socket tears
-            down with no lobby, so we surface the sign-up prompt (R6.5). The
-            prompt renders nothing for any other reason. */}
-        <GuestSignUpPrompt reason={joinError} />
-
         {lobby?.room.isFinished &&
           lobby.room.winnerId === userId &&
           lobby.players[userId] && (

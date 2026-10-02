@@ -20,9 +20,21 @@
  * so a counter/stats outage never blocks play or crashes the game loop.
  */
 
-import { battleRoyaleStats } from "db";
+import { battleRoyaleStats, db, eq } from "db";
 
 import { guestModeGate } from "../guest-mode-gate.js";
+import logger from "../../utils/logger.js";
+
+/**
+ * Optional registered-user daily cap, read from the `DAILY_GAME_LIMIT` env var.
+ * Unset or non-positive => dormant (registered users never gated). Set to a
+ * positive integer (e.g. 3) to enforce a per-user cap. See the Race seam for the
+ * note on lifetime-vs-24h counting; this mirrors it against `battle_royale_stats`.
+ */
+const registeredDailyLimit = (): number | null => {
+  const raw = Number(process.env.DAILY_GAME_LIMIT);
+  return Number.isInteger(raw) && raw > 0 ? raw : null;
+};
 
 /**
  * Returns whether the player may start a Battle Royale match.
@@ -35,9 +47,29 @@ export const canStartMatch = async (
   userId: string,
   isAnonymous: boolean, // from socket.data.isAnonymous via the join handler
 ): Promise<boolean> => {
-  // Registered users: never gated (R6.8).
+  // Registered users: gated only when DAILY_GAME_LIMIT is set (otherwise never
+  // gated, R6.8).
   if (!isAnonymous) {
-    return true;
+    const limit = registeredDailyLimit();
+    if (limit === null) {
+      return true;
+    }
+    try {
+      const rows = await db
+        .select({ gamesPlayed: battleRoyaleStats.gamesPlayed })
+        .from(battleRoyaleStats)
+        .where(eq(battleRoyaleStats.userId, userId))
+        .limit(1);
+      const played = rows[0]?.gamesPlayed ?? 0;
+      return played < limit;
+    } catch (error) {
+      // Fail open: a stats outage must never block play.
+      logger.error(
+        { userId, err: error instanceof Error ? error.message : error },
+        "battle-royale daily-limit stats read failed; failing open (ALLOW)",
+      );
+      return true;
+    }
   }
 
   // Guests: one game per mode, derived from this mode's stats row (R6.1–R6.4).

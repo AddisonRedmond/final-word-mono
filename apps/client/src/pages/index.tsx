@@ -8,9 +8,9 @@ import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
 import RaceCard from "@/components/game-cards/race-card";
 import BattleRoyale from "@/components/games/battle-royale";
 import Race from "@/components/games/race";
-import GuestLimitNotice from "@/components/guest/guest-limit-notice";
 import GuestWelcomeCarousel from "@/components/guest/guest-welcome-carousel";
 import Navbar from "@/components/navigation/navbar";
+import PlayLimitNotice from "@/components/play-limit-notice";
 import Tile from "@/components/tile";
 import { env } from "@/env";
 import { useIsGuest } from "@/hooks/useIsGuest";
@@ -24,15 +24,20 @@ export default function Home() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [isPlayingRace, setIsPlayingRace] = useState(false);
 	const [raceToken, setRaceToken] = useState<string | undefined>(undefined);
-	// Feature: anonymous-sign-in — the latest realtime `join:error` reason bubbled
-	// up from a game, used to show a persistent guest-limit notice on the menu.
-	const [guestLimitReason, setGuestLimitReason] = useState<string | undefined>(
+	// The latest realtime `join:error` reason bubbled up from a game, used to show
+	// a persistent play-limit notice on the menu (guest one-game-per-mode today;
+	// extensible to the registered-user daily cap).
+	const [playLimitReason, setPlayLimitReason] = useState<string | undefined>(
 		undefined,
 	);
 	const socketRef = useRef<Socket | null>(null);
 	const user = useAuthStore((state) => state.user);
 	// Guest gating (R7.3): hide the duels entry point for anonymous sessions.
 	const isGuest = useIsGuest();
+	// True once the first session read has resolved. Until then `user`/`isGuest`
+	// are still their initial (loading) values, so branching on them would flash
+	// the wrong UI (e.g. the duels card appearing then vanishing for a guest).
+	const authResolved = useAuthStore((state) => state.authResolved);
 	const setRealtimeGameActive = useGameSessionStore(
 		(state) => state.setRealtimeGameActive,
 	);
@@ -46,7 +51,12 @@ export default function Home() {
 		(state) => state.markWelcomeSeen,
 	);
 	const [mounted, setMounted] = useState(false);
-	const showGuestWelcome = mounted && isGuest && !hasSeenWelcome;
+
+	// Gate all auth-derived conditional UI on a single "ready" flag: mounted
+	// (client-side, so localStorage-backed stores have hydrated) AND the session
+	// read has resolved. This removes the whole class of first-paint flashes.
+	const isReady = mounted && authResolved;
+	const showGuestWelcome = isReady && isGuest && !hasSeenWelcome;
 
 	useEffect(() => {
 		setMounted(true);
@@ -68,8 +78,8 @@ export default function Home() {
 	}, [isPlaying, isPlayingRace, setRealtimeGameActive]);
 
 	const handlePlay = async () => {
-		// Clear any stale guest-limit notice when starting a fresh attempt.
-		setGuestLimitReason(undefined);
+		// Clear any stale play-limit notice when starting a fresh attempt.
+		setPlayLimitReason(undefined);
 		const supabase = createClient();
 		const {
 			data: { session },
@@ -112,20 +122,30 @@ export default function Home() {
 			setIsPlaying(false);
 		};
 
+		// Capture a match-start block at the home-screen level. The Battle Royale
+		// socket is torn down on `join:error` (which unmounts the game before its
+		// own reporting effect can reliably fire), so we read the reason here on
+		// the long-lived home screen to drive the persistent play-limit notice.
+		const handleJoinError = (payload?: { reason?: string }) => {
+			setPlayLimitReason(payload?.reason);
+		};
+
 		socket.on("connect", handleConnect);
 		socket.on("connect_error", handleConnectError);
 		socket.on("disconnect", handleDisconnect);
+		socket.on("join:error", handleJoinError);
 
 		return () => {
 			socket.off("connect", handleConnect);
 			socket.off("connect_error", handleConnectError);
 			socket.off("disconnect", handleDisconnect);
+			socket.off("join:error", handleJoinError);
 		};
 	};
 
 	const handlePlayRace = async () => {
-		// Clear any stale guest-limit notice when starting a fresh attempt.
-		setGuestLimitReason(undefined);
+		// Clear any stale play-limit notice when starting a fresh attempt.
+		setPlayLimitReason(undefined);
 		const supabase = createClient();
 		const {
 			data: { session },
@@ -150,11 +170,11 @@ export default function Home() {
 		setRaceToken(undefined);
 	}, []);
 
-	// Feature: anonymous-sign-in — a game reports its `join:error` reason here so
-	// the guest-limit notice can persist on the menu after the game un-mounts.
-	// Stable identity so the games' reporting effects don't re-fire.
+	// A game reports its `join:error` reason here so the play-limit notice can
+	// persist on the menu after the game un-mounts. Stable identity so the games'
+	// reporting effects don't re-fire.
 	const handleGameJoinError = useCallback((reason: string | undefined) => {
-		setGuestLimitReason(reason);
+		setPlayLimitReason(reason);
 	}, []);
 
 	return (
@@ -215,13 +235,18 @@ export default function Home() {
 							/>
 						) : (
 							!isPlaying &&
-							!isPlayingRace && (
+							!isPlayingRace &&
+							// Hold the menu until auth has resolved so the guest-vs-registered
+							// UI (notably the duels card) never flashes the wrong state. The
+							// FINAL/WORD tiles above stand in as the neutral loading state.
+							isReady && (
 								<div className="flex flex-col items-center gap-y-5">
-									{/* Feature: anonymous-sign-in — persistent notice after a
-									    guest exhausts a mode; self-hides for any other reason. */}
-									<GuestLimitNotice
-										onDismiss={() => setGuestLimitReason(undefined)}
-										reason={guestLimitReason}
+									{/* Persistent notice after a match-start is blocked by a
+									    play limit (guest one-game-per-mode today, registered
+									    daily cap in future); self-hides for any other reason. */}
+									<PlayLimitNotice
+										onDismiss={() => setPlayLimitReason(undefined)}
+										reason={playLimitReason}
 									/>
 									<div className="flex gap-x-5">
 										{/* Guest gating (R7.3): duels entry hidden for guests; the

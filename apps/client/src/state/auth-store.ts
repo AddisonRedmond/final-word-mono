@@ -6,7 +6,16 @@ type AuthState = {
 	user: User | null;
 	profileName: string | null;
 	profileEmail: string | null;
+	/** True once `initializeAuth` has kicked off (guards against re-running it). */
 	isInitialized: boolean;
+	/**
+	 * True once the FIRST `getUser()` has resolved — i.e. the current user is
+	 * actually known (signed-in or confirmed signed-out). Distinct from
+	 * `isInitialized`, which flips synchronously before auth is read. UI that
+	 * branches on auth (e.g. guest vs registered) should wait on this to avoid
+	 * flashing the wrong state while the session is still loading.
+	 */
+	authResolved: boolean;
 	initializeAuth: () => void;
 	signOut: () => Promise<void>;
 };
@@ -46,6 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	profileName: null,
 	profileEmail: null,
 	isInitialized: false,
+	authResolved: false,
 	initializeAuth: () => {
 		if (get().isInitialized) {
 			return;
@@ -61,6 +71,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 		void supabase.auth.getUser().then(({ data: { user } }) => {
 			setUser(user);
+			// Auth is now known — unblock UI that branches on the user's state.
+			set({ authResolved: true });
 		});
 
 		supabase.auth.onAuthStateChange((_event, session) => {

@@ -2,7 +2,6 @@ import { motion } from "motion/react";
 import { useEffect, useMemo } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
 import { RACE_CONFIG } from "@/shared/race";
-import GuestSignUpPrompt from "../guest/guest-sign-up-prompt";
 import EliminationView from "./race/elimination-view";
 import LobbyView from "./race/lobby-view";
 import type { RaceOpponent } from "./race/race-opponents";
@@ -47,13 +46,16 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
 		leave,
 	} = useRaceSocket({ token, onLeave });
 
-	// Feature: anonymous-sign-in — forward a join:error reason to the home screen
-	// so it can show a persistent guest-limit notice once this view un-mounts.
+	// Feature: anonymous-sign-in — on a match-start block, report the reason up
+	// and leave the game so Race un-mounts back to the menu, exactly like Battle
+	// Royale (whose socket disconnect does this implicitly). The home screen then
+	// shows the single, dismissible play-limit notice for both modes.
 	useEffect(() => {
 		if (joinError) {
 			onJoinError?.(joinError);
+			onLeave();
 		}
-	}, [joinError, onJoinError]);
+	}, [joinError, onJoinError, onLeave]);
 
 	// Split the non-self roster into two flanking columns, matching Battle
 	// Royale's even/odd split.
@@ -84,13 +86,11 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
 		: 1;
 
 	const renderCenter = () => {
-		// Feature: anonymous-sign-in — a guest that has already played Race hits
-		// the one-game-per-mode limit: the server emits `join:error` with the
-		// guest-mode-limit reason, the socket tears down with no match snapshot,
-		// so we surface the sign-up prompt here instead of a stuck "Connecting…"
-		// (R6.5). The prompt renders nothing for any other reason.
+		// Feature: anonymous-sign-in — on a match-start block Race leaves (see the
+		// effect above), so this view is un-mounting; show nothing rather than a
+		// stuck "Connecting…". The dismissible notice shows on the home screen.
 		if (joinError) {
-			return <GuestSignUpPrompt reason={joinError} />;
+			return null;
 		}
 
 		// No snapshot yet: we've connected/joined but haven't received the first
