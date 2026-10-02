@@ -513,6 +513,113 @@ export const duelsRouter = createTRPCRouter({
 		}),
 
 	/*
+	 * List the current user's archived duels: completed duels they have
+	 * explicitly archived (`completed_game_acknowledged = true`). This is the
+	 * inverse of the archive-exclusion filter in `allDuels`, so an archived duel
+	 * leaves the active list and shows up here instead.
+	 */
+	archivedDuels: protectedProcedure.query(async ({ ctx }) => {
+		const userId = ctx.user.id;
+
+		const archivedForUser = ctx.db
+			.select({ duelId: duelParticipants.duelId })
+			.from(duelParticipants)
+			.where(
+				and(
+					eq(duelParticipants.duelId, duels.id),
+					eq(duelParticipants.userId, userId),
+					eq(duelParticipants.completed_game_acknowledged, true),
+				),
+			);
+
+		return ctx.db
+			.select({
+				id: duels.id,
+				initiatedBy: duels.initiatedBy,
+				createdAt: duels.createdAt,
+				completed: duels.completed,
+				winner: duels.winner,
+				participants: duels.participants,
+			})
+			.from(duels)
+			.where(
+				and(
+					arrayContains(duels.participants, [userId]),
+					eq(duels.completed, true),
+					exists(archivedForUser),
+				),
+			);
+	}),
+
+	/*
+	 * Read-only result for a completed duel the current user participated in.
+	 * Unlike `startOrResumeDuel`, this never mutates (no timer stamping, no
+	 * participant insert) — it's used to review an archived duel's result as
+	 * many times as the user likes without changing any state.
+	 */
+	getDuelResult: protectedProcedure
+		.input(z.string().uuid())
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.user.id;
+
+			const [duel] = await ctx.db
+				.select()
+				.from(duels)
+				.where(eq(duels.id, input));
+
+			if (!duel) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Duel not found.",
+				});
+			}
+
+			if (!duel.participants.includes(userId)) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "You are not a participant in this duel.",
+				});
+			}
+
+			if (!duel.completed) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This duel is not completed yet.",
+				});
+			}
+
+			const participants = await ctx.db
+				.select()
+				.from(duelParticipants)
+				.where(eq(duelParticipants.duelId, input));
+
+			const participant = participants.find((p) => p.userId === userId);
+
+			// A listed participant who never played (e.g. an invitee who let the
+			// duel resolve) has no result to show.
+			if (!participant) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "You have no result for this duel.",
+				});
+			}
+
+			const [secret] = await ctx.db
+				.select({ word: duelSecrets.word })
+				.from(duelSecrets)
+				.where(eq(duelSecrets.duelId, input));
+
+			if (!secret) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Duel is missing its answer word.",
+				});
+			}
+
+			return buildDuelResponse(duel, secret.word, participants, userId);
+		}),
+
+	/*
 	 * Submit a guess.
 	 */
 	handleDuelGuess: protectedProcedure

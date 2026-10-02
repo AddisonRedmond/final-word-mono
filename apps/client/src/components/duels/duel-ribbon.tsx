@@ -11,7 +11,7 @@ export interface DuelRibbonProps {
 	startOrResumeDuel: (duelId: string) => void;
 	handleDeclineDuel: (duelId: string) => void;
 	handleForfeit: (duelId: string) => void;
-	handleAcknowledge: (duelId: string) => void;
+	handleArchive: (duelId: string) => void;
 }
 const opponentColor = (participant: DuelParticipant | undefined) => {
 	if (!participant) {
@@ -43,7 +43,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 	startOrResumeDuel,
 	handleDeclineDuel,
 	handleForfeit,
-	handleAcknowledge,
+	handleArchive,
 }) => {
 	const opponentIds = duel.participants.filter((id) => id !== currentUserId);
 	const currentParticipant = participants.find(
@@ -87,14 +87,26 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 						Completed
 					</span>
 					{hasCompleted ? (
-						<Button onClick={() => startOrResumeDuel(duel.id)} variant="yellow">
-							View result
-						</Button>
+						// The user played and the duel is resolved. Let them reopen the
+						// result view as many times as they want, and provide a separate
+						// explicit "Archive" action that moves the duel out of their
+						// active list (into the archived view) only when they choose to.
+						<>
+							<Button
+								onClick={() => startOrResumeDuel(duel.id)}
+								variant="yellow"
+							>
+								View result
+							</Button>
+							<Button onClick={() => handleArchive(duel.id)} variant="solid">
+								Archive
+							</Button>
+						</>
 					) : (
 						// The user never played this duel (e.g. an invitee who let it
 						// resolve without guessing). They have no result to view, so give
 						// them a way to clear it from their list.
-						<Button onClick={() => handleAcknowledge(duel.id)} variant="red">
+						<Button onClick={() => handleArchive(duel.id)} variant="red">
 							Dismiss
 						</Button>
 					)}
