@@ -86,7 +86,7 @@ vi.mock("@/components/navigation/navbar", () => ({
 	default: () => <nav data-testid="navbar" />,
 }));
 
-import Home from "./index";
+import Home from "../pages/index";
 
 afterEach(() => {
 	cleanup();
