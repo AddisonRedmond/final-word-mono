@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
 import { RACE_CONFIG } from "@/shared/race";
+import GuestSignUpPrompt from "../guest/guest-sign-up-prompt";
 import EliminationView from "./race/elimination-view";
 import LobbyView from "./race/lobby-view";
 import type { RaceOpponent } from "./race/race-opponents";
@@ -17,6 +18,12 @@ type RaceProps = {
 	token: string | undefined;
 	/** Exit-to-menu callback from the home page; un-mounts the game view. */
 	onLeave: () => void;
+	/**
+	 * Feature: anonymous-sign-in — reports a realtime `join:error` reason up to
+	 * the home screen so a persistent guest-limit notice can be shown there after
+	 * this view un-mounts (R6.5). Optional and additive.
+	 */
+	onJoinError?: (reason: string | undefined) => void;
 };
 
 /**
@@ -28,9 +35,25 @@ type RaceProps = {
  * independent per-player words, so the root holds and subscribes to NO
  * attack/targeting state — only the lifecycle state the hook exposes.
  */
-const Race: React.FC<RaceProps> = ({ userId, token, onLeave }) => {
-	const { match, transition, elimination, result, lastAck, sendGuess, leave } =
-		useRaceSocket({ token, onLeave });
+const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
+	const {
+		match,
+		transition,
+		elimination,
+		result,
+		lastAck,
+		joinError,
+		sendGuess,
+		leave,
+	} = useRaceSocket({ token, onLeave });
+
+	// Feature: anonymous-sign-in — forward a join:error reason to the home screen
+	// so it can show a persistent guest-limit notice once this view un-mounts.
+	useEffect(() => {
+		if (joinError) {
+			onJoinError?.(joinError);
+		}
+	}, [joinError, onJoinError]);
 
 	// Split the non-self roster into two flanking columns, matching Battle
 	// Royale's even/odd split.
@@ -61,6 +84,15 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave }) => {
 		: 1;
 
 	const renderCenter = () => {
+		// Feature: anonymous-sign-in — a guest that has already played Race hits
+		// the one-game-per-mode limit: the server emits `join:error` with the
+		// guest-mode-limit reason, the socket tears down with no match snapshot,
+		// so we surface the sign-up prompt here instead of a stuck "Connecting…"
+		// (R6.5). The prompt renders nothing for any other reason.
+		if (joinError) {
+			return <GuestSignUpPrompt reason={joinError} />;
+		}
+
 		// No snapshot yet: we've connected/joined but haven't received the first
 		// `join:ack`/`race:update`.
 		if (!match) {

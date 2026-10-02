@@ -2,6 +2,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/state/auth-store";
+import { useIsGuest } from "@/hooks/useIsGuest";
 import { AnimatePresence, motion } from "motion/react";
 
 const Navbar = () => {
@@ -9,6 +10,9 @@ const Navbar = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Guest gating (R7.4): hide the Friends link for anonymous sessions.
+  const isGuest = useIsGuest();
 
   const profileName = useAuthStore((state) => state.profileName);
   const profileEmail = useAuthStore((state) => state.profileEmail);
@@ -73,16 +77,19 @@ const Navbar = () => {
         >
           Home
         </Link>
-        <Link
-          href="/friends"
-          className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
-            router.pathname === "/friends"
-              ? "border-green-400 bg-green-50 text-green-700"
-              : "border-gray-200 hover:bg-gray-100 text-gray-700"
-          }`}
-        >
-          Friends
-        </Link>
+        {/* Guest gating (R7.4): Friends link hidden for guests. */}
+        {!isGuest && (
+          <Link
+            href="/friends"
+            className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+              router.pathname === "/friends"
+                ? "border-green-400 bg-green-50 text-green-700"
+                : "border-gray-200 hover:bg-gray-100 text-gray-700"
+            }`}
+          >
+            Friends
+          </Link>
+        )}
 
         {/* Profile badge + dropdown */}
         <div ref={menuRef} className="relative">

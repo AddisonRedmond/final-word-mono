@@ -1,6 +1,22 @@
 import type { ExtendedError, Namespace, Server, Socket } from "socket.io";
 import { createClient } from "@supabase/supabase-js";
 import logger from "../utils/logger.js";
+import { resolveDisplayName, resolveIsAnonymous } from "./anonymous.js";
+
+/**
+ * Shape of the per-connection data the auth middleware populates on
+ * `socket.data`. Declared here (rather than via Socket.IO generics) to keep the
+ * change additive — handlers already read these fields off the default `any`
+ * data bag. `isAnonymous` is the guest flag added by the anonymous-sign-in
+ * feature (R4.1–R4.4); it carries a `guest`/`anon`-adjacent name so the whole
+ * feature stays greppable and removable in one pass (R9).
+ */
+export type SocketData = {
+  userId: string;
+  name: string;
+  isAnonymous: boolean;
+  roomId?: string;
+};
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -26,8 +42,8 @@ const getBearerToken = (authorizationHeader: string | undefined) => {
 
 /**
  * Supabase-backed authentication middleware. On success it populates
- * `socket.data.userId` and `socket.data.name`; otherwise it rejects the
- * connection before any handler runs.
+ * `socket.data.userId`, `socket.data.name`, and `socket.data.isAnonymous`;
+ * otherwise it rejects the connection before any handler runs.
  *
  * Exported so it can be installed on any Socket.IO server or namespace via
  * `installSocketAuth` (or directly via `.use(...)`).
@@ -76,8 +92,13 @@ export const supabaseAuthMiddleware = async (
     return;
   }
 
-  socket.data.userId = user.id;
-  socket.data.name = user.user_metadata?.full_name ?? "Player";
+  // Populate per-connection data straight off the already-resolved `user`
+  // from the single `getUser(accessToken)` call above — no extra DB/network
+  // round-trip (R4.1).
+  const data = socket.data as SocketData;
+  data.userId = user.id;
+  data.name = resolveDisplayName(user); // R3.2, R3.3
+  data.isAnonymous = resolveIsAnonymous(user); // R4.1–R4.4
 
   next();
 };
@@ -85,8 +106,8 @@ export const supabaseAuthMiddleware = async (
 /**
  * Installs the Supabase-backed authentication middleware on a Socket.IO
  * server (default namespace) or on a specific namespace such as
- * `io.of("/race")`. On success it populates `socket.data.userId` and
- * `socket.data.name`.
+ * `io.of("/race")`. On success it populates `socket.data.userId`,
+ * `socket.data.name`, and `socket.data.isAnonymous`.
  */
 export const installSocketAuth = (target: Server | Namespace) => {
   target.use(supabaseAuthMiddleware);

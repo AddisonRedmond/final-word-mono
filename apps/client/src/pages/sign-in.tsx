@@ -1,5 +1,6 @@
 "use client";
 
+import GuestPlayButton from "@/components/guest/guest-play-button";
 import Tile from "@/components/tile";
 import { createClient } from "@/utils/supabase/client";
 import type { NextPage } from "next/types";
@@ -65,6 +66,19 @@ const SignIn: NextPage = () => {
           </svg>
           Continue with Google
         </button>
+
+        {/* Feature: anonymous-sign-in — "Play as guest" entry point with an
+            inline Cloudflare Turnstile captcha. The button stays disabled until
+            the captcha is solved; the token is verified server-side before a
+            guest account is minted. */}
+        <div className="flex items-center gap-3 py-1">
+          <span className="h-px flex-1 bg-white/20" />
+          <span className="text-white/60 text-xs uppercase tracking-widest">
+            or
+          </span>
+          <span className="h-px flex-1 bg-white/20" />
+        </div>
+        <GuestPlayButton />
       </div>
     </div>
   );

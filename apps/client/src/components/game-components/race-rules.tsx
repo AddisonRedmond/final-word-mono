@@ -211,7 +211,7 @@ const RaceRulesContent: React.FC = () => {
 
 const RulesButton: React.FC<{ onOpen: () => void }> = ({ onOpen }) => (
 	<button
-		className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-200 py-2 font-semibold text-[11px] text-gray-500 uppercase tracking-widest transition-all hover:bg-gray-100 active:scale-95"
+		className="cursor-pointer mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-200 py-2 font-semibold text-[11px] text-gray-500 uppercase tracking-widest transition-all hover:bg-gray-100 active:scale-95"
 		onClick={(event) => {
 			// Prevent the surrounding clickable game card from also firing.
 			event.stopPropagation();

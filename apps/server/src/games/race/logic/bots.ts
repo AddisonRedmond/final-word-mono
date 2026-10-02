@@ -52,6 +52,7 @@ const makeBotPlayer = (name: string): RacePlayer => ({
   name,
   isBot: true,
   isEliminated: false,
+  isAnonymous: false, // bots are never guest accounts
   completedWords: 0,
   qualified: false,
   roundGuesses: 0,

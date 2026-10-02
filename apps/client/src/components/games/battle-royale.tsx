@@ -11,6 +11,7 @@ import type { ClientGame, TargetMode } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
 import * as br from "@/utils/battle-royale";
 import { motion, useAnimate } from "motion/react";
+import GuestSignUpPrompt from "../guest/guest-sign-up-prompt";
 import GuessContainer from "../game-components/guess-container";
 import Health from "../game-components/health";
 import Keyboard from "../game-components/keyboard";
@@ -25,12 +26,21 @@ import Winner from "../game-components/winner";
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
   userId: string;
+  /**
+   * Feature: anonymous-sign-in — reports a realtime `join:error` reason up to
+   * the home screen so a persistent guest-limit notice can be shown there after
+   * this view un-mounts (R6.5). Optional and additive.
+   */
+  onJoinError?: (reason: string | undefined) => void;
 };
 
 const GUESS_LENGTH = 5;
 
-const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
+const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
+  // Feature: anonymous-sign-in — the latest `join:error` reason; drives the
+  // guest sign-up prompt when it is `guest-mode-limit` (R6.5).
+  const [joinError, setJoinError] = useState<string>();
   const [guess, setGuess] = useState("");
   // `targetMode` is the selection intent ("first"/"last" auto-track the live
   // leader/trailer, "random" picks one opponent, "player" locks a specific
@@ -40,7 +50,15 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
-  useBattleRoyaleSocket({ socketRef, setLobby });
+  useBattleRoyaleSocket({ socketRef, setLobby, setJoinError });
+
+  // Feature: anonymous-sign-in — forward a join:error reason to the home screen
+  // so it can show a persistent guest-limit notice once this view un-mounts.
+  useEffect(() => {
+    if (joinError) {
+      onJoinError?.(joinError);
+    }
+  }, [joinError, onJoinError]);
 
   const handleLetter = useCallback((letter: string) => {
     if (!/^[A-Z]$/.test(letter) || lobby?.players[userId]?.isEliminated) {
@@ -183,6 +201,13 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
         onSelect={handleSelectOpponent}
       />
       <div className="flex flex-col items-center gap-3 mx-5 justify-center">
+        {/* Feature: anonymous-sign-in — a guest that already played Battle
+            Royale hits the one-game-per-mode limit: the server emits a
+            `join:error` with the guest-mode-limit reason and the socket tears
+            down with no lobby, so we surface the sign-up prompt (R6.5). The
+            prompt renders nothing for any other reason. */}
+        <GuestSignUpPrompt reason={joinError} />
+
         {lobby?.room.isFinished &&
           lobby.room.winnerId === userId &&
           lobby.players[userId] && (

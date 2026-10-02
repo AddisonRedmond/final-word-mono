@@ -11,6 +11,9 @@ export type RacePlayer = {
   name: string;
   isBot: boolean;
   isEliminated: boolean;
+  // Guest flag stamped from `socket.data.isAnonymous` at join (Req 4.5, 4.6).
+  // Display-safe boolean; part of the anonymous-sign-in feature.
+  isAnonymous: boolean;
   // per-round
   completedWords: number; // words correctly guessed this round (Req 4.4)
   qualified: boolean; // reached qualifyingCount this round (Req 4.5)

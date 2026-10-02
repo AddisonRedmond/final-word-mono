@@ -21,6 +21,10 @@
  * (Req 11.3).
  */
 
+import { raceStats } from "db";
+
+import { guestModeGate } from "../guest-mode-gate.js";
+
 /**
  * Returns whether the player may start a match against their daily usage.
  *
@@ -29,8 +33,23 @@
  * Future enforcing implementation: return `false` only when the
  * Daily_Game_Counter is available and the player has reached the daily limit
  * (Req 11.3); fail open (return `true`) on any counter-backend error.
+ *
+ * Guest (anonymous) players additionally pass through the shared one-game-per-
+ * mode gate (R6.1, R6.2): the decision delegates to `guestModeGate` against
+ * this mode's `raceStats` row. Registered users are never gated (R6.8) and
+ * short-circuit to `true` without reading any stats — preserving the dormant
+ * beta behavior.
  */
-export const canStartMatch = async (_userId: string): Promise<boolean> => true; // Req 11.2
+export const canStartMatch = async (
+  userId: string,
+  isAnonymous: boolean, // from socket.data.isAnonymous via the join handler
+): Promise<boolean> => {
+  // Registered users: never gated (R6.8) — preserves the dormant beta behavior
+  // (Req 11.2) and reads no stats.
+  if (!isAnonymous) return true;
+  // Guests: one game per mode, derived from this mode's stats row (R6.1, R6.2).
+  return guestModeGate(userId, raceStats);
+};
 
 /**
  * Records a match start against the player's daily usage.

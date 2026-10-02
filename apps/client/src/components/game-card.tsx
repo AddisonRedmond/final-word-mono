@@ -28,7 +28,7 @@ const GameCard: React.FC<GameCardProps> = ({
   };
 
   return (
-    <div className="shadow-xl w-xs relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono cursor-pointer transition-all hover:border-green-400 active:scale-[0.98]">
+    <div className="shadow-xl w-xs relative bg-stone-500/10 backdrop-blur-lg rounded-lg p-5 font-mono transition-all hover:border-green-400 active:scale-[0.98]">
       {tiles && (
         <div className="flex gap-1.5 mb-3.5">
           {tiles.map((tile, i) => (

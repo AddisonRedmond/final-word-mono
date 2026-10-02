@@ -1,6 +1,7 @@
 import type { Namespace } from "socket.io";
 import type { RacePlayer } from "types/race.types.js";
 import logger from "../../utils/logger.js";
+import { GUEST_MODE_LIMIT_REASON } from "../guest-mode-gate.js";
 import { canStartMatch, recordMatchStart } from "./daily-limit.js";
 import {
   broadcastLobbyMembership,
@@ -55,7 +56,12 @@ export const registerRaceHandlers = (nsp: Namespace) => {
   // `daily-limit.ts` seam (dormant during beta) and `beginRound` is the real
   // round hand-off, so a started match advances into round 0 (Req 11.1, 11.2).
   const startDeps: StartMatchDeps = {
-    canStartMatch,
+    // The per-player start seam is the dormant Daily_Game_Counter check (Req
+    // 11.1, 11.2); it is distinct from the join-level guest one-game-per-mode
+    // gate (R6.*), which runs in the `join` handler before placement. Here we
+    // pin `isAnonymous = false` so the seam keeps its documented beta behavior
+    // (always permit, no stats read) for every real player at start.
+    canStartMatch: (userId: string) => canStartMatch(userId, false),
     recordMatchStart,
     beginRound,
   };
@@ -425,14 +431,26 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         }
       }
 
-      // --- daily-limit gate --------------------------------------------------
-      // Consult the Daily_Game_Counter seam before placing the player. During
-      // beta this always permits (Req 11.2); when enforcement ships (Feature 1)
-      // a blocked player is rejected with `join:error` and NOT placed (Req 11.3).
-      const permitted = await canStartMatch(userId);
+      // --- match-start gate --------------------------------------------------
+      // Consult the daily-limit seam before placing the player (single gated
+      // call for all match-start gating, R9.4). Registered users pass straight
+      // through during beta (Req 11.2); a guest is held to one game per mode
+      // (R6.1–R6.4) via `canStartMatch(userId, socket.data.isAnonymous)`. On a
+      // block the player is NOT placed in any lobby — a guest block maps to the
+      // `guest-mode-limit` reason so the client can show the sign-up prompt
+      // (R6.3, R6.5); a (future) daily-limit block keeps the `daily-limit`
+      // reason (Req 11.3).
+      const permitted = await canStartMatch(userId, socket.data.isAnonymous);
       if (!permitted) {
-        socket.emit("join:error", { reason: "daily-limit" });
-        logger.info({ userId }, "Race join rejected: daily limit reached");
+        socket.emit("join:error", {
+          reason: socket.data.isAnonymous
+            ? GUEST_MODE_LIMIT_REASON
+            : "daily-limit",
+        });
+        logger.info(
+          { userId, isAnonymous: socket.data.isAnonymous },
+          "Race join rejected: match-start gate blocked",
+        );
         return;
       }
 
@@ -462,6 +480,7 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         name,
         isBot: false,
         isEliminated: false,
+        isAnonymous: socket.data.isAnonymous, // R4.5 / R4.6
         completedWords: 0,
         qualified: false,
         roundGuesses: 0,

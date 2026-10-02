@@ -17,6 +17,8 @@ import {
 import { runBots } from "./logic/battle-royale-bots.js";
 import { persistLeaverAsLoss } from "./stats.js";
 import logger from "../../utils/logger.js";
+import { GUEST_MODE_LIMIT_REASON } from "../guest-mode-gate.js";
+import { canStartMatch } from "./daily-limit.js";
 import {
   MAX_PLAYERS,
   games,
@@ -143,7 +145,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       ack?.({ ok: true });
     });
 
-    socket.on("join", () => {
+    socket.on("join", async () => {
       const { userId, name } = socket.data;
       logger.info({ socketId: socket.id, userId, name }, "Player joining game");
 
@@ -195,6 +197,30 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       }
       // reconnect logic:end
 
+      // --- match-start gate --------------------------------------------------
+      // Consult the daily-limit seam before placing the player (single gated
+      // call for all match-start gating, R9.4). Battle Royale had no daily-limit
+      // seam before the guest feature, so this call is additive. Registered
+      // users pass straight through (R6.8); a guest is held to one game per mode
+      // (R6.1–R6.4) via `canStartMatch(userId, socket.data.isAnonymous)`. On a
+      // block the player is NOT placed in any lobby — a guest block maps to the
+      // `guest-mode-limit` reason so the client can show the sign-up prompt
+      // (R6.3, R6.5); a (future) daily-limit block keeps the `daily-limit`
+      // reason.
+      const permitted = await canStartMatch(userId, socket.data.isAnonymous);
+      if (!permitted) {
+        socket.emit("join:error", {
+          reason: socket.data.isAnonymous
+            ? GUEST_MODE_LIMIT_REASON
+            : "daily-limit",
+        });
+        logger.info(
+          { userId, isAnonymous: socket.data.isAnonymous },
+          "Battle Royale join rejected: match-start gate blocked",
+        );
+        return;
+      }
+
       const game = getOrCreateGame(games, MAX_PLAYERS);
       const roomId = game.room.lobbyId;
 
@@ -209,6 +235,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
 
       game.players.set(userId, {
         name,
+        isAnonymous: socket.data.isAnonymous, // R4.5 / R4.6
         isEliminated: false,
         life: 0,
         totalGuesses: 0,

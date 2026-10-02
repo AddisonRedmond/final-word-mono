@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { TRPCError } from "@trpc/server";
 import { and, eq, or } from "drizzle-orm";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
 import { friendships, profiles } from "@/db/schema";
 
 export const friendsRouter = createTRPCRouter({
@@ -12,7 +12,7 @@ export const friendsRouter = createTRPCRouter({
    *  - incoming pending requests (addressee = me)
    *  - outgoing pending requests (requester = me)
    */
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: guestProtectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
 
     const rows = await ctx.db
@@ -70,7 +70,7 @@ export const friendsRouter = createTRPCRouter({
    * Send a friend request to a user by email.
    * Looks up the addressee's profile, then inserts a pending friendship row.
    */
-  sendRequest: protectedProcedure
+  sendRequest: guestProtectedProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
       const requesterId = ctx.user.id;
@@ -136,7 +136,7 @@ export const friendsRouter = createTRPCRouter({
    * Accept an incoming friend request.
    * Only the addressee can accept.
    */
-  acceptRequest: protectedProcedure
+  acceptRequest: guestProtectedProcedure
     .input(z.object({ requesterId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
@@ -178,7 +178,7 @@ export const friendsRouter = createTRPCRouter({
    * Deletes the single row regardless of direction — this guarantees
    * no one-sided friendship can remain.
    */
-  remove: protectedProcedure
+  remove: guestProtectedProcedure
     .input(z.object({ otherId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
