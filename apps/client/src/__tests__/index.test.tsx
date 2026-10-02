@@ -59,7 +59,7 @@ vi.mock("@/env", () => ({ env: { NEXT_PUBLIC_WS_URL: "ws://localhost" } }));
 // The duels entry point (HeadToHeadCard) links via next/router, which has no
 // mounted router in jsdom; stub it so the registered-user render succeeds.
 vi.mock("next/router", () => ({
-	useRouter: () => ({ pathname: "/", push: vi.fn() }),
+	useRouter: () => ({ pathname: "/", push: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock("socket.io-client", () => ({ io: vi.fn() }));

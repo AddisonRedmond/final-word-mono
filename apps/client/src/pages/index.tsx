@@ -14,6 +14,7 @@ import PlayLimitNotice from "@/components/play-limit-notice";
 import Tile from "@/components/tile";
 import { env } from "@/env";
 import { useIsGuest } from "@/hooks/useIsGuest";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useAuthStore } from "@/state/auth-store";
 import { useGameSessionStore } from "@/state/game-session-store";
 import { useGuestWelcomeStore } from "@/state/guest-welcome-store";
@@ -34,10 +35,12 @@ export default function Home() {
 	const user = useAuthStore((state) => state.user);
 	// Guest gating (R7.3): hide the duels entry point for anonymous sessions.
 	const isGuest = useIsGuest();
-	// True once the first session read has resolved. Until then `user`/`isGuest`
+	// Redirect to /sign-in once auth resolves with no user (sign-out from
+	// anywhere, direct nav while logged out, or session expiry). Also yields
+	// `authResolved`: until the first session read completes, `user`/`isGuest`
 	// are still their initial (loading) values, so branching on them would flash
 	// the wrong UI (e.g. the duels card appearing then vanishing for a guest).
-	const authResolved = useAuthStore((state) => state.authResolved);
+	const { authResolved } = useRequireAuth();
 	const setRealtimeGameActive = useGameSessionStore(
 		(state) => state.setRealtimeGameActive,
 	);
@@ -53,9 +56,11 @@ export default function Home() {
 	const [mounted, setMounted] = useState(false);
 
 	// Gate all auth-derived conditional UI on a single "ready" flag: mounted
-	// (client-side, so localStorage-backed stores have hydrated) AND the session
-	// read has resolved. This removes the whole class of first-paint flashes.
-	const isReady = mounted && authResolved;
+	// (client-side, so localStorage-backed stores have hydrated), the session
+	// read has resolved, AND there is a signed-in user. The user check means a
+	// signed-out visitor (mid-redirect to /sign-in via useRequireAuth) never
+	// flashes the menu. This also removes the first-paint flashes.
+	const isReady = mounted && authResolved && user !== null;
 	const showGuestWelcome = isReady && isGuest && !hasSeenWelcome;
 
 	useEffect(() => {
