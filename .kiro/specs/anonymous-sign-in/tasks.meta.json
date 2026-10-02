@@ -1,0 +1,972 @@
+{
+  "pbtResults": {
+    "2.2 Write property test for anonymous resolution in `apps/server/src/socket/anonymous.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950344701
+    },
+    "3.2 Write property test for the per-mode gate decision in `apps/server/src/games/guest-mode-gate.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950356593
+    },
+    "4.2 Write property test for the counter in `apps/client/src/server/api/guest-cap.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950394102
+    },
+    "1.2 Write property test for display-name generator in `apps/client/src/utils/guest-name.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950406396
+    },
+    "2.3 Write property test for display-name resolution in `apps/server/src/socket/anonymous.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950479604
+    },
+    "3.3 Write property test for cross-mode independence in `apps/server/src/games/guest-mode-gate.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950508381
+    },
+    "6.3 Write property test for the count-failure path in `apps/client/src/server/api/routers/guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950723567
+    },
+    "6.4 Write property test for the cap boundary in `apps/client/src/server/api/routers/guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790950869784
+    },
+    "6.5 Write property test for token-on-success in `apps/client/src/server/api/routers/guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790951042505
+    },
+    "9.1 Write property test asserting eligibility is `isRealPlayer` alone in `apps/server/src/games/stats-eligibility.guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790951151618
+    },
+    "9.2 Write property test asserting persisted stats are guest-independent in `apps/server/src/games/stats-eligibility.guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790951290552
+    },
+    "16.2 Write property test for the cleanup predicate in `apps/server/src/games/guest-cleanup-predicate.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790951400410
+    },
+    "11.5 Write property test for registered-user bypass in `apps/server/src/games/daily-limit.guest.test.ts`": {
+      "status": "passed",
+      "lastRunTimestamp": 1790951579676
+    }
+  },
+  "executionHistory": {
+    "1.1 Implement `generateGuestDisplayName` in `apps/client/src/utils/guest-name.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950032646
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950043951
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950259578
+      }
+    ],
+    "1.2 Write property test for display-name generator in `apps/client/src/utils/guest-name.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950032752
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950267145
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950420526
+      }
+    ],
+    "2.1 Implement `apps/server/src/socket/anonymous.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950032837
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950045332
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950260950
+      }
+    ],
+    "2.2 Write property test for anonymous resolution in `apps/server/src/socket/anonymous.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950032932
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950268514
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950421957
+      }
+    ],
+    "2.3 Write property test for display-name resolution in `apps/server/src/socket/anonymous.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033052
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950269958
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950281874
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950429686
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950522344
+      }
+    ],
+    "3.1 Implement `apps/server/src/games/guest-mode-gate.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033137
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950046375
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950262348
+      }
+    ],
+    "3.2 Write property test for the per-mode gate decision in `apps/server/src/games/guest-mode-gate.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033289
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950270869
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950423371
+      }
+    ],
+    "3.3 Write property test for cross-mode independence in `apps/server/src/games/guest-mode-gate.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033386
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950430976
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950523333
+      }
+    ],
+    "4.1 Implement `apps/client/src/server/api/guest-cap.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033617
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950047443
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950263176
+      }
+    ],
+    "4.2 Write property test for the counter in `apps/client/src/server/api/guest-cap.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033845
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950277634
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950424766
+      }
+    ],
+    "5. Checkpoint — pure seams": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950033925
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790954236712
+      }
+    ],
+    "6.1 Implement `guestRouter.signIn` in `apps/client/src/server/api/routers/guest.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034005
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950272285
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950425959
+      }
+    ],
+    "6.2 Register the `guest` router in `apps/client/src/server/api/root.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034097
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950533148
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950745000
+      }
+    ],
+    "6.3 Write property test for the count-failure path in `apps/client/src/server/api/routers/guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034190
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950534693
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950742210
+      }
+    ],
+    "6.4 Write property test for the cap boundary in `apps/client/src/server/api/routers/guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034275
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950747532
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950882800
+      }
+    ],
+    "6.5 Write property test for token-on-success in `apps/client/src/server/api/routers/guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034349
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950884084
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951056205
+      }
+    ],
+    "6.6 Write integration test for service-role usage and endpoint wiring in `apps/client/src/server/api/routers/guest.integration.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034432
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950535948
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950744060
+      }
+    ],
+    "7.1 Extend socket data type and wire `apps/server/src/socket/auth.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034510
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950537178
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950746407
+      }
+    ],
+    "7.2 Write integration test for no-extra-query anonymous read in `apps/server/src/socket/auth.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034596
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951061652
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951199693
+      }
+    ],
+    "8.1 Add `isAnonymous` to the Race player record in `apps/server/src/games/race/handlers.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034687
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951063061
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951193999
+      }
+    ],
+    "8.2 Add `isAnonymous` to the Battle Royale player record in `apps/server/src/games/battle-royale/handlers.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034780
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951064467
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951195912
+      }
+    ],
+    "8.3 Write unit tests for the stamp propagation (both modes)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034863
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951511453
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952533187
+      }
+    ],
+    "9.1 Write property test asserting eligibility is `isRealPlayer` alone in `apps/server/src/games/stats-eligibility.guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950034943
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951066382
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951197414
+      }
+    ],
+    "9.2 Write property test asserting persisted stats are guest-independent in `apps/server/src/games/stats-eligibility.guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035008
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951203386
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951311404
+      }
+    ],
+    "10. Checkpoint — endpoint, auth, stamp, stats": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035102
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790954237752
+      }
+    ],
+    "11.1 Extend Race `canStartMatch` in `apps/server/src/games/race/daily-limit.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035187
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951204815
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951312801
+      }
+    ],
+    "11.2 Create the Battle Royale daily-limit seam in `apps/server/src/games/battle-royale/daily-limit.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035268
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951206278
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951314250
+      }
+    ],
+    "11.3 Emit the guest-mode `join:error` from the Race join handler": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035358
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951322410
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951507813
+      }
+    ],
+    "11.4 Wire the daily-limit call and `join:error` into the Battle Royale join handler": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035458
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951323674
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951505832
+      }
+    ],
+    "11.5 Write property test for registered-user bypass in `apps/server/src/games/daily-limit.guest.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035623
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951512849
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952535009
+      }
+    ],
+    "11.6 Write integration test for the leaver → next-start-blocked sequence": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035726
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952544855
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952782028
+      }
+    ],
+    "11.7 Write integration test for per-mode table selection": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035872
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952546162
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952779680
+      }
+    ],
+    "12.1 Add `guestProtectedProcedure` in `apps/client/src/server/api/trpc.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950035987
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951067224
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951198678
+      }
+    ],
+    "12.2 Swap duels/friends procedures to `guestProtectedProcedure`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036079
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951325025
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951504423
+      }
+    ],
+    "12.3 Write integration test for guest rejection with zero DB access": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036171
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952547561
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952783416
+      }
+    ],
+    "13.1 Add a `useIsGuest()` selector": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036281
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951207633
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951310027
+      }
+    ],
+    "13.2 Hide duels and friends entry points for guests": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036378
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951513792
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952535982
+      }
+    ],
+    "13.3 Write unit tests for UI hiding": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036470
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952548399
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952781082
+      }
+    ],
+    "14.1 Implement `useGuestSession` hook in `apps/client/src/hooks/useGuestSession.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036560
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951326481
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951501639
+      }
+    ],
+    "14.2 Implement `GuestPlayButton` in `apps/client/src/components/guest/guest-play-button.tsx`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036667
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952543822
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952784850
+      }
+    ],
+    "14.3 Implement `GuestSignUpPrompt` in `apps/client/src/components/guest/guest-sign-up-prompt.tsx`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036754
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952786044
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790953442364
+      }
+    ],
+    "14.4 Write unit tests for the guest-play UX": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036858
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790953447812
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790953557439
+      }
+    ],
+    "15. Checkpoint — gating and UI": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950036947
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790954239109
+      }
+    ],
+    "16.1 Create `supabase/migrations/<timestamp>_guest_cleanup.sql`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037047
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951208585
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951315211
+      }
+    ],
+    "16.2 Write property test for the cleanup predicate in `apps/server/src/games/guest-cleanup-predicate.test.ts`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037157
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951327591
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951503006
+      }
+    ],
+    "16.3 Write integration test for cascade + cleanup-failure atomicity": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037257
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951515188
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952537494
+      }
+    ],
+    "16.4 Write smoke/architecture check for scheduling and no-app-code cleanup": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037341
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951516168
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952538509
+      }
+    ],
+    "17. Removability / isolation smoke check": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037422
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790953560738
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790954222117
+      }
+    ],
+    "18. Final checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950037515
+      },
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790954239917
+      }
+    ],
+    "1. Guest display-name generation (pure seam)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950420664
+      }
+    ],
+    "4. Anonymous account cap counter (pure over mocked admin pagination)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950424871
+      }
+    ],
+    "2. Server-side anonymous detection seam (pure)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950522433
+      }
+    ],
+    "3. Guest per-mode gate seam (pure decision over a mocked stats read)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790950523447
+      }
+    ],
+    "6. tRPC guest sign-in endpoint": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951056376
+      }
+    ],
+    "7. Socket auth: set `socket.data.isAnonymous`": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951199775
+      }
+    ],
+    "9. Confirm stats path stays unchanged (no guest branch)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790951311487
+      }
+    ],
+    "8. Stamp `isAnonymous` on the per-match player record (both modes)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952533315
+      }
+    ],
+    "16. pg_cron cleanup SQL artifact (deliverable, not app code)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952538614
+      }
+    ],
+    "13. Guest feature gating on client (hide UI entry points)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952781207
+      }
+    ],
+    "11. Per-mode one-game gate behind the daily-limit seam (both modes)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952782136
+      }
+    ],
+    "12. Guest feature gating on server (duels + friends)": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790952783506
+      }
+    ],
+    "14. Client \"Play as guest\" UX": [
+      {
+        "executionId": "1b9715c8-fecd-4cca-8cc1-c9bc10abc2b3",
+        "chatSessionId": "sess_37ecbb6e-074a-480f-b38a-391c7c5df79f",
+        "timestamp": 1790953557634
+      }
+    ]
+  }
+}

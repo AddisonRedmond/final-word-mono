@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
 import { RACE_CONFIG } from "@/shared/race";
 import EliminationView from "./race/elimination-view";
@@ -17,6 +17,12 @@ type RaceProps = {
 	token: string | undefined;
 	/** Exit-to-menu callback from the home page; un-mounts the game view. */
 	onLeave: () => void;
+	/**
+	 * Feature: anonymous-sign-in — reports a realtime `join:error` reason up to
+	 * the home screen so a persistent guest-limit notice can be shown there after
+	 * this view un-mounts (R6.5). Optional and additive.
+	 */
+	onJoinError?: (reason: string | undefined) => void;
 };
 
 /**
@@ -28,9 +34,28 @@ type RaceProps = {
  * independent per-player words, so the root holds and subscribes to NO
  * attack/targeting state — only the lifecycle state the hook exposes.
  */
-const Race: React.FC<RaceProps> = ({ userId, token, onLeave }) => {
-	const { match, transition, elimination, result, lastAck, sendGuess, leave } =
-		useRaceSocket({ token, onLeave });
+const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
+	const {
+		match,
+		transition,
+		elimination,
+		result,
+		lastAck,
+		joinError,
+		sendGuess,
+		leave,
+	} = useRaceSocket({ token, onLeave });
+
+	// Feature: anonymous-sign-in — on a match-start block, report the reason up
+	// and leave the game so Race un-mounts back to the menu, exactly like Battle
+	// Royale (whose socket disconnect does this implicitly). The home screen then
+	// shows the single, dismissible play-limit notice for both modes.
+	useEffect(() => {
+		if (joinError) {
+			onJoinError?.(joinError);
+			onLeave();
+		}
+	}, [joinError, onJoinError, onLeave]);
 
 	// Split the non-self roster into two flanking columns, matching Battle
 	// Royale's even/odd split.
@@ -61,6 +86,13 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave }) => {
 		: 1;
 
 	const renderCenter = () => {
+		// Feature: anonymous-sign-in — on a match-start block Race leaves (see the
+		// effect above), so this view is un-mounting; show nothing rather than a
+		// stuck "Connecting…". The dismissible notice shows on the home screen.
+		if (joinError) {
+			return null;
+		}
+
 		// No snapshot yet: we've connected/joined but haven't received the first
 		// `join:ack`/`race:update`.
 		if (!match) {

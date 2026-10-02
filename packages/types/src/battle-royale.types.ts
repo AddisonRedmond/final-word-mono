@@ -10,6 +10,10 @@ export type RevealedLetters = Record<number, string>;
 
 export type PlayerDisplay = {
   name: string;
+  // Guest flag stamped from `socket.data.isAnonymous` at join (Req 4.5, 4.6).
+  // Display-safe boolean; part of the anonymous-sign-in feature. Bots set this
+  // to `false` (a bot is never a guest account).
+  isAnonymous: boolean;
   revealed_letters?: RevealedLetters;
   partialMatches?: string[];
   noMatch?: string[];

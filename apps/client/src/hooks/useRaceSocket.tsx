@@ -62,6 +62,13 @@ export type UseRaceSocketResult = {
 	lastAck: GuessAck | undefined;
 	/** Whether the underlying socket is currently connected. */
 	isConnected: boolean;
+	/**
+	 * The `reason` from the most recent `join:error`, or `undefined` when none
+	 * has occurred. Feature: anonymous-sign-in — the UI maps a `guest-mode-limit`
+	 * reason to the guest sign-up prompt (R6.5). Removing the guest feature leaves
+	 * this field a harmless passthrough of whatever reason the server sent.
+	 */
+	joinError: string | undefined;
 	/** Emit a guess for the player's current word. */
 	sendGuess: (guess: string) => void;
 	/** Leave the current lobby/match. */
@@ -87,6 +94,7 @@ export const useRaceSocket = ({
 	const [result, setResult] = useState<MatchResult>();
 	const [lastAck, setLastAck] = useState<GuessAck>();
 	const [isConnected, setIsConnected] = useState(false);
+	const [joinError, setJoinError] = useState<string>();
 
 	useEffect(() => {
 		if (!token) {
@@ -137,7 +145,11 @@ export const useRaceSocket = ({
 			setLastAck(payload);
 		};
 
-		const handleJoinError = () => {
+		const handleJoinError = (payload?: { reason?: string }) => {
+			// Feature: anonymous-sign-in — surface the error reason so the UI can
+			// map `guest-mode-limit` to the guest sign-up prompt (R6.5). The socket
+			// is still torn down, as before.
+			setJoinError(payload?.reason);
 			socket.disconnect();
 		};
 
@@ -198,6 +210,7 @@ export const useRaceSocket = ({
 		result,
 		lastAck,
 		isConnected,
+		joinError,
 		sendGuess,
 		leave,
 	};

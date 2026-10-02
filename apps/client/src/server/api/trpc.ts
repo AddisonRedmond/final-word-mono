@@ -155,3 +155,25 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Guest-gated (registered-only) procedure
+ *
+ * Like `protectedProcedure`, but additionally rejects anonymous (guest) users
+ * BEFORE any resolver runs, so no persisted duel/friends state is read or
+ * written for a guest (R7.1, R7.2). Used by the duels and friends routers.
+ *
+ * @see https://trpc.io/docs/procedures
+ */
+export const guestProtectedProcedure = protectedProcedure.use(
+  ({ ctx, next }) => {
+    if (ctx.user.is_anonymous === true) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Guests cannot use this feature",
+      });
+    }
+
+    return next();
+  },
+);

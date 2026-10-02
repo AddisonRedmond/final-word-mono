@@ -3,7 +3,7 @@ import { and, arrayContains, eq, exists, inArray, not, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { duelParticipants, duelSecrets, duels, friendships } from "@/db/schema";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
 import {
 	determineDuelWinner,
 	getRandomWord,
@@ -20,7 +20,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Get active duels for the current user.
 	 */
-	allDuels: protectedProcedure.query(async ({ ctx }) => {
+	allDuels: guestProtectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		const declinedDuel = ctx.db
@@ -68,7 +68,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Create a new duel.
 	 */
-	sendDuel: protectedProcedure
+	sendDuel: guestProtectedProcedure
 		.input(z.array(z.string().uuid()).min(1).max(MAX_INVITEES))
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -173,7 +173,7 @@ export const duelsRouter = createTRPCRouter({
 			});
 		}),
 
-	startOrResumeDuel: protectedProcedure
+	startOrResumeDuel: guestProtectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -292,7 +292,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Decline a duel invitation.
 	 */
-	declineDuel: protectedProcedure
+	declineDuel: guestProtectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -379,7 +379,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Forfeit an active duel.
 	 */
-	forfeitDuel: protectedProcedure
+	forfeitDuel: guestProtectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -464,7 +464,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Acknowledge that the user has seen the completed duel.
 	 */
-	acknowledgeDuel: protectedProcedure
+	acknowledgeDuel: guestProtectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const [duel] = await ctx.db
@@ -518,7 +518,7 @@ export const duelsRouter = createTRPCRouter({
 	 * inverse of the archive-exclusion filter in `allDuels`, so an archived duel
 	 * leaves the active list and shows up here instead.
 	 */
-	archivedDuels: protectedProcedure.query(async ({ ctx }) => {
+	archivedDuels: guestProtectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		const archivedForUser = ctx.db
@@ -557,7 +557,7 @@ export const duelsRouter = createTRPCRouter({
 	 * participant insert) — it's used to review an archived duel's result as
 	 * many times as the user likes without changing any state.
 	 */
-	getDuelResult: protectedProcedure
+	getDuelResult: guestProtectedProcedure
 		.input(z.string().uuid())
 		.query(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -622,7 +622,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Submit a guess.
 	 */
-	handleDuelGuess: protectedProcedure
+	handleDuelGuess: guestProtectedProcedure
 		.input(
 			z.object({
 				duelId: z.string().uuid(),

@@ -25,12 +25,21 @@ import Winner from "../game-components/winner";
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
   userId: string;
+  /**
+   * Feature: anonymous-sign-in — reports a realtime `join:error` reason up to
+   * the home screen so a persistent guest-limit notice can be shown there after
+   * this view un-mounts (R6.5). Optional and additive.
+   */
+  onJoinError?: (reason: string | undefined) => void;
 };
 
 const GUESS_LENGTH = 5;
 
-const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
+const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
+  // Feature: anonymous-sign-in — the latest `join:error` reason, reported up to
+  // the home screen (below) which shows the single dismissible play-limit notice.
+  const [joinError, setJoinError] = useState<string>();
   const [guess, setGuess] = useState("");
   // `targetMode` is the selection intent ("first"/"last" auto-track the live
   // leader/trailer, "random" picks one opponent, "player" locks a specific
@@ -40,7 +49,15 @@ const BattleRoyale = ({ socketRef, userId }: BattleRoyaleProps) => {
   const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
-  useBattleRoyaleSocket({ socketRef, setLobby });
+  useBattleRoyaleSocket({ socketRef, setLobby, setJoinError });
+
+  // Feature: anonymous-sign-in — forward a join:error reason to the home screen
+  // so it can show a persistent guest-limit notice once this view un-mounts.
+  useEffect(() => {
+    if (joinError) {
+      onJoinError?.(joinError);
+    }
+  }, [joinError, onJoinError]);
 
   const handleLetter = useCallback((letter: string) => {
     if (!/^[A-Z]$/.test(letter) || lobby?.players[userId]?.isEliminated) {
