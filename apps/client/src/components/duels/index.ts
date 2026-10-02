@@ -1,3 +1,4 @@
+export { default as ArchivedDuelRow } from "./archived-duel-row";
 export { default as DuelBoard } from "./duel-board";
 export { default as DuelGuess, DuelGuessLetter } from "./duel-guess";
 export { default as DuelRibbon } from "./duel-ribbon";
