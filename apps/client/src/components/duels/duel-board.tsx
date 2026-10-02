@@ -3,8 +3,11 @@ import { useAnimate } from "motion/react";
 
 import Keyboard from "@/components/game-components/keyboard";
 import type { DuelParticipant } from "@/db/schema";
-import * as br from "@/utils/battle-royale";
-import type { KeyboardState, MatchResult } from "@/utils/duel";
+import {
+  isValidDuelWord,
+  type KeyboardState,
+  type MatchResult,
+} from "@/utils/duel";
 
 import DuelGuess from "./duel-guess";
 import DuelResult from "./duel-result";
@@ -31,6 +34,7 @@ type DuelBoardProps = {
   currentUserId: string;
   onSubmitGuess: (guess: string) => Promise<void>;
   onClose: () => void;
+  onArchive?: () => void;
   opponents: Array<{
     id: string;
     name: string;
@@ -44,12 +48,12 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   currentUserId,
   onSubmitGuess,
   onClose,
+  onArchive,
   opponents,
 }) => {
   const [guess, setGuess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
-  const boardRef = useRef<HTMLDivElement>(null);
   const [scope, animate] = useAnimate();
 
   const currentParticipant = duelData.participant.find(
@@ -77,7 +81,10 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
       return;
     }
 
-    if (!br.isValidGuess(guess)) {
+    // Validate against the duel word list (the same list the server checks)
+    // so an invalid spelling shakes the guess row instead of being silently
+    // rejected server-side. Mirrors the Battle Royale invalid-guess shake.
+    if (!isValidDuelWord(guess)) {
       animate(scope.current, { x: [-10, 10, -10, 10, 0] });
       return;
     }
@@ -94,8 +101,20 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
     }
   }, [animate, guess, onSubmitGuess, scope]);
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
+  // Listen on the window instead of relying on the board div holding focus.
+  // The board mounts inside an animated modal, so a one-shot element focus is
+  // unreliable (the modal can grab focus after mount). A window listener lets
+  // the player start typing immediately without clicking the grid first.
+  // Matches the input handling in Battle Royale.
+  useEffect(() => {
+    // Only drive the on-board keyboard while actually playing. Once the
+    // participant has finished, the result view is shown and should not capture
+    // keystrokes.
+    if (isResultView) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) {
         return;
       }
@@ -116,13 +135,11 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
         event.preventDefault();
         onLetter(event.key);
       }
-    },
-    [onBackspace, onEnter, onLetter],
-  );
+    };
 
-  useEffect(() => {
-    boardRef.current?.focus();
-  }, []);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isResultView, onBackspace, onEnter, onLetter]);
 
   if (!currentParticipant) {
     return null;
@@ -133,6 +150,7 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
       <DuelResult
         currentUserId={currentUserId}
         duelData={duelData}
+        onArchive={onArchive}
         onClose={onClose}
         opponents={opponents}
       />
@@ -140,12 +158,7 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   }
 
   return (
-    <div
-      ref={boardRef}
-      tabIndex={-1}
-      onKeyDown={handleKeyDown}
-      className="w-full max-w-2xl space-y-2 rounded-2xl outline-none"
-    >
+    <div className="w-full max-w-2xl space-y-2 rounded-2xl outline-none">
       {currentParticipant.startTime && (
         <DuelTimer startTime={currentParticipant.startTime} />
       )}

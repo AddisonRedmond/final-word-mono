@@ -5,7 +5,8 @@ import {
 	useDuelRealtime,
 } from "@/hooks/useDuelRealtime";
 import { useAuthStore } from "@/state/auth-store";
-import { toast } from "@/state/toast-store";
+import { useGameSessionStore } from "@/state/game-session-store";
+import { type ToastOptions, toast } from "@/state/toast-store";
 import { api } from "@/utils/api";
 
 /**
@@ -58,11 +59,27 @@ const DuelNotifications: React.FC = () => {
 
 	const handleRealtimeEvent = useCallback(
 		(event: DuelRealtimeEvent) => {
+			// Build the toast options for a duel notification. Every duel toast
+			// links to the /duels page — EXCEPT while the user is in a live
+			// realtime game (Battle Royale / Race), where offering that link could
+			// pull them out of their match on a stray click. Read the flag
+			// imperatively so this handler (and the realtime subscription) doesn't
+			// need to re-create when the game state changes.
+			const duelToastOptions = (variant: ToastOptions["variant"]) => {
+				const { isRealtimeGameActive } = useGameSessionStore.getState();
+				return {
+					variant,
+					action: isRealtimeGameActive
+						? undefined
+						: { label: "View", href: "/duels" },
+				} satisfies ToastOptions;
+			};
+
 			switch (event.type) {
 				case "invited":
 					toast(
 						`${nameForUser(event.initiatedBy)} challenged you to a duel`,
-						"info",
+						duelToastOptions("info"),
 					);
 					void utils.duels.allDuels.invalidate();
 					break;
@@ -71,7 +88,10 @@ const DuelNotifications: React.FC = () => {
 					if (event.userId === currentUserId) {
 						break;
 					}
-					toast(`${nameForUser(event.userId)} finished their duel`, "info");
+					toast(
+						`${nameForUser(event.userId)} finished their duel`,
+						duelToastOptions("info"),
+					);
 					void utils.duels.allDuels.invalidate();
 					break;
 				case "duelCompleted": {
@@ -81,7 +101,12 @@ const DuelNotifications: React.FC = () => {
 							: event.winner === currentUserId
 								? "You won a duel!"
 								: `${nameForUser(event.winner)} won the duel`;
-					toast(message, event.winner === currentUserId ? "success" : "info");
+					toast(
+						message,
+						duelToastOptions(
+							event.winner === currentUserId ? "success" : "info",
+						),
+					);
 					void utils.duels.allDuels.invalidate();
 					break;
 				}

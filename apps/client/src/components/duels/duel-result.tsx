@@ -29,6 +29,9 @@ type DuelResultProps = {
 		guesses: string[];
 	}>;
 	onClose: () => void;
+	// Omitted when viewing an already-archived duel (read-only), so no Archive
+	// button is shown in that mode.
+	onArchive?: () => void;
 };
 const formatElapsed = (startTime: Date | null, endTime: Date | null) => {
 	if (!startTime || !endTime) {
@@ -77,15 +80,17 @@ const DuelResult: React.FC<DuelResultProps> = ({
 	currentUserId,
 	opponents,
 	onClose,
+	onArchive,
 }) => {
 	const { duel, participant } = duelData;
 	const currentParticipant = participant.find(
 		(participant) => participant.userId === currentUserId,
 	);
+	// The winner is only meaningful once the whole duel is resolved. While other
+	// participants are still playing (`completed = false`) there is no winner yet,
+	// so we never run the winner calculation or render a name — the section shows
+	// a pending dash instead.
 	const winnerName = () => {
-		if (!duel.completed) {
-			return "—";
-		}
 		if (duel.winner === null) {
 			return "Draw";
 		}
@@ -133,7 +138,7 @@ const DuelResult: React.FC<DuelResultProps> = ({
 				</p>{" "}
 				<p className="mt-1 font-bold text-lg text-stone-800">
 					{" "}
-					{winnerName()}{" "}
+					{duel.completed ? winnerName() : "—"}{" "}
 				</p>{" "}
 			</div>{" "}
 			<div className="border-stone-200 border-t pt-3 text-left">
@@ -177,14 +182,27 @@ const DuelResult: React.FC<DuelResultProps> = ({
 					))}{" "}
 				</div>{" "}
 			</div>{" "}
-			<button
-				className="rounded-md bg-stone-800 px-4 py-2 font-semibold text-sm text-white"
-				onClick={onClose}
-				type="button"
-			>
+			<div className="flex justify-center gap-2">
 				{" "}
-				Close{" "}
-			</button>{" "}
+				<button
+					className="rounded-md bg-stone-800 px-4 py-2 font-semibold text-sm text-white"
+					onClick={onClose}
+					type="button"
+				>
+					{" "}
+					Close{" "}
+				</button>{" "}
+				{duel.completed && onArchive && (
+					<button
+						className="rounded-md bg-emerald-600 px-4 py-2 font-semibold text-sm text-white"
+						onClick={onArchive}
+						type="button"
+					>
+						{" "}
+						Archive{" "}
+					</button>
+				)}{" "}
+			</div>{" "}
 		</div>
 	);
 };

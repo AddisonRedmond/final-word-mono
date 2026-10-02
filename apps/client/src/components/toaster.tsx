@@ -1,4 +1,5 @@
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
+import Link from "next/link";
 
 import { useToastStore } from "@/state/toast-store";
 
@@ -19,6 +20,15 @@ const Toaster: React.FC = () => {
 							key={toast.id}
 						>
 							<span>{toast.message}</span>
+							{toast.action && (
+								<Link
+									className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 font-bold text-white text-xs underline-offset-2 transition-colors hover:bg-white/30 hover:underline"
+									href={toast.action.href}
+									onClick={() => dismiss(toast.id)}
+								>
+									{toast.action.label}
+								</Link>
+							)}
 							<button
 								aria-label="Dismiss notification"
 								className="-mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"

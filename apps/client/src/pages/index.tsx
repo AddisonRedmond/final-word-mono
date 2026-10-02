@@ -12,6 +12,7 @@ import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
 import { env } from "@/env";
 import { useAuthStore } from "@/state/auth-store";
+import { useGameSessionStore } from "@/state/game-session-store";
 import { useServerClockStore } from "@/state/server-clock-store";
 import { createClient } from "@/utils/supabase/client";
 
@@ -21,12 +22,24 @@ export default function Home() {
 	const [raceToken, setRaceToken] = useState<string | undefined>(undefined);
 	const socketRef = useRef<Socket | null>(null);
 	const user = useAuthStore((state) => state.user);
+	const setRealtimeGameActive = useGameSessionStore(
+		(state) => state.setRealtimeGameActive,
+	);
 
 	useEffect(() => {
 		return () => {
 			socketRef.current?.disconnect();
 		};
 	}, []);
+
+	// Expose whether a live realtime game is in progress so app-global UI (the
+	// duel notification toasts) can drop their "View duels" link while playing,
+	// preventing a stray click from abandoning the match. Reset on unmount so
+	// navigating away always clears the flag.
+	useEffect(() => {
+		setRealtimeGameActive(isPlaying || isPlayingRace);
+		return () => setRealtimeGameActive(false);
+	}, [isPlaying, isPlayingRace, setRealtimeGameActive]);
 
 	const handlePlay = async () => {
 		const supabase = createClient();

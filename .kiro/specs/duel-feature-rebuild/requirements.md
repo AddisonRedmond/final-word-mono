@@ -66,7 +66,8 @@ The Duel Feature is an asynchronous, turn-independent word-guessing mode in the 
 6. WHEN the duel is marked `completed = true`, THE Duel_Ribbon SHALL hide action buttons and display a "Completed" label.
 7. WHEN the Initiator views an Active_State duel they have not yet started, THE Duel_Ribbon SHALL show only a "Start" button.
 8. WHEN the current user's `accepted = false`, THE Duels_Page SHALL remove that duel from the current user's list; its forfeit or decline badge SHALL remain visible to other roster members.
-9. WHEN the current user has finished and the duel is marked `completed = true`, THE Duel_Ribbon SHALL provide a "View result" action in addition to the "Completed" label so the user can acknowledge the completed duel.
+9. WHEN the current user has finished (`endTime IS NOT NULL`) and the duel is marked `completed = true`, THE Duel_Ribbon SHALL provide a "View result" action and a separate "Acknowledge" action in addition to the "Completed" label, WHERE the "View result" action opens the repeatable result view and the "Acknowledge" action sets `completed_game_acknowledged = true` on the current user's participant row and removes the duel from the current user's list.
+10. WHEN the current user has not played (`endTime IS NULL`) and the duel is marked `completed = true`, THE Duel_Ribbon SHALL show a "Decline" button that sets the current user's participant row to `accepted = false` and removes the duel from the current user's list, and THE Duel_Ribbon SHALL NOT offer an acknowledge or dismiss action for that user.
 
 ---
 
@@ -146,9 +147,10 @@ The Duel Feature is an asynchronous, turn-independent word-guessing mode in the 
 
 1. WHEN a Participant's game ends, THE Duel_Board SHALL display a result summary showing whether the participant solved the word or did not solve it, the secret word, the number of guesses used, and elapsed time.
 2. WHEN a Participant's game ends, THE Duel_Board SHALL show each opponent's current completion status using the same colour coding as the Duel_Ribbon.
-3. THE Duel_Board SHALL provide a "Close" button that dismisses the result view and returns to the Duels_Page.
-4. WHEN a Participant closes the result view after the duel is `completed = true`, THE Duels_Router SHALL set `completed_game_acknowledged = true` on that participant's row.
-5. WHEN `completed_game_acknowledged` is set, THE Duels_Page SHALL remove the duel from the list on next load.
+3. THE Duel_Board SHALL provide a "Close" button that dismisses the result view and returns to the Duels_Page without acknowledging the duel or changing `completed_game_acknowledged`.
+4. WHERE the duel is `completed = true`, THE Duel_Board SHALL provide an "Acknowledge" button separate from the "Close" button; WHEN the Participant clicks the "Acknowledge" button, THE Duels_Router SHALL set `completed_game_acknowledged = true` on that participant's row and THE Duels_Page SHALL remove the duel from the list.
+5. WHEN a Participant acknowledges a completed duel via the explicit "Acknowledge" action, THE Duels_Page SHALL remove the duel from the list on next load; WHEN a Participant only views or closes the result view without acknowledging, THE Duels_Page SHALL retain the duel in the list.
+6. WHILE a `completed = true` duel remains unacknowledged (`completed_game_acknowledged = false`), THE Duel_Board SHALL allow a finished Participant to open and view the result view repeatedly without the result being cleared.
 
 ---
 
@@ -199,13 +201,13 @@ The Duel Feature is an asynchronous, turn-independent word-guessing mode in the 
 
 ### Requirement 11: Duel Completion and Acknowledgement
 
-**User Story:** As a participant, I want completed duels to disappear from my list once I've seen the result so that old duels do not clutter my view.
+**User Story:** As a participant, I want to review a completed duel's result as many times as I like and then explicitly acknowledge it when I am ready so that old duels disappear from my list only when I choose to clear them.
 
 #### Acceptance Criteria
 
 1. Except for the all-Guests-declined cancellation path, THE Duels_Router SHALL set `duels.completed = true` when every user in the Invitation_Roster has either finished (has an `endTime`) or declined (`accepted = false`). A missing participant row is pending and SHALL prevent completion.
-2. THE Duels_Router SHALL expose an `acknowledgeDuel` procedure that sets `completed_game_acknowledged = true` on the current user's `duel_participants` row.
+2. THE Duels_Router SHALL expose an `acknowledgeDuel` procedure that sets `completed_game_acknowledged = true` on the current user's `duel_participants` row when invoked by the explicit "Acknowledge" action.
 3. WHEN `acknowledgeDuel` is called, THE Duels_Router SHALL verify the duel is `completed = true` before setting the acknowledgement; IF the duel is not completed, THEN THE Duels_Router SHALL return a `BAD_REQUEST` error.
-4. THE Duels_Page SHALL call `acknowledgeDuel` when the user closes a result view for a completed duel.
+4. WHEN the user activates the explicit "Acknowledge" action from the Duel_Ribbon or the result view, THE Duels_Page SHALL call `acknowledgeDuel`; WHEN the user merely closes the result view, THE Duels_Page SHALL NOT call `acknowledgeDuel`.
 5. THE Duels_Page SHALL refetch after `acknowledgeDuel` resolves so the acknowledged duel is removed from the list.
-6. WHEN a finished participant opens a completed duel through "View result", THE Duel_Board SHALL display the result view and SHALL allow acknowledgement on close.
+6. WHEN a finished participant opens a completed duel through "View result", THE Duel_Board SHALL display the result view and SHALL allow repeated viewing, WHERE acknowledgement occurs only via the explicit "Acknowledge" action and not on close.
