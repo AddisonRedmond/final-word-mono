@@ -10,7 +10,6 @@ export const env = createEnv({
 		NODE_ENV: z.enum(["development", "test", "production"]),
 		DATABASE_URL: z.string().url(),
 		SUPABASE_SERVICE_ROLE_KEY: z.string(),
-		TURNSTILE_SECRET_KEY: z.string(),
 	},
 
 	/**
@@ -29,7 +28,6 @@ export const env = createEnv({
 		NODE_ENV: process.env.NODE_ENV,
 		DATABASE_URL: process.env.DATABASE_URL,
 		SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-		TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
 		NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
 			process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 		NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
