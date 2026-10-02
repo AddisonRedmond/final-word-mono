@@ -61,6 +61,9 @@ export default function Home() {
 	useEffect(() => {
 		setMounted(true);
 	}, []);
+	const setRealtimeGameActive = useGameSessionStore(
+		(state) => state.setRealtimeGameActive,
+	);
 
 	useEffect(() => {
 		return () => {
