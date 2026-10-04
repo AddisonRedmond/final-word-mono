@@ -121,23 +121,62 @@ export const calculateMatchObj = (word: string, guess: string): MatchResult => {
 
 /**
  * Derives the cumulative keyboard state from all per-guess match results.
- * A letter only shows green once all its occurrences in the word are placed —
- * ensured by removing it from `present` when it appears in `correct`.
+ *
+ * A letter only turns green on the keyboard once *every* occurrence of it in
+ * the secret word has been placed in its correct position. Until then, if the
+ * letter has been found at all (as a green or yellow in any guess) it shows
+ * yellow. This is why `word` is needed: a key for a repeated letter (e.g. the
+ * two W's in WIDOW) must stay yellow when only one of them has been placed,
+ * even though that one placement is a green tile in the guess grid.
  */
 export const buildKeyboardState = (
   matchResults: MatchResult[],
+  word: string,
 ): KeyboardState => {
   const correct = new Set<string>();
   const present = new Set<string>();
   const absent = new Set<string>();
 
-  for (const { fullMatches, partialMatches, noMatch } of matchResults) {
-    for (const letter of Object.values(fullMatches)) correct.add(letter);
-    for (const letter of partialMatches) present.add(letter);
-    for (const letter of noMatch) absent.add(letter);
+  // Total count of each letter in the secret word.
+  const letterCounts: Record<string, number> = {};
+  for (const letter of word) {
+    letterCounts[letter] = (letterCounts[letter] ?? 0) + 1;
   }
 
-  for (const letter of correct) present.delete(letter);
+  // Highest number of distinct correct positions ever found for each letter in
+  // a single guess. Taking the max across guesses avoids double-counting when
+  // the same position is matched in multiple guesses.
+  const greenCounts: Record<string, number> = {};
+  const everFound = new Set<string>();
+  const everAbsent = new Set<string>();
+
+  for (const { fullMatches, partialMatches, noMatch } of matchResults) {
+    const perGuessGreens: Record<string, number> = {};
+    for (const letter of Object.values(fullMatches)) {
+      perGuessGreens[letter] = (perGuessGreens[letter] ?? 0) + 1;
+      everFound.add(letter);
+    }
+    for (const [letter, count] of Object.entries(perGuessGreens)) {
+      greenCounts[letter] = Math.max(greenCounts[letter] ?? 0, count);
+    }
+    for (const letter of partialMatches) everFound.add(letter);
+    for (const letter of noMatch) everAbsent.add(letter);
+  }
+
+  for (const letter of everFound) {
+    const total = letterCounts[letter] ?? 0;
+    // Green only when all occurrences of the letter are placed; otherwise the
+    // letter is known to be in the word but not fully placed, so it's yellow.
+    if (total > 0 && (greenCounts[letter] ?? 0) >= total) {
+      correct.add(letter);
+    } else {
+      present.add(letter);
+    }
+  }
+
+  for (const letter of everAbsent) {
+    if (!everFound.has(letter)) absent.add(letter);
+  }
 
   return {
     correct: [...correct],

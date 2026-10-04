@@ -20,13 +20,25 @@ const variantClasses: Record<TileVariant, string> = {
 export const DuelGuessLetter = memo(function GuessLetter({
   letter,
   variant = "default",
+  fitHeight = false,
 }: {
   letter?: string;
   variant?: TileVariant;
+  /**
+   * When true the tile sizes from the available row height (`h-full`) and
+   * stays square via aspect-ratio. Used by the guesses history grid so the
+   * whole board can shrink to fit the viewport. When false (the live typing
+   * row) the tile is width-driven (`w-1/5`) as before.
+   */
+  fitHeight?: boolean;
 }) {
+  const sizeClass = fitHeight
+    ? "h-full max-h-14 aspect-square"
+    : "aspect-square w-1/5 sm:aspect-auto sm:h-14";
+
   return (
     <div
-      className={`relative grid aspect-square w-1/5 place-content-center rounded-md text-base sm:aspect-auto sm:h-14 sm:text-xl ${variantClasses[variant]}`}
+      className={`relative grid ${sizeClass} place-content-center rounded-md text-base sm:text-xl ${variantClasses[variant]}`}
     >
       <LazyMotion features={domAnimation} strict>
         <AnimatePresence>

@@ -48,7 +48,10 @@ const gridRowClass =
   "grid grid-cols-[repeat(20,minmax(0,1fr))] gap-[var(--key-gap)] sm:flex sm:items-center sm:justify-center sm:gap-1.5";
 
 const keyBaseClass =
-  "flex h-[52px] items-center justify-center rounded-md font-semibold text-lg shadow-sm backdrop-blur-sm transition active:scale-95 sm:h-auto sm:min-w-9 sm:px-3 sm:py-2 sm:text-sm";
+  // Mobile key height scales with viewport height (clamped so keys stay
+  // tappable) so the keyboard shrinks on short screens instead of forcing the
+  // board to scroll. From sm+ we fall back to auto height.
+  "flex h-[clamp(38px,6.5dvh,52px)] items-center justify-center rounded-md font-semibold text-base shadow-sm backdrop-blur-sm transition active:scale-95 sm:h-auto sm:min-w-9 sm:px-3 sm:py-2 sm:text-sm";
 
 // Column spans (ignored at sm+, where the layout falls back to flex).
 const letterKeySpan = "col-span-2";
