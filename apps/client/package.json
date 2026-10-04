@@ -9,6 +9,7 @@
 		"check:unsafe": "biome check --write --unsafe .",
 		"check:write": "biome check --write .",
 		"dev": "next dev --turbo",
+		"polar:listen": "polar listen http://localhost:3000/api/webhooks/polar",
 		"preview": "next build && next start",
 		"start": "next start",
 		"test": "vitest run",
@@ -16,6 +17,7 @@
 	},
 	"dependencies": {
 		"@fireworks-js/react": "^2.10.8",
+		"@polar-sh/sdk": "^0.49.0",
 		"@supabase/ssr": "^0.12.0",
 		"@supabase/supabase-js": "^2.110.1",
 		"@t3-oss/env-nextjs": "^0.13.11",

@@ -230,6 +230,21 @@ export const profiles = pgTable("profiles", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  // --- Polar (polar.sh) premium billing state --------------------------------
+  // Populated by the Polar webhook handler; see
+  // apps/client/src/pages/api/webhooks/polar.ts. These fields are TRACKED but
+  // intentionally NOT enforced anywhere yet — the whole game stays free. When
+  // we start paywalling, read premium status via the `billing` tRPC router and
+  // branch on the derived `isPremium`.
+  //
+  // Polar customer id for this user, set once they go through checkout. Lets us
+  // match incoming webhooks and open the customer portal.
+  polarCustomerId: text("polar_customer_id"),
+  // Latest Polar subscription status string (e.g. "active", "canceled",
+  // "past_due"). Null when the user has never subscribed.
+  premiumStatus: text("premium_status"),
+  // When the current premium entitlement runs through. Null when not premium.
+  premiumUntil: timestamp("premium_until", { withTimezone: true }),
 });
 
 export type BattleRoyaleStats = typeof battleRoyaleStats.$inferSelect;
