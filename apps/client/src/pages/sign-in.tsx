@@ -2,10 +2,16 @@
 
 import GuestPlayButton from "@/components/guest/guest-play-button";
 import Tile from "@/components/tile";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
 import type { NextPage } from "next/types";
 
 const SignIn: NextPage = () => {
+  // Guest play is desktop-only (see the guest section below). Gate on
+  // `hydrated` so the server-rendered markup (desktop) doesn't flash the guest
+  // button onto a phone before the viewport is known.
+  const { isDesktop, hydrated } = useIsDesktop();
+
   const handleOAuthSignIn = async (provider: "github" | "google") => {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
@@ -76,14 +82,23 @@ const SignIn: NextPage = () => {
             inline Cloudflare Turnstile captcha. The button stays disabled until
             the captcha is solved; the token is verified server-side before a
             guest account is minted. */}
-        <div className="flex items-center gap-3 py-1">
-          <span className="h-px flex-1 bg-white/20" />
-          <span className="text-white/60 text-xs uppercase tracking-widest">
-            or
-          </span>
-          <span className="h-px flex-1 bg-white/20" />
-        </div>
-        <GuestPlayButton />
+        {/* Guest play is desktop-only: a mobile guest can't reach any playable
+            mode (realtime modes are desktop-only and duels are hidden for
+            guests), so they'd land on an empty menu. We skip rendering the
+            whole guest path on mobile entirely — divider included — which also
+            avoids loading the Turnstile captcha script on phones. */}
+        {hydrated && isDesktop && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3 py-1">
+              <span className="h-px flex-1 bg-white/20" />
+              <span className="text-white/60 text-xs uppercase tracking-widest">
+                or
+              </span>
+              <span className="h-px flex-1 bg-white/20" />
+            </div>
+            <GuestPlayButton />
+          </div>
+        )}
       </div>
     </div>
   );
