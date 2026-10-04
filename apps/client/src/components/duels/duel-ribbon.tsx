@@ -17,11 +17,18 @@ const opponentColor = (participant: DuelParticipant | undefined) => {
 	if (!participant) {
 		return variants.pending;
 	}
+	// A forfeit keeps `accepted: true`, so check it first. (Legacy rows that
+	// predate the `forfeited` column stored a forfeit as accepted=false+endTime;
+	// that case is still covered by the accepted===false branch below.)
+	if (participant.forfeited) {
+		return variants.forfeit;
+	}
 	if (participant.accepted === false) {
 		return participant.endTime ? variants.forfeit : variants.declined;
 	}
 	if (participant.endTime) {
-		return participant.success ? variants.done : variants.forfeit;
+		// Played to the end: solved (done) or ran out of guesses (lost).
+		return participant.success ? variants.done : variants.lost;
 	}
 	if (participant.startTime) {
 		return variants.started;

@@ -3,6 +3,7 @@ import { useAnimate } from "motion/react";
 
 import Keyboard from "@/components/game-components/keyboard";
 import type { DuelParticipant } from "@/db/schema";
+import { useKeyboardLayoutStore } from "@/state/keyboard-layout-store";
 import {
   isValidDuelWord,
   type KeyboardState,
@@ -55,6 +56,11 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
   const [scope, animate] = useAnimate();
+
+  // Persisted preference for which side Enter/Delete sit on in the keyboard.
+  const swapActionKeys = useKeyboardLayoutStore(
+    (state) => state.swapActionKeys,
+  );
 
   const currentParticipant = duelData.participant.find(
     (participant) => participant.userId === currentUserId,
@@ -158,11 +164,14 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   }
 
   return (
-    <div className="w-full max-w-2xl space-y-2 rounded-2xl outline-none">
+    <div className="flex min-h-0 w-full max-w-2xl grow flex-col gap-2 outline-none">
       {currentParticipant.startTime && (
         <DuelTimer startTime={currentParticipant.startTime} />
       )}
 
+      {/* The guesses history + current guess take the middle; `mt-auto` on the
+          keyboard below pushes it to the bottom when the board fills a
+          full-screen mobile modal. */}
       <Guesses
         guesses={currentParticipant.guesses}
         matchResults={duelData.matchResults}
@@ -173,6 +182,7 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
       </div>
 
       <Keyboard
+        className="mt-auto"
         disabled={isSubmitting}
         fullMatch={fullMatch}
         noMatch={absent}
@@ -180,6 +190,7 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
         onEnter={() => void onEnter()}
         onLetter={onLetter}
         partialMatch={present}
+        swapActionKeys={swapActionKeys}
       />
     </div>
   );

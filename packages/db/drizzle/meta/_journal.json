@@ -43,6 +43,13 @@
       "when": 1790967524391,
       "tag": "0005_bored_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791146660847,
+      "tag": "0006_parched_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

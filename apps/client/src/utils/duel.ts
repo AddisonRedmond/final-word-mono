@@ -15,6 +15,9 @@ export const isValidDuelWord = (word: string): boolean =>
 
 export const variants = {
   forfeit: "bg-red-500",
+  // A participant who played to the end but didn't solve the word (ran out of
+  // guesses). Distinct from `forfeit` (gave up) and `declined` (never started).
+  lost: "bg-orange-500",
   started: "bg-yellow-500",
   done: "bg-green-500",
   declined: "bg-stone-500",
