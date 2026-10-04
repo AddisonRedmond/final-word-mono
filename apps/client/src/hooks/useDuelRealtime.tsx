@@ -12,6 +12,7 @@ type DuelParticipantRow = {
 	success: boolean;
 	guesses: string[];
 	accepted: boolean | null;
+	forfeited: boolean;
 	completed_game_acknowledged: boolean;
 };
 
@@ -23,7 +24,7 @@ type DuelParticipantRow = {
  * client cannot read at all.
  */
 const DUEL_PARTICIPANT_COLUMNS =
-	"duel_id, user_id, start_time, end_time, total_guesses, success, guesses, accepted, completed_game_acknowledged" as const;
+	"duel_id, user_id, start_time, end_time, total_guesses, success, guesses, accepted, forfeited, completed_game_acknowledged" as const;
 
 type DuelRow = {
 	id: string;
@@ -72,6 +73,7 @@ const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
 	success: row.success,
 	guesses: row.guesses,
 	accepted: row.accepted,
+	forfeited: row.forfeited,
 	completed_game_acknowledged: row.completed_game_acknowledged,
 });
 

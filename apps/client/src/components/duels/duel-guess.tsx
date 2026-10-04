@@ -26,7 +26,7 @@ export const DuelGuessLetter = memo(function GuessLetter({
 }) {
   return (
     <div
-      className={`relative grid h-14 w-1/5 place-content-center rounded-md ${variantClasses[variant]}`}
+      className={`relative grid aspect-square w-1/5 place-content-center rounded-md text-base sm:aspect-auto sm:h-14 sm:text-xl ${variantClasses[variant]}`}
     >
       <LazyMotion features={domAnimation} strict>
         <AnimatePresence>

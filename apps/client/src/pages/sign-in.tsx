@@ -17,9 +17,14 @@ const SignIn: NextPage = () => {
   };
 
   return (
-    <div className="grid place-content-center h-screen gap-8">
-      <Tile word={"LOGIN"} revealed={true} variant="correct" size="lg" />
-      <div className="flex flex-col gap-3">
+    <div className="flex h-dvh flex-col items-center justify-center gap-8 px-4">
+      {/* The LOGIN tiles are sized for desktop (lg); scale them down on small
+          screens so the 5-tile word never overflows a phone. CSS scale defaults
+          to a center origin, so they shrink in place. */}
+      <div className="scale-[0.68] sm:scale-100">
+        <Tile word={"LOGIN"} revealed={true} variant="correct" size="lg" />
+      </div>
+      <div className="flex w-full max-w-xs flex-col gap-3 sm:max-w-sm">
         <button
           type="button"
           onClick={() => handleOAuthSignIn("github")}

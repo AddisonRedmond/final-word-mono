@@ -422,12 +422,21 @@ export const duelsRouter = createTRPCRouter({
 					});
 				}
 
+				// A forfeit ends the forfeiter's own game (endTime set, success
+				// false — so they can never win), but it is NOT a decline. We keep
+				// `accepted: true` so the forfeiter stays a full participant: the
+				// duel remains in their active list, and they can reopen the board
+				// to review their own result and watch the other players' progress.
+				// (Flipping `accepted` to false, as a decline does, is what used to
+				// hide the duel from them entirely.) A forfeit is still distinguished
+				// from a normal finish by `endTime` + `success === false`, which the
+				// UI renders with the red "forfeit" status.
 				await tx
 					.update(duelParticipants)
 					.set({
-						accepted: false,
 						endTime: new Date(),
 						success: false,
+						forfeited: true,
 					})
 					.where(
 						and(

@@ -101,7 +101,7 @@ const DuelResult: React.FC<DuelResultProps> = ({
 		return winner?.name ?? "Unknown";
 	};
 	return (
-		<div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 text-center shadow-xl">
+		<div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-4 text-center shadow-xl sm:p-6">
 			{" "}
 			<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
 				{" "}

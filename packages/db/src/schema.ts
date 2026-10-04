@@ -168,6 +168,12 @@ export const duelParticipants = pgTable(
     success: boolean("success").notNull().default(false),
     guesses: text("guesses").array().notNull().default([]),
     accepted: boolean(),
+    // True when the participant ended their own game by forfeiting (gave up)
+    // rather than playing to a result. Distinguishes a forfeit from a normal
+    // loss (ran out of guesses) — both have endTime set and success=false — so
+    // the UI can show them as separate statuses. `accepted` stays true on
+    // forfeit; it only means "accepted/started the duel".
+    forfeited: boolean("forfeited").notNull().default(false),
     completed_game_acknowledged: boolean().default(false),
   },
   (t) => [primaryKey({ columns: [t.duelId, t.userId] })],

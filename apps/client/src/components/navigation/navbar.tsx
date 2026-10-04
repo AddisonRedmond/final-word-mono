@@ -9,7 +9,11 @@ const Navbar = () => {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile hamburger menu (separate from the desktop profile dropdown so the
+  // two never fight over a single open-state on different breakpoints).
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Guest gating (R7.4): hide the Friends link for anonymous sessions.
   const isGuest = useIsGuest();
@@ -23,20 +27,34 @@ const Navbar = () => {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Close menu when clicking outside
+  // Close the open menu(s) when clicking outside of them.
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target as Node)
+      ) {
+        setMobileMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close the mobile menu on navigation so it never lingers over a new page.
+  useEffect(() => {
+    const handleRouteChange = () => setMobileMenuOpen(false);
+    router.events.on("routeChangeComplete", handleRouteChange);
+    return () => router.events.off("routeChangeComplete", handleRouteChange);
+  }, [router.events]);
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     setMenuOpen(false);
+    setMobileMenuOpen(false);
     try {
       await signOut();
     } finally {
@@ -65,8 +83,8 @@ const Navbar = () => {
         </span>
       </div>
 
-      {/* Nav links + profile */}
-      <div className="flex items-center gap-x-3">
+      {/* Desktop nav links + profile (collapses into the hamburger below sm) */}
+      <div className="hidden items-center gap-x-3 sm:flex">
         <Link
           href="/"
           className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
@@ -137,6 +155,100 @@ const Navbar = () => {
             )}
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* Mobile hamburger (shown below sm; mirrors the F/W tile theme). The
+          trigger is a letter-tile and each menu item leads with its own tile
+          glyph so the nav keeps the word-game look on small screens. */}
+      <div ref={mobileMenuRef} className="relative sm:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen((o) => !o)}
+          className="grid size-9 place-content-center rounded-md bg-green-400 font-bold text-white transition-all select-none hover:bg-green-300 active:scale-95"
+          aria-label="Open menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          {/* Three stacked tiles evoke both a hamburger icon and the game's
+              tile rows. */}
+          <span className="flex flex-col gap-[3px]">
+            <span className="block h-[3px] w-4 rounded-full bg-white" />
+            <span className="block h-[3px] w-4 rounded-full bg-white" />
+            <span className="block h-[3px] w-4 rounded-full bg-white" />
+          </span>
+        </button>
+
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.12 }}
+              className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200/80 bg-white/90 font-mono shadow-xl backdrop-blur-lg"
+            >
+              {/* User info */}
+              <div className="border-gray-100 border-b px-4 py-3">
+                <p className="truncate font-semibold text-gray-800 text-sm">
+                  {profileName ?? "Player"}
+                </p>
+                <p className="truncate text-[11px] text-gray-500">
+                  {profileEmail ?? "No email"}
+                </p>
+              </div>
+
+              {/* Links as tile rows */}
+              <div className="py-1">
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                    H
+                  </span>
+                  Home
+                </Link>
+
+                {/* Guest gating (R7.4): Friends link hidden for guests. */}
+                {!isGuest && (
+                  <Link
+                    href="/friends"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                      router.pathname === "/friends"
+                        ? "text-green-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                      F
+                    </span>
+                    Friends
+                  </Link>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="border-gray-100 border-t py-1">
+                <button
+                  type="button"
+                  disabled={isSigningOut}
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-red-500 text-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-red-400 font-bold text-[11px] text-white">
+                    {initials}
+                  </span>
+                  {isSigningOut ? "Signing out…" : "Sign out"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

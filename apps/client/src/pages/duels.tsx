@@ -2,6 +2,7 @@ import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Button from "@/components/button";
+import ConfirmDialog from "@/components/confirm-dialog";
 import { ArchivedDuelRow, DuelBoard, StatusBadge } from "@/components/duels";
 import DuelRibbon from "@/components/duels/duel-ribbon";
 import NewDuel from "@/components/duels/new-duel";
@@ -13,7 +14,9 @@ import {
   type DuelRealtimeEvent,
   useDuelRealtime,
 } from "@/hooks/useDuelRealtime";
+import { Repeat } from "lucide-react";
 import { useAuthStore } from "@/state/auth-store";
+import { useKeyboardLayoutStore } from "@/state/keyboard-layout-store";
 import { toast } from "@/state/toast-store";
 import { api, type RouterOutputs } from "@/utils/api";
 import { isValidDuelWord } from "@/utils/duel";
@@ -62,6 +65,15 @@ const Duels = () => {
   });
 
   const currentUserId = useAuthStore((state) => state.user?.id);
+
+  // Keyboard Enter/Delete swap preference (persisted). Toggled from the duel
+  // board modal header.
+  const swapActionKeys = useKeyboardLayoutStore(
+    (state) => state.swapActionKeys,
+  );
+  const toggleSwapActionKeys = useKeyboardLayoutStore(
+    (state) => state.toggleSwapActionKeys,
+  );
 
   const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
@@ -197,7 +209,15 @@ const Duels = () => {
     }
   };
 
-  const handleForfeit = async (duelId: string) => {
+  // Forfeit/decline are destructive, so the ribbon buttons open a confirmation
+  // dialog instead of acting immediately. `pendingConfirm` holds which action
+  // is awaiting confirmation and for which duel.
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    type: "forfeit" | "decline";
+    duelId: string;
+  } | null>(null);
+
+  const performForfeit = async (duelId: string) => {
     await forfeitDuel.mutateAsync(duelId);
 
     setIsDueling(false);
@@ -206,9 +226,36 @@ const Duels = () => {
     await refetchDuels();
   };
 
-  const handleDeclineDuel = async (duelId: string) => {
+  const performDecline = async (duelId: string) => {
     await declineDuel.mutateAsync(duelId);
     await refetchDuels();
+  };
+
+  // Opened by the ribbon's Forfeit/Decline buttons; the actual mutation runs
+  // only once the user confirms in the dialog.
+  const requestForfeit = (duelId: string) =>
+    setPendingConfirm({ type: "forfeit", duelId });
+  const requestDecline = (duelId: string) =>
+    setPendingConfirm({ type: "decline", duelId });
+
+  const handleConfirm = async () => {
+    if (!pendingConfirm) {
+      return;
+    }
+
+    const { type, duelId } = pendingConfirm;
+
+    try {
+      if (type === "forfeit") {
+        await performForfeit(duelId);
+      } else {
+        await performDecline(duelId);
+      }
+    } catch {
+      toast("Something went wrong — please try again", { variant: "error" });
+    } finally {
+      setPendingConfirm(null);
+    }
   };
 
   const handleArchiveDuel = async (duelId: string) => {
@@ -278,15 +325,22 @@ const Duels = () => {
           | "pending"
           | "declined"
           | "forfeit"
+          | "lost"
           | "completed"
           | "started";
 
         if (!participant) {
           status = "pending";
+        } else if (participant.forfeited) {
+          // Forfeit keeps accepted=true, so check it before the branches below.
+          status = "forfeit";
         } else if (participant.accepted === false) {
+          // Legacy forfeits (pre-`forfeited` column) stored accepted=false +
+          // endTime; keep mapping those to "forfeit".
           status = participant.endTime ? "forfeit" : "declined";
         } else if (participant.endTime) {
-          status = participant.success ? "completed" : "forfeit";
+          // Played to the end: solved, or ran out of guesses ("lost").
+          status = participant.success ? "completed" : "lost";
         } else {
           status = "started";
         }
@@ -302,29 +356,30 @@ const Duels = () => {
   }, [activeDuelData, currentUserId, participantsByDuel, friends]);
 
   return (
-    <div className="flex h-screen flex-col items-center gap-y-2 overflow-hidden">
+    <div className="flex h-dvh flex-col items-center gap-y-2 overflow-hidden">
       {/* TODO: add navbar to the app, not individual pages */}
 
       <Navbar />
 
       <Tile revealed={true} size="md" variant="correct" word="DUEL" />
 
-      <div className="flex min-h-0 w-2xl grow flex-col items-center justify-center gap-y-2 pb-10">
-        <div className="flex w-full gap-x-2">
+      <div className="flex min-h-0 w-full max-w-2xl grow flex-col items-center justify-center gap-y-2 px-3 pb-10 sm:px-0">
+        <div className="flex w-full flex-wrap gap-2">
           <StatusBadge badgeType="started" label="Started" />
           <StatusBadge badgeType="done" label="Completed" />
+          <StatusBadge badgeType="lost" label="Lost" />
           <StatusBadge badgeType="declined" label="Declined" />
           <StatusBadge badgeType="forfeit" label="Forfeit" />
           <StatusBadge badgeType="pending" label="Pending" />
         </div>
 
         <div className="flex min-h-0 w-full grow flex-col overflow-hidden rounded-md bg-white p-2 shadow-lg outline outline-stone-200">
-          <div className="flex justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-lg">
               {showArchived ? "ARCHIVED DUELS" : "DUELS"}
             </p>
 
-            <div className="space-x-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => setShowArchived((prev) => !prev)}
                 variant="yellow"
@@ -395,8 +450,8 @@ const Duels = () => {
                   duel={duel}
                   friends={friends}
                   handleArchive={handleArchiveDuel}
-                  handleDeclineDuel={handleDeclineDuel}
-                  handleForfeit={handleForfeit}
+                  handleDeclineDuel={requestDecline}
+                  handleForfeit={requestForfeit}
                   key={duel.id}
                   participants={participantsByDuel[duel.id] ?? []}
                   startOrResumeDuel={handleStartDuel}
@@ -415,7 +470,21 @@ const Duels = () => {
 
       <AnimatePresence>
         {isDueling && activeDuelData && (
-          <Modal onClose={handleCloseBoard}>
+          <Modal
+            headerLeft={
+              <button
+                type="button"
+                onClick={toggleSwapActionKeys}
+                aria-pressed={swapActionKeys}
+                aria-label="Swap the Enter and Delete keys"
+                title="Swap Enter and Delete keys"
+                className="grid size-8 place-content-center rounded-md border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100 active:scale-95"
+              >
+                <Repeat className="size-4" aria-hidden="true" />
+              </button>
+            }
+            onClose={handleCloseBoard}
+          >
             <DuelBoard
               currentUserId={currentUserId!}
               duelData={{
@@ -447,6 +516,35 @@ const Duels = () => {
               onSendDuel={handleSendDuel}
             />
           </Modal>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {pendingConfirm && (
+          <ConfirmDialog
+            cancelLabel="Keep playing"
+            confirmLabel={
+              pendingConfirm.type === "forfeit" ? "Forfeit" : "Decline"
+            }
+            isPending={forfeitDuel.isPending || declineDuel.isPending}
+            message={
+              pendingConfirm.type === "forfeit"
+                ? "You'll end your game and can't win this duel. You'll still be able to see your result and the other players' progress."
+                : "You won't take part in this duel. This can't be undone."
+            }
+            onCancel={() => {
+              if (!forfeitDuel.isPending && !declineDuel.isPending) {
+                setPendingConfirm(null);
+              }
+            }}
+            onConfirm={() => void handleConfirm()}
+            tileWord={pendingConfirm.type === "forfeit" ? "GIVEUP" : "NOPE"}
+            title={
+              pendingConfirm.type === "forfeit"
+                ? "Forfeit this duel?"
+                : "Decline this duel?"
+            }
+          />
         )}
       </AnimatePresence>
     </div>

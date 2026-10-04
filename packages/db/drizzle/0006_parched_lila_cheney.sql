@@ -1,0 +1,1 @@
+ALTER TABLE "duel_participants" ADD COLUMN "forfeited" boolean DEFAULT false NOT NULL;
