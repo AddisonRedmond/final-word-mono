@@ -17,6 +17,7 @@ import {
   applyIndexBleedToCemented,
   removeAccidentallyGuessedCemented,
   syncAttackQueueDisplay,
+  getMatchStartMs,
 } from "./logic/battle-royale.js";
 import { runBots } from "./logic/battle-royale-bots.js";
 import { persistLeaverAsLoss } from "./stats.js";
@@ -310,6 +311,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
                   () => {
                     scheduleLobbyUpdate(io, roomId, game);
                   },
+                  () => getMatchStartMs(game),
                 );
               }
             }
@@ -438,6 +440,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
           player,
           userId,
           roomServerOnlyData: roomServerOnlyData.playerData,
+          matchStartMs: getMatchStartMs(game),
         });
       } else {
         player.revealed_letters = {

@@ -38,6 +38,39 @@ export const ATTACK_PENDING_MS = 15 * 1000;
 // is a cancelable buffer rather than guaranteed one-way damage.
 export const MAX_CEMENTED_ATTACK_WORDS = 5;
 
+// --- Time-scaled starting hints ---------------------------------------------
+// How many letters of a player's OWN (non-attack) word are pre-revealed when it
+// first appears, decaying as the match goes on so the early game is gentler and
+// the late game is pure skill/speed. Keyed by match elapsed time. Attack words
+// are unaffected (they carry their own attacker-speed reveal).
+//
+//   0:00-2:00 -> 2 letters
+//   2:00-4:00 -> 1 letter
+//   4:00+     -> 0 letters
+//
+// Tune freely; thresholds are inclusive lower-bound, exclusive upper-bound.
+export const STARTING_HINT_TIERS: ReadonlyArray<{
+  untilMs: number;
+  letters: number;
+}> = [
+  { untilMs: 2 * 60 * 1000, letters: 2 },
+  { untilMs: 4 * 60 * 1000, letters: 1 },
+];
+
+/**
+ * Number of letters to pre-reveal on a freshly-assigned non-attack word, based
+ * on how long the match has been running. Falls through to 0 once past the last
+ * tier. See STARTING_HINT_TIERS.
+ */
+export const getStartingHintCount = (matchElapsedMs: number): number => {
+  for (const tier of STARTING_HINT_TIERS) {
+    if (matchElapsedMs < tier.untilMs) {
+      return tier.letters;
+    }
+  }
+  return 0;
+};
+
 /**
  * Solve-scaled clearing: how many PENDING attack words a correct solve of the
  * player's current word removes, keyed by how many guesses it took. Earliest

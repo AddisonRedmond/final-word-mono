@@ -118,6 +118,10 @@ export const runBots = (
   playerData: Map<string, PlayerDisplay>,
   playerServerData: ServerPlayerData,
   onUpdate: () => void,
+  // Returns the match start timestamp (ms) so bots' freshly assigned words get
+  // the same time-scaled starting hints as players. Optional for callers/tests
+  // that don't need it.
+  getMatchStartMs?: () => number | undefined,
 ) => {
   logger.info(
     { botCount: Object.keys(serverOnlyBotdata).length },
@@ -227,6 +231,7 @@ export const runBots = (
             player: botDisplayData,
             userId: botId,
             roomServerOnlyData: serverOnlyBotdata,
+            matchStartMs: getMatchStartMs?.(),
           });
           onUpdate();
 

@@ -27,6 +27,7 @@ import {
   ATTACK_WORD_BONUS_MS,
   getGuessBonusMs,
   getPendingClearCount,
+  getStartingHintCount,
   MATCH_TIME_LIMIT_MS,
   MAX_CEMENTED_ATTACK_WORDS,
 } from "shared/battle-royale.js";
@@ -192,6 +193,49 @@ export const applyIndexBleedToCemented = (
   }
 };
 
+/**
+ * Time-scaled starting hints: builds the pre-revealed letters for a freshly
+ * assigned NON-attack word based on how long the match has been running. Random
+ * positions (Fisher-Yates), count from getStartingHintCount. Returns {} once
+ * the match is past the hint tiers (late game = no help). See
+ * shared/battle-royale STARTING_HINT_TIERS.
+ */
+/**
+ * Match start timestamp (ms) derived from the room's matchEndTime, or undefined
+ * before the match has started. Used to time-scale starting hints.
+ */
+export const getMatchStartMs = (game: Game): number | undefined =>
+  game.room.matchEndTime === undefined
+    ? undefined
+    : game.room.matchEndTime - MATCH_TIME_LIMIT_MS;
+
+export const buildStartingHints = (
+  word: string,
+  matchStartMs: number | undefined,
+): RevealedLetters => {
+  if (matchStartMs === undefined || !word) {
+    return {};
+  }
+  const elapsed = Date.now() - matchStartMs;
+  const count = getStartingHintCount(elapsed);
+  if (count <= 0) {
+    return {};
+  }
+
+  const upper = word.toUpperCase();
+  const indexes = Array.from({ length: upper.length }, (_, index) => index);
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j] as number, indexes[i] as number];
+  }
+
+  const revealed: RevealedLetters = {};
+  for (const index of indexes.slice(0, count)) {
+    revealed[index] = upper[index] as string;
+  }
+  return revealed;
+};
+
 export const cleanupGame = (
   roomId: string,
   games: Map<string, Game>,
@@ -353,9 +397,20 @@ export const handleStartGame = (
   );
   game.room.isStarted = true;
   game.room.matchEndTime = Date.now() + MATCH_TIME_LIMIT_MS;
+  const matchStartMs = getMatchStartMs(game);
   const lifeExpiry = Date.now() + initialTimer;
-  for (const player of game.players.values()) {
+  const roomPlayerData = serverOnlyData.get(game.room.lobbyId)?.playerData;
+  const roomBotData = serverOnlyBotData.get(game.room.lobbyId);
+  for (const [playerId, player] of game.players) {
     player.life = lifeExpiry;
+
+    // Seed time-scaled starting hints on each player's first word so the early
+    // game is gentler (0:00 -> 2 letters by default). Attack words are never
+    // the first word, so no attack-word guard is needed here.
+    const data = roomPlayerData?.[playerId] ?? roomBotData?.[playerId];
+    if (data && !data.currentWordIsAttack) {
+      player.revealed_letters = buildStartingHints(data.word, matchStartMs);
+    }
   }
 
   timers.gameTimer = setInterval(() => {
@@ -638,10 +693,14 @@ export const applyCorrectGuessReward = ({
   player,
   userId,
   roomServerOnlyData,
+  matchStartMs,
 }: {
   player: PlayerDisplay;
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
+  // Match start timestamp (ms); when provided, a freshly assigned non-attack
+  // word gets time-scaled starting hints. Omit to disable (e.g. pre-start).
+  matchStartMs?: number;
 }) => {
   // TODO: remove life time map, add time stamp that counts down for the user
   // starting at 60 seconds, counts down 1 second at a time, if the user gets to 6 guesses
@@ -682,9 +741,14 @@ export const applyCorrectGuessReward = ({
   // are not yet real). Its letter reveal travels on the entry.
   const nextEntry = serverData.cemented.shift();
 
-  serverData.word = nextEntry?.word ?? getRandomWord();
+  const nextWord = nextEntry?.word ?? getRandomWord();
+  serverData.word = nextWord;
   serverData.currentWordIsAttack = nextEntry !== undefined;
-  player.revealed_letters = nextEntry?.reveal ?? {};
+  // Attack words keep their attacker-speed reveal; a fresh random word gets the
+  // time-scaled starting hints (0 if omitted / late game).
+  player.revealed_letters = nextEntry
+    ? (nextEntry.reveal ?? {})
+    : buildStartingHints(nextWord, matchStartMs);
 
   // Mirror onto display data so the client can badge the attack word with the
   // attacker's initials while the player is guessing it.
@@ -698,10 +762,14 @@ export const advanceToNextWord = ({
   player,
   userId,
   roomServerOnlyData,
+  matchStartMs,
 }: {
   player: PlayerDisplay;
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
+  // Match start timestamp (ms); when provided, a freshly assigned non-attack
+  // word gets time-scaled starting hints. Omit to disable.
+  matchStartMs?: number;
 }) => {
   const serverData = roomServerOnlyData[userId];
   if (!serverData) {
@@ -717,9 +785,13 @@ export const advanceToNextWord = ({
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];
-  player.revealed_letters = nextEntry?.reveal ?? {};
 
-  serverData.word = nextEntry?.word ?? getRandomWord();
+  const nextWord = nextEntry?.word ?? getRandomWord();
+  player.revealed_letters = nextEntry
+    ? (nextEntry.reveal ?? {})
+    : buildStartingHints(nextWord, matchStartMs);
+
+  serverData.word = nextWord;
   serverData.currentWordIsAttack = nextEntry !== undefined;
   // Mirror onto display data so the client can badge the attack word with the
   // attacker's initials while the player is guessing it.
