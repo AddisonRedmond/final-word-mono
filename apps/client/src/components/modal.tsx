@@ -63,7 +63,7 @@ const Modal = ({
       <div
         {...props}
         aria-modal="true"
-        className={`relative flex h-dvh max-h-dvh w-full flex-col overflow-y-auto border border-gray-200 bg-white p-4 shadow-xl sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:rounded-lg sm:p-6 ${className}`}
+        className={`relative flex h-dvh max-h-dvh w-full flex-col overflow-hidden border border-gray-200 bg-white p-4 shadow-xl sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:overflow-y-auto sm:rounded-lg sm:p-6 ${className}`}
         role="dialog"
       >
         <div className="my-2 flex w-full shrink-0 items-center justify-between gap-2">

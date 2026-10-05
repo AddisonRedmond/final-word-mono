@@ -5689,7 +5689,7 @@ export const FIVE_LETTER_WORDS: string[] = [
   // "FIVER",
   // "FRUMP",
   // "CAPOS",
-  // "OPINE",
+  "OPINE",
   // "CODER",
   // "NAMER",
   // "JOWLY",

@@ -17,8 +17,8 @@
 --
 -- CASCADE, NOT EXPLICIT STATS DELETE (R8.5/R8.6): deleting an auth.users row
 -- cascades through profiles -> race_stats / battle_royale_stats via the existing
--- `onDelete: cascade` foreign keys, so this job removes guest stats automatically
--- and contains NO separate stats-deletion statement.
+  -- `onDelete: cascade` foreign keys, so this job removes guest stats automatically
+  -- and contains NO separate stats-deletion statement.
 --
 -- ATOMICITY / OBSERVABILITY (R8.7): the DELETE is a single atomic statement, so a
 -- failing run leaves every guest row and its cascaded stats unchanged, and pg_cron

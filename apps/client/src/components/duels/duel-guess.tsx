@@ -20,13 +20,30 @@ const variantClasses: Record<TileVariant, string> = {
 export const DuelGuessLetter = memo(function GuessLetter({
   letter,
   variant = "default",
+  fitHeight = false,
 }: {
   letter?: string;
   variant?: TileVariant;
+  /**
+   * When true the tile sizes from the available row height (`h-full`) and
+   * stays square via aspect-ratio. Used by the guesses history grid so the
+   * whole board can shrink to fit the viewport. When false (the live typing
+   * row) the tile is width-driven (`w-1/5`) as before.
+   */
+  fitHeight?: boolean;
 }) {
+  // Mobile (full-screen modal, bounded height): size from the row height so
+  // the whole board shrinks to fit the viewport. Desktop (auto-height modal):
+  // there's no bounded height to distribute, so height-driven tiles would
+  // collapse to nothing — fall back to the original fixed-size tiles (h-14,
+  // width-driven) at the sm breakpoint.
+  const sizeClass = fitHeight
+    ? "h-full max-h-14 aspect-square sm:h-14 sm:w-14 sm:max-h-none sm:flex-none sm:aspect-auto"
+    : "aspect-square w-1/5 sm:aspect-auto sm:h-14";
+
   return (
     <div
-      className={`relative grid aspect-square w-1/5 place-content-center rounded-md text-base sm:aspect-auto sm:h-14 sm:text-xl ${variantClasses[variant]}`}
+      className={`relative grid ${sizeClass} place-content-center rounded-md text-base sm:text-xl ${variantClasses[variant]}`}
     >
       <LazyMotion features={domAnimation} strict>
         <AnimatePresence>

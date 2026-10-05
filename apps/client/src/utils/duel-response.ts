@@ -35,7 +35,7 @@ export const buildDuelResponse = (
 		},
 		participant: participants,
 		matchResults,
-		keyboardState: buildKeyboardState(matchResults),
+		keyboardState: buildKeyboardState(matchResults, normalizedWord),
 		isCorrect: participant.success,
 		isGameOver: participant.endTime !== null,
 		...(participant.endTime ? { secretWord: normalizedWord } : {}),

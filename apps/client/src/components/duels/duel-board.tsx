@@ -164,25 +164,27 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   }
 
   return (
-    <div className="flex min-h-0 w-full max-w-2xl grow flex-col gap-2 outline-none">
+    <div className="flex min-h-0 w-full max-w-2xl grow flex-col gap-1 overflow-hidden outline-none sm:gap-2">
       {currentParticipant.startTime && (
-        <DuelTimer startTime={currentParticipant.startTime} />
+        <div className="shrink-0">
+          <DuelTimer startTime={currentParticipant.startTime} />
+        </div>
       )}
 
-      {/* The guesses history + current guess take the middle; `mt-auto` on the
-          keyboard below pushes it to the bottom when the board fills a
-          full-screen mobile modal. */}
+      {/* The guesses history grows to fill the middle and shrinks to fit the
+          viewport (see Guesses); the current-guess row and keyboard stay a
+          fixed size below it, so the whole board scales instead of scrolling. */}
       <Guesses
         guesses={currentParticipant.guesses}
         matchResults={duelData.matchResults}
       />
 
-      <div ref={scope}>
+      <div className="shrink-0" ref={scope}>
         <DuelGuess guess={guess} />
       </div>
 
       <Keyboard
-        className="mt-auto"
+        className="shrink-0"
         disabled={isSubmitting}
         fullMatch={fullMatch}
         noMatch={absent}

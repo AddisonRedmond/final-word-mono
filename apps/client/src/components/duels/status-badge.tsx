@@ -7,10 +7,11 @@ type StatusBadgeProps = {
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ badgeType, label }) => {
   return (
-    <div className="flex items-center text-xs">
-      <div className={`h-2 w-2 rounded-full ${variants[badgeType]}`} />
-      <p>{label}</p>
-    </div>
+    <span
+      className={`inline-flex items-center rounded-full border px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${variants[badgeType]}`}
+    >
+      {label}
+    </span>
   );
 };
 
