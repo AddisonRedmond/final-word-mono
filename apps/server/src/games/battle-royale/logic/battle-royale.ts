@@ -18,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import words from "./words.js";
 import logger from "../../../utils/logger.js";
 import { scheduleMatchTimeLimit } from "./match-timer.js";
+import { generateBotNames } from "./bot-names.js";
 import {
   persistBattleRoyaleStats,
   persistEliminatedAsLoss,
@@ -321,12 +322,17 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
   const roomBotServerData: { [botId: string]: BotServerData } = {};
   const botsDisplayData = new Map<string, PlayerDisplay>();
   const lifeExpiry = Date.now() + initialTimer;
+  // Human-looking display names, unique within this lobby. The bot's ID stays
+  // `bot${i}` (used everywhere to tell bots from real players); only the shown
+  // name changes so the field reads like real people.
+  const displayNames = generateBotNames(numberOfBotsToAdd);
 
   for (let i = 0; i < numberOfBotsToAdd; i++) {
-    // add bots to a bot object so they can be tracked
-    const botNameForNow = `bot${i}`;
+    // Bot ID/key — NOT the display name. Must remain a non-UUID `bot${i}` so the
+    // UUID-based bot detection in handlers.ts / stats.ts keeps working.
+    const botId = `bot${i}`;
 
-    roomBotServerData[botNameForNow] = {
+    roomBotServerData[botId] = {
       word: getRandomWord(),
       currentWordIsAttack: false,
       pending: [],
@@ -336,8 +342,8 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
       botGuesses: 0,
     };
 
-    botsDisplayData.set(botNameForNow, {
-      name: botNameForNow,
+    botsDisplayData.set(botId, {
+      name: displayNames[i] ?? botId,
       isAnonymous: false, // bots are never guest accounts
       life: lifeExpiry,
       isEliminated: false,
