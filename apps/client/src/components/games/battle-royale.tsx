@@ -243,6 +243,8 @@ const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => 
             fullMatches={lobby?.players[userId]?.revealed_letters}
             guess={guess}
             queue={lobby?.players[userId]?.display_queue}
+            attackQueueView={lobby?.players[userId]?.attackQueueView}
+            cementAt={lobby?.players[userId]?.attackCementAt}
             currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
             attackerInitials={
               lobby?.players[userId]?.currentWordIsAttack

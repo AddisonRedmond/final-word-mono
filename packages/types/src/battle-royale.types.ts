@@ -8,6 +8,33 @@ export type TargetMode = "first" | "last" | "random" | "player";
 
 export type RevealedLetters = Record<number, string>;
 
+// A single queued attack word plus who sent it. Replaces the old parallel
+// `queue: string[]` / `attackerQueue: string[]` arrays (which had to be kept in
+// lockstep); carrying the attacker name on the entry removes that fragility.
+// See ATTACK_MECHANICS.md §5.2a.
+export type AttackEntry = {
+  word: string;
+  // Display name of the attacker who sent this word; "" if unknown.
+  attackerName: string;
+  // Letters already revealed on THIS word, travelling with the entry so there
+  // is no separate parallel array to keep aligned. Seeded by the attacker's
+  // speed-scaled letter-reveal (§2.3) and grown by index-bleed (§5.2a) while
+  // the word is cemented. Becomes the player's `revealed_letters` when this
+  // word is consumed as the current word.
+  reveal?: RevealedLetters;
+};
+
+// Client-facing projection of a single queued attack word, used to render the
+// pending (ghosted + countdown) vs. cemented (solid) distinction. Deliberately
+// does NOT carry the word itself — exposing an unsolved queued word would leak
+// the answer. The client only needs the attacker (for the badge) and whether
+// the slot is cemented (for styling); the shared batch `attackCementAt` on
+// PlayerDisplay drives the single countdown shown over the pending words.
+export type QueuedAttackView = {
+  attackerName: string;
+  cemented: boolean;
+};
+
 export type PlayerDisplay = {
   name: string;
   // Guest flag stamped from `socket.data.isAnonymous` at join (Req 4.5, 4.6).
@@ -41,31 +68,52 @@ export type PlayerDisplay = {
   // guessing (when currentWordIsAttack). Used for the per-word attack badge,
   // which can differ from lastAttackerName when multiple attacks are queued.
   currentWordAttackerName?: string;
+  // §5.2a — client-facing view of this player's queued attack words, in
+  // consume order (pending first, then cemented). Pending entries render
+  // ghosted under the `attackCementAt` countdown and vanish if the player
+  // solves in time; cemented entries render solid and must be solved. Carries
+  // no letters (see QueuedAttackView) — the client uses it only to count/style
+  // slots.
+  attackQueueView?: QueuedAttackView[];
+  // §5.2a — absolute timestamp (ms) the current pending wave cements, or
+  // undefined when there is no pending wave. Drives the single batch countdown
+  // shown over the pending slots.
+  attackCementAt?: number;
+};
+
+// Shared attack-queue state carried by both players and bots. Two-stage queue
+// per ATTACK_MECHANICS.md §5.2a:
+// - `pending`: freshly-arrived attack words still inside the batch grace window.
+//   Removable by the defender's play (solve-scaled clearing, accidental match).
+//   NOT yet part of the real solve cycle. Earliest (index 0) is closest to
+//   cementing / removed first.
+// - `cemented`: words whose grace window expired; locked into the real solve
+//   cycle and consumed (index 0 first) when the player finishes their current
+//   word. Only `cemented` counts against MAX_CEMENTED_ATTACK_WORDS.
+// - `cementAt`: absolute timestamp (ms) at which the current pending wave
+//   cements. Armed when `pending` goes empty -> non-empty and NOT reset by
+//   later attacks; cleared when `pending` empties.
+export type AttackQueueState = {
+  pending: AttackEntry[];
+  cemented: AttackEntry[];
+  cementAt?: number;
 };
 
 export type PlayerServerData = {
   word: string;
   currentWordIsAttack: boolean;
-  queue: string[];
-  // Attacker display name for each queued attack word, kept in lockstep with
-  // `queue` so the badge on a consumed attack word shows the correct sender.
-  attackerQueue?: string[];
-};
+} & AttackQueueState;
 
 export type ServerPlayerData = Record<string, PlayerServerData>;
 
 export type BotServerData = {
   word: string;
   currentWordIsAttack: boolean;
-  queue: string[];
-  // Attacker display name for each queued attack word, kept in lockstep with
-  // `queue` so the badge on a consumed attack word shows the correct sender.
-  attackerQueue?: string[];
   level: 1 | 2 | 3 | 4 | 5;
   target: TargetType;
   guessTimeStamp?: number;
   botGuesses: number;
-};
+} & AttackQueueState;
 
 export type ServerBotData = Map<
   string,

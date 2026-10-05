@@ -1,8 +1,11 @@
 import type {
+  AttackEntry,
+  AttackQueueState,
   BotServerData,
   Game,
   PlayerDisplay,
   PlayerServerData,
+  QueuedAttackView,
   RevealedLetters,
   RoomTimers,
   ServerBotData,
@@ -20,15 +23,218 @@ import {
   persistEliminatedAsLoss,
 } from "../stats.js";
 import {
+  ATTACK_PENDING_MS,
   ATTACK_WORD_BONUS_MS,
   getGuessBonusMs,
+  getPendingClearCount,
+  getStartingHintCount,
   MATCH_TIME_LIMIT_MS,
+  MAX_CEMENTED_ATTACK_WORDS,
 } from "shared/battle-royale.js";
 
 const initialTimer = 1.5 * 60 * 1000;
 const Max_Wait_Time = 45 * 1000; //Seconds
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
-export const Max_Attack_Words = 3;
+// §5.2a: cap applies to CEMENTED words only; pending words are an escapable
+// buffer and don't count. Re-exported under the old name so existing callers
+// keep working, and aliased to the shared constant so there's one source.
+export const Max_Attack_Words = MAX_CEMENTED_ATTACK_WORDS;
+
+// --- §5.2a attack-queue helpers ---------------------------------------------
+
+/**
+ * Number of CEMENTED attack words a player is carrying. This (not pending) is
+ * what the `isAttackable` / cap checks compare against MAX_CEMENTED_ATTACK_WORDS.
+ */
+export const cementedCount = (data: AttackQueueState): number =>
+  data.cemented.length;
+
+/**
+ * Builds the client-facing, letterless view of a player's queued attacks in
+ * consume order (pending first, then cemented). Mirrored onto PlayerDisplay so
+ * the UI can style pending (ghosted + countdown) vs. cemented (solid) slots
+ * without ever learning the queued words.
+ */
+export const buildAttackQueueView = (
+  data: AttackQueueState,
+): QueuedAttackView[] => [
+  ...data.pending.map((entry) => ({
+    attackerName: entry.attackerName,
+    cemented: false,
+  })),
+  ...data.cemented.map((entry) => ({
+    attackerName: entry.attackerName,
+    cemented: true,
+  })),
+];
+
+/**
+ * Mirrors the server-side queue state onto the player's display object so the
+ * client sees the pending/cemented split, the batch countdown, and the
+ * per-cemented-word letter reveals. Call after any mutation of
+ * pending/cemented/cementAt or any cemented entry's `reveal`.
+ */
+export const syncAttackQueueDisplay = (
+  player: PlayerDisplay,
+  data: AttackQueueState,
+) => {
+  player.attackQueueView = buildAttackQueueView(data);
+  player.attackCementAt = data.pending.length > 0 ? data.cementAt : undefined;
+  // display_queue is the client's hopper: one RevealedLetters per CEMENTED word
+  // (pending words are hidden/ghosted and show no letters), in consume order.
+  player.display_queue = data.cemented.map((entry) => entry.reveal ?? {});
+};
+
+/**
+ * Moves an entire expired pending wave into the cemented list (arrival order),
+ * respecting the cemented cap, and clears the batch timer. Returns true when a
+ * wave actually cemented (so the caller can emit an update).
+ */
+export const cementPendingWave = (data: AttackQueueState): boolean => {
+  if (data.pending.length === 0) {
+    data.cementAt = undefined;
+    return false;
+  }
+
+  for (const entry of data.pending) {
+    if (data.cemented.length >= MAX_CEMENTED_ATTACK_WORDS) {
+      // Cemented cap reached: surplus pending words are dropped rather than
+      // cemented (same spirit as the old queue-full branch).
+      break;
+    }
+    data.cemented.push(entry);
+  }
+
+  data.pending = [];
+  data.cementAt = undefined;
+  return true;
+};
+
+/**
+ * Solve-scaled clearing of PENDING words only, earliest-first. `guessCount` is
+ * how many guesses the defender took on their current word. Cemented words are
+ * never touched here. See getPendingClearCount / ATTACK_MECHANICS.md §5.2a.
+ */
+export const clearPendingBySolve = (
+  data: AttackQueueState,
+  guessCount: number,
+) => {
+  const toClear = getPendingClearCount(guessCount);
+
+  if (toClear === Number.POSITIVE_INFINITY || toClear >= data.pending.length) {
+    data.pending = [];
+    data.cementAt = undefined;
+    return;
+  }
+
+  // Remove the earliest `toClear` pending words (front of the list).
+  data.pending.splice(0, toClear);
+
+  if (data.pending.length === 0) {
+    data.cementAt = undefined;
+  }
+};
+
+/**
+ * Removes a single CEMENTED word matching `guess` exactly (accidental-match
+ * side effect). Pending words are intentionally left alone. Returns true when a
+ * cemented word was removed. The entry's letter reveal travels on the entry, so
+ * removing the entry also removes its reveal — callers re-sync the display.
+ */
+export const removeAccidentallyGuessedCemented = (
+  data: AttackQueueState,
+  guess: string,
+): boolean => {
+  const normalized = guess.trim().toUpperCase();
+  if (!normalized) {
+    return false;
+  }
+  const index = data.cemented.findIndex(
+    (entry) => entry.word.toUpperCase() === normalized,
+  );
+  if (index === -1) {
+    return false;
+  }
+  data.cemented.splice(index, 1);
+  return true;
+};
+
+/**
+ * Index-bleed: for each full-match index on the defender's current guess,
+ * reveal that same position on any CEMENTED word that shares the same letter at
+ * that index. Positional coincidence only (see §5.2a). Writes reveals onto each
+ * cemented entry's own `reveal`. Pending words are not bled onto.
+ */
+export const applyIndexBleedToCemented = (
+  data: AttackQueueState,
+  fullMatches: Record<number, string>,
+) => {
+  const matchIndexes = Object.keys(fullMatches).map(Number);
+  if (matchIndexes.length === 0 || data.cemented.length === 0) {
+    return;
+  }
+
+  for (const entry of data.cemented) {
+    const word = entry.word.toUpperCase();
+    const reveal: RevealedLetters = { ...(entry.reveal ?? {}) };
+    let changed = false;
+
+    for (const index of matchIndexes) {
+      const letter = fullMatches[index];
+      if (letter && word[index] === letter.toUpperCase()) {
+        reveal[index] = word[index] as string;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      entry.reveal = reveal;
+    }
+  }
+};
+
+/**
+ * Time-scaled starting hints: builds the pre-revealed letters for a freshly
+ * assigned NON-attack word based on how long the match has been running. Random
+ * positions (Fisher-Yates), count from getStartingHintCount. Returns {} once
+ * the match is past the hint tiers (late game = no help). See
+ * shared/battle-royale STARTING_HINT_TIERS.
+ */
+/**
+ * Match start timestamp (ms) derived from the room's matchEndTime, or undefined
+ * before the match has started. Used to time-scale starting hints.
+ */
+export const getMatchStartMs = (game: Game): number | undefined =>
+  game.room.matchEndTime === undefined
+    ? undefined
+    : game.room.matchEndTime - MATCH_TIME_LIMIT_MS;
+
+export const buildStartingHints = (
+  word: string,
+  matchStartMs: number | undefined,
+): RevealedLetters => {
+  if (matchStartMs === undefined || !word) {
+    return {};
+  }
+  const elapsed = Date.now() - matchStartMs;
+  const count = getStartingHintCount(elapsed);
+  if (count <= 0) {
+    return {};
+  }
+
+  const upper = word.toUpperCase();
+  const indexes = Array.from({ length: upper.length }, (_, index) => index);
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexes[i], indexes[j]] = [indexes[j] as number, indexes[i] as number];
+  }
+
+  const revealed: RevealedLetters = {};
+  for (const index of indexes.slice(0, count)) {
+    revealed[index] = upper[index] as string;
+  }
+  return revealed;
+};
 
 export const cleanupGame = (
   roomId: string,
@@ -123,7 +329,8 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
     roomBotServerData[botNameForNow] = {
       word: getRandomWord(),
       currentWordIsAttack: false,
-      queue: [],
+      pending: [],
+      cemented: [],
       level: getRandomLevel(),
       target: "random",
       botGuesses: 0,
@@ -190,13 +397,48 @@ export const handleStartGame = (
   );
   game.room.isStarted = true;
   game.room.matchEndTime = Date.now() + MATCH_TIME_LIMIT_MS;
+  const matchStartMs = getMatchStartMs(game);
   const lifeExpiry = Date.now() + initialTimer;
-  for (const player of game.players.values()) {
+  const roomPlayerData = serverOnlyData.get(game.room.lobbyId)?.playerData;
+  const roomBotData = serverOnlyBotData.get(game.room.lobbyId);
+  for (const [playerId, player] of game.players) {
     player.life = lifeExpiry;
+
+    // Seed time-scaled starting hints on each player's first word so the early
+    // game is gentler (0:00 -> 2 letters by default). Attack words are never
+    // the first word, so no attack-word guard is needed here.
+    const data = roomPlayerData?.[playerId] ?? roomBotData?.[playerId];
+    if (data && !data.currentWordIsAttack) {
+      player.revealed_letters = buildStartingHints(data.word, matchStartMs);
+    }
   }
 
   timers.gameTimer = setInterval(() => {
     const now = Date.now();
+
+    // §5.2a: cement any pending attack waves whose grace window has expired,
+    // for both humans and bots. A player's whole pending wave cements together.
+    let anyCemented = false;
+    const roomData = serverOnlyData.get(game.room.lobbyId);
+    const botData = serverOnlyBotData.get(game.room.lobbyId);
+    for (const [playerId, player] of game.players) {
+      if (player.isEliminated) {
+        continue;
+      }
+      const data: AttackQueueState | undefined =
+        roomData?.playerData[playerId] ?? botData?.[playerId];
+      if (
+        data &&
+        data.pending.length > 0 &&
+        data.cementAt !== undefined &&
+        now >= data.cementAt
+      ) {
+        if (cementPendingWave(data)) {
+          anyCemented = true;
+        }
+        syncAttackQueueDisplay(player, data);
+      }
+    }
 
     // Pre-sweep active players (before this tick's expiry sweep).
     const activePlayers = Array.from(game.players.entries()).filter(
@@ -299,7 +541,8 @@ export const handleStartGame = (
     }
 
     // Early-return only when nothing changed and the game is still running.
-    if (expiringPlayers.length === 0 && !game.room.isFinished) {
+    // A pending wave cementing this tick counts as a change worth broadcasting.
+    if (expiringPlayers.length === 0 && !anyCemented && !game.room.isFinished) {
       return;
     }
 
@@ -450,10 +693,14 @@ export const applyCorrectGuessReward = ({
   player,
   userId,
   roomServerOnlyData,
+  matchStartMs,
 }: {
   player: PlayerDisplay;
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
+  // Match start timestamp (ms); when provided, a freshly assigned non-attack
+  // word gets time-scaled starting hints. Omit to disable (e.g. pre-start).
+  matchStartMs?: number;
 }) => {
   // TODO: remove life time map, add time stamp that counts down for the user
   // starting at 60 seconds, counts down 1 second at a time, if the user gets to 6 guesses
@@ -475,34 +722,54 @@ export const applyCorrectGuessReward = ({
     );
     return;
   }
-  const nextWord = serverData.queue.shift();
-  const nextAttacker = serverData.attackerQueue?.shift();
+
+  // Life bonus is only awarded for solving a NON-attack word (unchanged rule).
   if (!serverData.currentWordIsAttack) {
     player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
   }
+
+  // §5.2a: a fast solve of the current word clears pending (uncemented) attack
+  // words earliest-first, BEFORE we pull the next word. Only pending is touched.
+  clearPendingBySolve(serverData, player.currentWordGuesses);
 
   player.correctGuesses += 1;
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];
-  player.revealed_letters = player.display_queue?.shift() ?? {};
 
-  serverData.word = nextWord ?? getRandomWord();
-  serverData.currentWordIsAttack = nextWord !== undefined;
+  // §5.2a: the next word only ever comes from the CEMENTED list (pending words
+  // are not yet real). Its letter reveal travels on the entry.
+  const nextEntry = serverData.cemented.shift();
+
+  const nextWord = nextEntry?.word ?? getRandomWord();
+  serverData.word = nextWord;
+  serverData.currentWordIsAttack = nextEntry !== undefined;
+  // Attack words keep their attacker-speed reveal; a fresh random word gets the
+  // time-scaled starting hints (0 if omitted / late game).
+  player.revealed_letters = nextEntry
+    ? (nextEntry.reveal ?? {})
+    : buildStartingHints(nextWord, matchStartMs);
+
   // Mirror onto display data so the client can badge the attack word with the
   // attacker's initials while the player is guessing it.
   player.currentWordIsAttack = serverData.currentWordIsAttack;
-  player.currentWordAttackerName = nextWord !== undefined ? nextAttacker : undefined;
+  player.currentWordAttackerName = nextEntry?.attackerName;
+
+  syncAttackQueueDisplay(player, serverData);
 };
 
 export const advanceToNextWord = ({
   player,
   userId,
   roomServerOnlyData,
+  matchStartMs,
 }: {
   player: PlayerDisplay;
   userId: string;
   roomServerOnlyData: ServerPlayerData | { [botId: string]: BotServerData };
+  // Match start timestamp (ms); when provided, a freshly assigned non-attack
+  // word gets time-scaled starting hints. Omit to disable.
+  matchStartMs?: number;
 }) => {
   const serverData = roomServerOnlyData[userId];
   if (!serverData) {
@@ -513,20 +780,25 @@ export const advanceToNextWord = ({
     return;
   }
 
-  const nextWord = serverData.queue.shift();
-  const nextAttacker = serverData.attackerQueue?.shift();
+  const nextEntry = serverData.cemented.shift();
 
   player.currentWordGuesses = 0;
   player.noMatch = [];
   player.partialMatches = [];
-  player.revealed_letters = player.display_queue?.shift() ?? {};
 
-  serverData.word = nextWord ?? getRandomWord();
-  serverData.currentWordIsAttack = nextWord !== undefined;
+  const nextWord = nextEntry?.word ?? getRandomWord();
+  player.revealed_letters = nextEntry
+    ? (nextEntry.reveal ?? {})
+    : buildStartingHints(nextWord, matchStartMs);
+
+  serverData.word = nextWord;
+  serverData.currentWordIsAttack = nextEntry !== undefined;
   // Mirror onto display data so the client can badge the attack word with the
   // attacker's initials while the player is guessing it.
   player.currentWordIsAttack = serverData.currentWordIsAttack;
-  player.currentWordAttackerName = nextWord !== undefined ? nextAttacker : undefined;
+  player.currentWordAttackerName = nextEntry?.attackerName;
+
+  syncAttackQueueDisplay(player, serverData);
 };
 
 export const applyAttack = (
@@ -555,83 +827,52 @@ export const applyAttack = (
     target.lastAttackerName = attackerName;
   }
 
-  const attackQueueIsFull =
-    targetServerData !== undefined &&
-    targetServerData.queue.length >= Max_Attack_Words;
-
-  if (attackQueueIsFull) {
-    // Attack word queue is full: still reveal letters, just don't queue another word.
-    logger.debug(
-      { target: target.name, maxAttackWords: Max_Attack_Words },
-      "Attack word not queued: target attack queue is full",
-    );
-  } else if (targetServerData) {
-    targetServerData.queue.push(guessedWord.toUpperCase());
-    // Track the sender in lockstep with the word so the per-word badge shows
-    // the correct attacker when this specific word is later consumed.
-    (targetServerData.attackerQueue ??= []).push(attackerName ?? "");
+  if (!targetServerData) {
+    return;
   }
 
-  let lettersToReveal = 0;
+  // §5.2a: the word arrives as PENDING (under the batch grace window), NOT
+  // straight into the real queue. If the pending set was empty, arm the shared
+  // batch timer; later attacks join the SAME wave and do NOT reset it.
+  if (targetServerData.pending.length === 0) {
+    targetServerData.cementAt = Date.now() + ATTACK_PENDING_MS;
+  }
 
-  if (guessCount <= 3) {
-    lettersToReveal = 2;
-  } else if (guessCount <= 7) {
-    lettersToReveal = 3;
-  } else {
+  // Speed-scaled letter reveal (§2.3), attached to the entry so it travels with
+  // the word through pending -> cemented -> consumed.
+  let lettersToReveal = 2;
+  if (guessCount > 7) {
     lettersToReveal = 4;
+  } else if (guessCount > 3) {
+    lettersToReveal = 3;
   }
 
-  if (lettersToReveal === 0) {
-    logger.debug({ guessCount }, "Attack queued without letter reveal");
-    return;
+  const word = guessedWord.toUpperCase();
+  const availableIndexes = Array.from(
+    { length: word.length },
+    (_, index) => index,
+  );
+  // Fisher-Yates shuffle so revealed letters are randomly positioned.
+  for (let i = availableIndexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [availableIndexes[i], availableIndexes[j]] = [
+      availableIndexes[j] as number,
+      availableIndexes[i] as number,
+    ];
+  }
+  const reveal: RevealedLetters = {};
+  for (const index of availableIndexes.slice(0, lettersToReveal)) {
+    reveal[index] = word[index] as string;
   }
 
-  const queue = target.display_queue ?? (target.display_queue = []);
+  const entry: AttackEntry = {
+    word,
+    attackerName: attackerName ?? "",
+    reveal,
+  };
+  targetServerData.pending.push(entry);
 
-  if (queue.length < 4) {
-    const word = guessedWord.toUpperCase();
-    const availableIndexes = Array.from(
-      { length: word.length },
-      (_, index) => index,
-    );
-
-    // Fisher-Yates shuffle so revealed letters are randomly positioned
-    for (let i = availableIndexes.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availableIndexes[i], availableIndexes[j]] = [
-        availableIndexes[j],
-        availableIndexes[i],
-      ];
-    }
-
-    const revealedLetters: RevealedLetters = {};
-    for (const index of availableIndexes.slice(0, lettersToReveal)) {
-      revealedLetters[index] = word[index] as string;
-    }
-
-    queue.push(revealedLetters);
-    return;
-  }
-
-  const entriesByLetterCount: { index: number; count: number }[] = [];
-  for (let index = 0; index < queue.length; index += 1) {
-    const count = Object.keys(queue[index] as RevealedLetters).length;
-    if (count > 0) {
-      entriesByLetterCount.push({ index, count });
-    }
-  }
-  entriesByLetterCount.sort((a, b) => b.count - a.count);
-
-  for (const { index } of entriesByLetterCount.slice(0, lettersToReveal)) {
-    const entry = queue[index] as RevealedLetters;
-    const keys = Object.keys(entry).map(Number);
-    const keyToRemove = keys[Math.floor(Math.random() * keys.length)];
-
-    if (keyToRemove !== undefined) {
-      delete entry[keyToRemove];
-    }
-  }
+  syncAttackQueueDisplay(target, targetServerData);
 };
 
 export const determineTarget = (

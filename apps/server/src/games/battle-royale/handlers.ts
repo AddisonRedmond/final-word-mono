@@ -13,6 +13,11 @@ import {
   cleanupGame,
   determineTarget,
   Max_Attack_Words,
+  cementedCount,
+  applyIndexBleedToCemented,
+  removeAccidentallyGuessedCemented,
+  syncAttackQueueDisplay,
+  getMatchStartMs,
 } from "./logic/battle-royale.js";
 import { runBots } from "./logic/battle-royale-bots.js";
 import { persistLeaverAsLoss } from "./stats.js";
@@ -306,6 +311,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
                   () => {
                     scheduleLobbyUpdate(io, roomId, game);
                   },
+                  () => getMatchStartMs(game),
                 );
               }
             }
@@ -319,7 +325,8 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       roomServerOnlyData.playerData[userId] = {
         word: getRandomWord(),
         currentWordIsAttack: false,
-        queue: [],
+        pending: [],
+        cemented: [],
       };
       socket.join(roomId);
 
@@ -384,16 +391,31 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
 
       const result = checkWord(guessedWord, targetWord);
 
-      // update attack to calculate backend probably
+      const selfServerData = roomServerOnlyData.playerData[userId];
+
+      // §5.2a: on EVERY submitted guess, the player's own guessing erodes their
+      // CEMENTED backlog (pending words are untouched here):
+      // - index-bleed: full-match indexes reveal the same position on cemented
+      //   words sharing that letter at that index (positional coincidence).
+      // - accidental-match: an exact match on a cemented word removes it, as an
+      //   independent side effect of this guess.
+      // Both run before the normal solve/reward branch and are independent of
+      // whether this guess solves the current word.
+      if (selfServerData) {
+        applyIndexBleedToCemented(selfServerData, result.fullMatches);
+        removeAccidentallyGuessedCemented(selfServerData, guessedWord);
+        syncAttackQueueDisplay(player, selfServerData);
+      }
 
       if (result.isMatch) {
         const guessCount = player.currentWordGuesses;
+        // §5.2a: only CEMENTED words count toward the attack cap; pending words
+        // are an escapable buffer the defender can still clear.
         const isAttackable = (playerId: string) => {
-          const queueLength =
-            roomServerOnlyData.playerData[playerId]?.queue.length ??
-            serverOnlyBotData.get(roomId)?.[playerId]?.queue.length ??
-            0;
-          return queueLength < Max_Attack_Words;
+          const data =
+            roomServerOnlyData.playerData[playerId] ??
+            serverOnlyBotData.get(roomId)?.[playerId];
+          return data ? cementedCount(data) < Max_Attack_Words : true;
         };
         const targetId = determineTarget(
           game.players,
@@ -405,7 +427,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         const targetServerData =
           roomServerOnlyData.playerData[targetId] ??
           serverOnlyBotData.get(roomId)?.[targetId];
-        if (!roomServerOnlyData.playerData[userId].currentWordIsAttack) {
+        if (!roomServerOnlyData.playerData[userId]?.currentWordIsAttack) {
           applyAttack(
             targetWord,
             guessCount,
@@ -418,6 +440,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
           player,
           userId,
           roomServerOnlyData: roomServerOnlyData.playerData,
+          matchStartMs: getMatchStartMs(game),
         });
       } else {
         player.revealed_letters = {
