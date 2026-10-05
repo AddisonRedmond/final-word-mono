@@ -366,7 +366,7 @@ const Duels = () => {
       <div className="flex min-h-0 w-full max-w-2xl grow flex-col items-center justify-center gap-y-2 px-3 pb-10 sm:px-0">
         <div className="flex w-full flex-wrap gap-2">
           <StatusBadge badgeType="started" label="Started" />
-          <StatusBadge badgeType="done" label="Completed" />
+          <StatusBadge badgeType="done" label="Done" />
           <StatusBadge badgeType="lost" label="Lost" />
           <StatusBadge badgeType="declined" label="Declined" />
           <StatusBadge badgeType="forfeit" label="Forfeit" />
