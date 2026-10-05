@@ -31,7 +31,7 @@ Recommended public pages:
 
 ---
 
-# 2. App Identity
+## 2. App Identity
 
 Finalize the information that will be shared by both stores.
 
@@ -63,7 +63,7 @@ io.finalword.app
 
 ---
 
-# 3. Apple Developer Account
+## 3. Apple Developer Account
 
 ## Account
 
@@ -97,7 +97,7 @@ io.finalword.app
 
 ---
 
-# 4. Google Play Developer Account
+## 4. Google Play Developer Account
 
 ## Account
 
@@ -129,7 +129,7 @@ io.finalword.app
 
 ---
 
-# 5. Production Signing & Build Configuration
+## 5. Production Signing & Build Configuration
 
 ## iOS
 
@@ -157,7 +157,7 @@ Losing Android signing credentials can create serious problems for future update
 
 ---
 
-# 6. Mobile Production Configuration
+## 6. Mobile Production Configuration
 
 Before submitting either app:
 
@@ -178,7 +178,7 @@ Test the app against the **real production server**, not localhost.
 
 ---
 
-# 7. iOS TestFlight
+## 7. iOS TestFlight
 
 Create the first production candidate build.
 
@@ -197,7 +197,7 @@ Create the first production candidate build.
 - [ ] Test app backgrounding/resuming
 - [ ] Test closing/reopening the app
 - [ ] Test purchases if implemented
-- [ ] Test account deletion if applicable
+- [ ] Test in-app account deletion
 - [ ] Test privacy/terms links
 - [ ] Fix critical issues
 - [ ] Upload final candidate build
@@ -212,7 +212,7 @@ Create the first production candidate build.
 
 ---
 
-# 8. Google Play Testing
+## 8. Google Play Testing
 
 ## Internal Testing
 
@@ -237,7 +237,7 @@ If the developer account is subject to Google's new-account testing requirements
 
 ---
 
-# 9. Final Production QA
+## 9. Final Production QA
 
 Before submitting to either store, perform a final production test.
 
@@ -279,7 +279,7 @@ Before submitting to either store, perform a final production test.
 
 - [ ] Account creation
 - [ ] Account persistence
-- [ ] Account deletion if supported
+- [ ] In-app account deletion (required by Apple and Google for apps that support account creation)
 - [ ] Privacy policy
 - [ ] Terms of service
 
@@ -296,12 +296,14 @@ If mobile subscriptions are supported:
 
 ---
 
-# 10. App Store Submission — Apple
+## 10. App Store Submission — Apple
 
 - [ ] Select final build
 - [ ] Complete App Store listing
 - [ ] Complete App Privacy
 - [ ] Complete age rating
+- [ ] Confirm App Transport Security (ATS) compliance — all API/Socket.IO traffic over HTTPS/WSS, no ATS exceptions in production build
+- [ ] Confirm in-app account deletion is reachable (Apple guideline 5.1.1(v), required for account-based apps)
 - [ ] Complete export compliance questions
 - [ ] Add review notes
 - [ ] Provide demo/test account if required
@@ -326,7 +328,7 @@ Include:
 
 ---
 
-# 11. App Store Submission — Google Play
+## 11. App Store Submission — Google Play
 
 - [ ] Select production-ready `.aab`
 - [ ] Complete store listing
@@ -334,6 +336,7 @@ Include:
 - [ ] Complete content rating
 - [ ] Complete target audience
 - [ ] Complete app access information
+- [ ] Confirm in-app account deletion + Data Safety account-deletion declaration (required by Google for account-based apps)
 - [ ] Provide test account if required
 - [ ] Verify screenshots
 - [ ] Verify privacy policy
@@ -342,7 +345,7 @@ Include:
 
 ---
 
-# 12. Launch
+## 12. Launch
 
 ## Apple
 
@@ -366,7 +369,7 @@ Include:
 
 ---
 
-# 13. Post-Launch Monitoring
+## 13. Post-Launch Monitoring
 
 For the first several days, monitor closely.
 
@@ -387,7 +390,7 @@ Pay particular attention to mobile-specific failures that won't appear in web te
 
 ---
 
-# 14. Release Pipeline Going Forward
+## 14. Release Pipeline Going Forward
 
 Once both apps are live, future releases should follow:
 
@@ -421,7 +424,7 @@ Avoid deploying a backend change that requires a new mobile client before the ne
 
 ---
 
-# 15. Monetization — Mobile
+## 15. Monetization — Mobile
 
 If Final Word eventually uses subscriptions:
 
@@ -461,7 +464,7 @@ Do not make the mobile subscription implementation a launch blocker unless monet
 
 ---
 
-# 16. Final Launch Checklist
+## 16. Final Launch Checklist
 
 Before announcing Final Word publicly:
 
@@ -486,7 +489,7 @@ Before announcing Final Word publicly:
 
 ---
 
-# Launch Goal
+## Launch Goal
 
 Final Word should ultimately be available from:
 
