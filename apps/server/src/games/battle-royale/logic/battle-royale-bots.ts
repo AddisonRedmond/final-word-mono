@@ -7,6 +7,7 @@ import type {
 import {
   applyAttack,
   applyCorrectGuessReward,
+  cementedCount,
   determineTarget,
   Max_Attack_Words,
 } from "./battle-royale.js";
@@ -193,15 +194,14 @@ export const runBots = (
           const guessCount = botDisplayData.currentWordGuesses;
           const guessedWord = botServerData.word;
 
-          // Mirror the human path: prefer targets whose attack queue has room,
-          // so a bot doesn't waste attacks on someone who's already maxed out
-          // (the queue-full branch of applyAttack silently drops the word).
+          // Mirror the human path: prefer targets whose CEMENTED queue has
+          // room, so a bot doesn't waste attacks on someone whose cemented
+          // queue is already maxed (surplus is dropped at cement time). Pending
+          // words don't count — they're an escapable buffer (§5.2a).
           const isAttackable = (playerId: string) => {
-            const queueLength =
-              playerServerData[playerId]?.queue.length ??
-              serverOnlyBotdata[playerId]?.queue.length ??
-              0;
-            return queueLength < Max_Attack_Words;
+            const data =
+              playerServerData[playerId] ?? serverOnlyBotdata[playerId];
+            return data ? cementedCount(data) < Max_Attack_Words : true;
           };
 
           const targetId = determineTarget(

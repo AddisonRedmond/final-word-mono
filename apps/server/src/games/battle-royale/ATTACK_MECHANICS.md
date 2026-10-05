@@ -230,6 +230,12 @@ has one structural flaw: **attacks are risk-free, one-way damage, and the only
 reason to pick a target is life standing.** That funnels all fire onto first
 place and gives the leader no counterplay.
 
+> **Build order note:** the first concrete, agreed step is **§5.2a (Cancelable
+> Deep Queue + Solve-Scaled Defense)** — a scoped change that makes attacks
+> survivable without bounce-back, attack power, or new targeting modes. The
+> remaining subsections (§5.1–5.4) describe the fuller vision that §5.2a builds
+> toward but does not yet implement.
+
 Tetris 99 avoids this with two mechanics we are adopting (adapted to Wordle):
 
 1. **A pending attack with a visible timer that the defender can cancel before
@@ -313,6 +319,144 @@ letter leak, because bounce-back is what creates attacker risk.
 - Reuse solve-speed tiers (`currentWordGuesses` → bonus) for offset sizing so it
   stays consistent with life rewards.
 - Bounce = create a pending attack on the attacker via the same path as 5.1.
+
+### 5.2a Cancelable Deep Queue + Solve-Scaled Defense (DECIDED — build this first)
+
+> **Status: this is the agreed, scoped change we are building now.** It is a
+> smaller, concrete step toward §5's goals that deliberately *excludes* bounce/
+> reflect (§5.2), attack power/kills (§5.3), and new targeting modes (§5.4).
+> Those stay deferred. This section supersedes the generic §5.1/§5.2 lifecycle
+> for the current build: there is **no bounce-back** and **landing means
+> *cementing into the normal queue*, not instant activation.**
+
+**Problem being solved:** today an attack is instant, one-way, near-guaranteed
+damage, which makes incoming attacks feel like a death sentence. This change
+gives the defender real, skill-expressed counterplay so attacks are *survivable*
+rather than fatal.
+
+**Honest scope on dog-piling:** this does **not** mechanically stop everyone from
+piling on first place. It *weakens the incentive* — a fast solver (typically the
+leader) wipes their whole pending wave on a quick solve, so attacks rarely cement
+against them, making the leader the least efficient target. That is an
+**emergent** disincentive, not an enforced one. The "first" target button is
+still one click and a coordinated group can still overwhelm the grace window. The
+real anti-pile-on fix (retaliation/`attackers` targeting from §5.4, and/or
+overkill falloff) is **deliberately deferred** to a later round.
+
+#### Two-stage queue: pending → cemented
+
+Every incoming attack word now passes through two states:
+
+- **Pending (uncemented)** — just arrived, sitting under a grace countdown. It
+  can be removed by the defender's play (see solve-scaled clearing). It is **not
+  yet** part of the real solve queue.
+- **Cemented** — the grace timer expired without the defender clearing it. The
+  word is now locked into the normal queue and *will* have to be solved after the
+  defender's current real word, exactly as attack words work today.
+
+A pending word's timer does **not** make it activate or replace the current word.
+Its only effect on expiry is to **cement** the word into the queue cycle.
+
+Lifecycle of an incoming attack word:
+`pending (grace timer running)` → either **cleared by the defender's solve** (gone
+forever) **or** **grace timer reaches 0** → `cemented` → becomes the active word
+after the defender's next real word → solved normally.
+
+#### Batch grace timer (one shared window per defender)
+
+There is a **single shared** grace countdown per defender, not one timer per word:
+
+- Armed when the pending set goes **empty → non-empty** (first attacker "opens the
+  window"), lasting `ATTACK_PENDING_MS`.
+- **Does NOT reset** when additional attacks arrive during the window — later
+  attacks join the *same* wave with the *same* deadline.
+- On expiry, the **entire pending wave cements together**, in arrival order.
+- Once the pending set is empty again (e.g. a full clear), the next incoming
+  attack arms a **fresh** window.
+
+Consequence to be aware of when tuning: later attackers in a wave get less grace
+time, so there is a slight **first-mover advantage** to attacking (the opener's
+word is most likely to cement). This is acceptable/desirable — it rewards
+committing to an attack early.
+
+#### Solve-scaled clearing (pending words only, earliest-first)
+
+When the defender solves their **current real word**, pending words are removed
+based on how fast they solved. Removal always takes the **earliest** pending words
+first (closest to cementing):
+
+| Guesses to solve current word | Pending words removed |
+| ----------------------------- | --------------------- |
+| ≤ 2                           | **all** pending       |
+| 3–4                           | 2 (earliest first)    |
+| ≥ 5                           | 1 (earliest)          |
+
+Clearing affects **pending words only**. Cemented words are immune to
+solve-scaled clearing — once cemented they must be solved. Attacker speed does
+**not** affect the grace timer (the existing letter-reveal already rewards fast
+attackers — see §2.3).
+
+#### Chipping away at cemented words (cemented only)
+
+Two separate mechanics let the defender's ordinary guessing erode the **cemented**
+backlog (they do **not** touch pending words):
+
+- **Index-bleed (positional coincidence):** for each full-match index on the
+  defender's current guess, if a cemented word shares that same letter at that
+  same index, that position is revealed on the cemented word. So by the time the
+  defender reaches a cemented word they may already have hints on it. This is pure
+  positional coincidence (current word `APPLE` guessed with a correct index-0 `A`
+  reveals index-0 of a cemented `ALLOW` only because both are `A` at index 0).
+- **Accidental exact-match:** if a submitted guess exactly equals a cemented word,
+  that cemented word is removed from the queue as a side effect. The guess still
+  resolves against the defender's real current word normally — if it also solved
+  the current word, the normal solve reward applies; the cemented removal is
+  independent.
+
+#### Hard rules
+
+- **No cascade:** solving a queued word never removes *other* queued words. The
+  only removers are solve-scaled clearing (pending) and accidental exact-match
+  (cemented).
+- **Terminal removal:** any cleared/removed word is deleted. It is **never**
+  bounced, reflected, or re-sent as an attack.
+- **No elimination multipliers / attack power** this round (deferred to §5.3).
+
+#### UI surfacing (required for the feel)
+
+The defender must be able to see that recent (pending) words will vanish if they
+solve in time:
+
+- Render **pending** words with the shared countdown and a visually distinct
+  (e.g. ghosted/dashed) style so it's obvious they're escapable.
+- Render **cemented** words solid, as part of the real backlog.
+- Index-bleed reveals should show on cemented word slots as they accumulate.
+
+#### Implementation touch-points (for the build)
+
+- **Data model:** replace the flat `queue: string[]` + lockstep
+  `attackerQueue: string[]` (`PlayerServerData` / `BotServerData` in
+  `packages/types/src/battle-royale.types.ts`) with a structured list whose
+  entries carry `{ word, attackerName, cemented }`, plus a per-defender batch
+  `cementAt?: number`. The struct removes the fragile two-array lockstep.
+- **`applyAttack`** (`logic/battle-royale.ts`): push a **pending** entry and arm
+  the batch `cementAt` if the pending set was empty; do **not** push straight into
+  the solve cycle. Keep the existing letter-reveal behavior (§2.3) unchanged.
+- **Cementing sweep:** in the existing 1s `gameTimer` tick in `handleStartGame`
+  (`logic/battle-royale.ts`), when `now >= cementAt`, flip the whole pending wave
+  to cemented in arrival order and clear `cementAt`. Emit a `lobby:update`.
+- **Solve-scaled clearing + index-bleed + accidental-match:** in
+  `applyCorrectGuessReward` (and the per-guess path) — on a correct solve, remove
+  pending words by the tier table; on every submitted guess, apply index-bleed and
+  accidental-match against **cemented** words.
+- **Bots:** the bot correct-guess path (`logic/battle-royale-bots.ts`) uses the
+  same clearing logic so bot defense mirrors players.
+- **Client:** render pending vs. cemented (`PlayerDisplay` gains the pending/
+  cemented split + batch countdown); the badge data (`currentWordAttackerName`,
+  attacker names) already flows through.
+- **New constant:** `ATTACK_PENDING_MS` in `packages/shared/src/battle-royale.ts`
+  (batch grace window). `Max_Attack_Words` stays as the committed-queue cap but is
+  now a *cemented* cap; revisit the exact value (3 → up to 5) during tuning.
 
 ### 5.3 Attack power from kills + stealing ("badges")
 
