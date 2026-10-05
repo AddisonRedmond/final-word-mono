@@ -7,7 +7,7 @@ import type { Friend } from "../friends/types";
 interface NewDuelProps {
   friends: Friend[];
   isLoading?: boolean;
-  onSendDuel: (invitedFriends: Friend[]) => void;
+  onSendDuel: (invitedFriends: Friend[]) => void | Promise<void>;
 }
 
 const MAX_PLAYERS = 5;
@@ -16,7 +16,31 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [invitedFriends, setInvitedFriends] = useState<Friend[]>([]);
+  // Guards against a double-tap on "Send Duel" creating duplicate duels. The
+  // ref blocks a second click synchronously (before React re-renders with the
+  // disabled state), while the state drives the disabled/spinner UI.
+  const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSend = async () => {
+    if (isSendingRef.current || invitedFriends.length === 0) {
+      return;
+    }
+
+    isSendingRef.current = true;
+    setIsSending(true);
+
+    try {
+      await onSendDuel(invitedFriends);
+    } finally {
+      // The parent closes the modal on success, which unmounts this component;
+      // resetting here keeps the button usable if the send fails and the modal
+      // stays open so the user can retry.
+      isSendingRef.current = false;
+      setIsSending(false);
+    }
+  };
 
   const filteredFriends = friends.filter((friend) => {
     const query = searchQuery.trim().toLowerCase();
@@ -181,12 +205,20 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
         <Button
           type="button"
           variant="solid"
-          onClick={() => onSendDuel(invitedFriends)}
-          disabled={invitedFriends.length === 0}
+          onClick={() => void handleSend()}
+          disabled={invitedFriends.length === 0 || isSending}
+          aria-busy={isSending}
           aria-label="Send duel"
           className="disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Send Duel
+          {isSending ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block size-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Sending…
+            </span>
+          ) : (
+            "Send Duel"
+          )}
         </Button>
       </div>
     </motion.div>

@@ -3,7 +3,11 @@ import Flipper from "./flipper";
 
 const Background = () => {
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div
+      aria-hidden="true"
+      role="presentation"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
       {/* Layer 1: base */}
       <div className="absolute inset-0 z-0 bg-white" />
 

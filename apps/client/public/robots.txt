@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Auth-gated app routes have no crawlable content (they redirect to sign-in),
+# so steer crawlers to the public landing page instead.
+Disallow: /api/
+Disallow: /duels
+Disallow: /friends
+
+Sitemap: https://finalword.app/sitemap.xml

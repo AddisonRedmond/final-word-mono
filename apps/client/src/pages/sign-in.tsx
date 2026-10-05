@@ -1,10 +1,35 @@
 "use client";
 
+import Head from "next/head";
 import GuestPlayButton from "@/components/guest/guest-play-button";
 import Tile from "@/components/tile";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/utils/site";
 import type { NextPage } from "next/types";
+
+const PAGE_TITLE = "Final Word — Multiplayer Word Game | Duels, Battle Royale & Race";
+
+// Short, accurate blurbs for each mode. These double as real on-page content a
+// search crawler can read to understand what the app is (the only reliably
+// crawlable page, since every other route redirects to sign-in).
+const GAME_MODES = [
+  {
+    name: "Duel",
+    blurb:
+      "Challenge a friend to a head-to-head match. Guess the hidden five-letter word in the fewest tries to win — play at your own pace and review every result.",
+  },
+  {
+    name: "Battle Royale",
+    blurb:
+      "Join a live lobby and race the whole field. Keep solving words to survive while others are knocked out, and be the last player standing.",
+  },
+  {
+    name: "Race",
+    blurb:
+      "A fast, round-based sprint. Clear each round's words before the clock runs out and climb the standings against other players in real time.",
+  },
+] as const;
 
 const SignIn: NextPage = () => {
   // Guest play is desktop-only (see the guest section below). Gate on
@@ -23,13 +48,48 @@ const SignIn: NextPage = () => {
   };
 
   return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-8 px-4">
-      {/* The LOGIN tiles are sized for desktop (lg); scale them down on small
-          screens so the 5-tile word never overflows a phone. CSS scale defaults
-          to a center origin, so they shrink in place. */}
-      <div className="scale-[0.68] sm:scale-100">
-        <Tile word={"LOGIN"} revealed={true} variant="correct" size="lg" />
-      </div>
+    <>
+      <Head>
+        <title>{PAGE_TITLE}</title>
+        <meta content={SITE_DESCRIPTION} name="description" />
+        {/* This is the only page a logged-out crawler can actually reach (the
+            root redirects unauthenticated visitors here), so it is its own
+            canonical — pointing canonical at "/" would create a redirect loop
+            for crawlers. */}
+        <link href={`${SITE_URL}/sign-in`} rel="canonical" />
+        <meta content={PAGE_TITLE} property="og:title" />
+        <meta content={SITE_DESCRIPTION} property="og:description" />
+        <meta content="website" property="og:type" />
+        <meta content={`${SITE_URL}/sign-in`} property="og:url" />
+        <meta content={SITE_NAME} property="og:site_name" />
+        <meta content="summary_large_image" name="twitter:card" />
+        <meta content={PAGE_TITLE} name="twitter:title" />
+        <meta content={SITE_DESCRIPTION} name="twitter:description" />
+      </Head>
+
+      <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col items-center justify-center gap-8 px-4 py-12">
+        {/* The LOGIN tiles are sized for desktop (lg); scale them down on small
+            screens so the 5-tile word never overflows a phone. CSS scale
+            defaults to a center origin, so they shrink in place. */}
+        <div className="scale-[0.68] sm:scale-100">
+          <Tile word={"LOGIN"} revealed={true} variant="correct" size="lg" />
+        </div>
+
+        {/* Real, crawlable copy describing the game. The single <h1> and the
+            tagline give search engines (and screen-reader users) a clear,
+            accurate statement of what Final Word is — this is the only page a
+            logged-out crawler can reach. */}
+        <header className="max-w-md text-center">
+          <h1 className="font-bold text-2xl text-stone-800 sm:text-3xl">
+            Final Word — Multiplayer Word Game
+          </h1>
+          <p className="mt-2 text-sm text-stone-600 sm:text-base">
+            Guess the hidden five-letter word before your rivals do. Duel a
+            friend head-to-head, or jump into live Battle Royale and Race modes.
+            Sign in to play.
+          </p>
+        </header>
+
       <div className="flex w-full max-w-xs flex-col gap-3 sm:max-w-sm">
         <button
           type="button"
@@ -99,8 +159,34 @@ const SignIn: NextPage = () => {
             <GuestPlayButton />
           </div>
         )}
-      </div>
-    </div>
+        </div>
+
+        {/* Game-mode descriptions — accurate, indexable content so search
+            engines understand Final Word is a word-guessing game (not the
+            unrelated words from the animated background). */}
+        <section className="w-full max-w-md" aria-labelledby="game-modes-heading">
+          <h2
+            className="text-center font-semibold text-stone-500 text-xs uppercase tracking-widest"
+            id="game-modes-heading"
+          >
+            Ways to play
+          </h2>
+          <ul className="mt-3 flex flex-col gap-3">
+            {GAME_MODES.map((mode) => (
+              <li
+                key={mode.name}
+                className="rounded-lg border border-stone-200 bg-white/80 p-4 text-left shadow-sm backdrop-blur-sm"
+              >
+                <h3 className="font-bold text-sm text-stone-800">
+                  {mode.name}
+                </h3>
+                <p className="mt-1 text-sm text-stone-600">{mode.blurb}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+    </>
   );
 };
 
