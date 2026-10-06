@@ -21,6 +21,7 @@ import type { OpponentWithId } from "../game-components/opponents";
 import MatchTimer from "../game-components/match-timer";
 import BonusPreview from "../game-components/bonus-preview";
 import Winner from "../game-components/winner";
+import ShareCode from "../game-components/share-code";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -31,15 +32,28 @@ type BattleRoyaleProps = {
    * this view un-mounts (R6.5). Optional and additive.
    */
   onJoinError?: (reason: string | undefined) => void;
+  /**
+   * v1 play-with-friends — optional share code entered on the home screen. When
+   * present it is sent with `join` so the player lands in that friend's room.
+   */
+  joinCode?: string;
 };
 
 const GUESS_LENGTH = 5;
 
-const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => {
+const BattleRoyale = ({
+  socketRef,
+  userId,
+  onJoinError,
+  joinCode,
+}: BattleRoyaleProps) => {
   const [lobby, setLobby] = useState<ClientGame>();
   // Feature: anonymous-sign-in — the latest `join:error` reason, reported up to
   // the home screen (below) which shows the single dismissible play-limit notice.
   const [joinError, setJoinError] = useState<string>();
+  // v1 play-with-friends — set when a share-code join fell back to public
+  // matchmaking, so we can tell the player they didn't land with their friend.
+  const [joinNotice, setJoinNotice] = useState<string>();
   const [guess, setGuess] = useState("");
   // `targetMode` is the selection intent ("first"/"last" auto-track the live
   // leader/trailer, "random" picks one opponent, "player" locks a specific
@@ -49,7 +63,13 @@ const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => 
   const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
-  useBattleRoyaleSocket({ socketRef, setLobby, setJoinError });
+  useBattleRoyaleSocket({
+    socketRef,
+    setLobby,
+    setJoinError,
+    joinCode,
+    setJoinNotice,
+  });
 
   // Feature: anonymous-sign-in — forward a join:error reason to the home screen
   // so it can show a persistent guest-limit notice once this view un-mounts.
@@ -215,10 +235,26 @@ const BattleRoyale = ({ socketRef, userId, onJoinError }: BattleRoyaleProps) => 
         )}
 
         {!lobby?.room.isStarted ? (
-          <CountDownTimer
-            expiryTimestamp={lobby?.room?.startTime}
-            timerTitle="Game Starting"
-          />
+          <>
+            <CountDownTimer
+              expiryTimestamp={lobby?.room?.startTime}
+              timerTitle="Game Starting"
+            />
+            {/* v1 play-with-friends — show this room's share code before the
+                match starts so a player can invite friends into the SAME game.
+                A friend enters it via "Join Game" on the home screen. */}
+            {lobby?.room.shareCode && (
+              <ShareCode code={lobby.room.shareCode} />
+            )}
+            {/* Fallback notice: the player tried a friend's code but it was
+                missing/started/full, so they were placed in a fresh game. */}
+            {joinNotice === "room-unavailable" && (
+              <p className="max-w-xs rounded-md bg-amber-100 px-3 py-2 text-center text-[11px] text-amber-700">
+                That game couldn't be joined (it may have already started), so
+                we started a new one for you.
+              </p>
+            )}
+          </>
         ) : (
           !lobby.players[userId]?.isEliminated && (
             <Health expiryTimestamp={lobby?.players[userId]?.life} />

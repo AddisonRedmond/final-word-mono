@@ -7,6 +7,7 @@ import {
   matches as globalMatches,
   serverOnlyBotData as globalServerOnlyBotData,
   serverOnlyData as globalServerOnlyData,
+  shareCodes,
 } from "../state.js";
 import type {
   RaceBotServerData,
@@ -53,6 +54,62 @@ import {
  *
  * _Requirements: 3.1, 3.2, 3.7_
  */
+// Share-code alphabet: no 0/O/1/I/L so a code is unambiguous when read aloud or
+// typed. Formatted XXX-XXX. Mirrors Battle Royale's share-code scheme so both
+// modes read and behave identically.
+const SHARE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const SHARE_CODE_LENGTH = 6;
+
+const randomShareCode = (): string => {
+  let code = "";
+  for (let i = 0; i < SHARE_CODE_LENGTH; i++) {
+    const idx = Math.floor(Math.random() * SHARE_CODE_ALPHABET.length);
+    code += SHARE_CODE_ALPHABET[idx];
+    if (i === 2) {
+      code += "-";
+    }
+  }
+  return code;
+};
+
+/**
+ * Mint a collision-checked share code and register it against `matchId`.
+ * Returns undefined if a unique code couldn't be found after a bounded number
+ * of retries, so a code is never silently reused for two matches.
+ */
+export const generateShareCode = (matchId: string): string | undefined => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = randomShareCode();
+    if (!shareCodes.has(code)) {
+      shareCodes.set(code, matchId);
+      return code;
+    }
+  }
+  logger.warn(
+    { matchId },
+    "Could not generate a unique race share code after retries",
+  );
+  return undefined;
+};
+
+/**
+ * Resolve a user-entered share code to the match it belongs to, or undefined if
+ * the code is unknown or its match is gone. Case-insensitive; trims whitespace.
+ * Returns the live RaceMatch so the caller can check joinability (phase lobby,
+ * has capacity).
+ */
+export const resolveShareCode = (
+  matches: Map<string, RaceMatch>,
+  code: string,
+): RaceMatch | undefined => {
+  const normalized = code.trim().toUpperCase();
+  const matchId = shareCodes.get(normalized);
+  if (!matchId) {
+    return undefined;
+  }
+  return matches.get(matchId);
+};
+
 export const getOrCreateLobby = (
   matches: Map<string, RaceMatch>,
   config: RaceConfig,
@@ -71,6 +128,7 @@ export const getOrCreateLobby = (
   const match: RaceMatch = {
     room: {
       matchId,
+      shareCode: generateShareCode(matchId),
       phase: "lobby",
       createdAt: now,
       lobbyDeadline: now + config.lobbyCountdownMs,
@@ -82,7 +140,7 @@ export const getOrCreateLobby = (
 
   matches.set(matchId, match);
   logger.info(
-    { matchId, lobbyDeadline: match.room.lobbyDeadline },
+    { matchId, shareCode: match.room.shareCode, lobbyDeadline: match.room.lobbyDeadline },
     "Created race lobby",
   );
   return match;
@@ -1192,6 +1250,13 @@ export const cleanupMatch = (
       { matchId, clearedTimers },
       "Cleared race room timers",
     );
+  }
+
+  // Drop this match's share code so it can't resolve to a dead match. Read it
+  // off the room before the match is deleted below.
+  const shareCode = matches.get(matchId)?.room.shareCode;
+  if (shareCode) {
+    shareCodes.delete(shareCode);
   }
 
   matches.delete(matchId);

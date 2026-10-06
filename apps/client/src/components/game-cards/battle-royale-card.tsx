@@ -1,15 +1,19 @@
 import GameCard from "../game-card";
 import BattleRoyaleRules from "../game-components/battle-royale-rules";
+import Key from "./key";
 
 type BattleRoyalCardProps = {
-	handlePlay: () => void;
+	// Optional share code: Play starts a normal public game (no code); the Join
+	// Game panel calls this WITH a code to land in a friend's room.
+	handlePlay: (code?: string) => void;
 };
 
 const PlayButton: React.FC<{ onPlay: () => void }> = ({ onPlay }) => {
 	return (
 		<button
 			className="cursor-pointer flex w-full items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-white text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
-			onClick={onPlay}
+			// Wrap so the click event isn't forwarded as the `code` argument.
+			onClick={() => onPlay()}
 		>
 			<svg
 				className="h-3 w-3"
@@ -39,9 +43,12 @@ const BattleRoyalCard: React.FC<BattleRoyalCardProps> = ({ handlePlay }) => {
 				{ word: "E", variant: "present" },
 			]}
 			title="Battle Royale"
+			rules={({ isOpen, setIsOpen }) => (
+				<BattleRoyaleRules isOpen={isOpen} setIsOpen={setIsOpen} />
+			)}
 		>
 			<PlayButton onPlay={handlePlay} />
-			<BattleRoyaleRules />
+			<Key onJoin={(code) => handlePlay(code)} />
 		</GameCard>
 	);
 };

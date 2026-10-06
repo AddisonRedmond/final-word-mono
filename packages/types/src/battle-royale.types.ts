@@ -131,6 +131,11 @@ export type RoomTimers = {
 
 export type Room = {
   lobbyId: string;
+  // Short, human-friendly code (e.g. "FROG-72") that resolves to this room's
+  // `lobbyId`. Shared with friends so they can join the same public game via
+  // the "Join Game" entry (v1 play-with-friends). The `lobbyId` UUID stays the
+  // canonical id used everywhere internally; this is only the shareable handle.
+  shareCode?: string;
   startTime: number;
   isStarted: boolean;
   createdAt: number;

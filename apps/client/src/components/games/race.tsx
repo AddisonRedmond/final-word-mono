@@ -23,6 +23,11 @@ type RaceProps = {
 	 * this view un-mounts (R6.5). Optional and additive.
 	 */
 	onJoinError?: (reason: string | undefined) => void;
+	/**
+	 * v1 play-with-friends — optional share code entered on the home screen. When
+	 * present it is sent with `join` so the player lands in that friend's lobby.
+	 */
+	joinCode?: string;
 };
 
 /**
@@ -34,7 +39,13 @@ type RaceProps = {
  * independent per-player words, so the root holds and subscribes to NO
  * attack/targeting state — only the lifecycle state the hook exposes.
  */
-const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
+const Race: React.FC<RaceProps> = ({
+	userId,
+	token,
+	onLeave,
+	onJoinError,
+	joinCode,
+}) => {
 	const {
 		match,
 		transition,
@@ -42,9 +53,10 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
 		result,
 		lastAck,
 		joinError,
+		joinNotice,
 		sendGuess,
 		leave,
-	} = useRaceSocket({ token, onLeave });
+	} = useRaceSocket({ token, onLeave, joinCode });
 
 	// Feature: anonymous-sign-in — on a match-start block, report the reason up
 	// and leave the game so Race un-mounts back to the menu, exactly like Battle
@@ -115,7 +127,15 @@ const Race: React.FC<RaceProps> = ({ userId, token, onLeave, onJoinError }) => {
 
 		switch (match.room.phase) {
 			case "lobby":
-				return <LobbyView match={match} onLeave={leave} userId={userId} />;
+				return (
+					<LobbyView
+						joinNotice={joinNotice}
+						match={match}
+						onLeave={leave}
+						shareCode={match.room.shareCode}
+						userId={userId}
+					/>
+				);
 			case "round":
 				return (
 					<RoundBoard

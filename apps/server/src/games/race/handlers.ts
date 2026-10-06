@@ -1,5 +1,5 @@
 import type { Namespace } from "socket.io";
-import type { RacePlayer } from "types/race.types.js";
+import type { RaceMatch, RacePlayer } from "types/race.types.js";
 import logger from "../../utils/logger.js";
 import { GUEST_MODE_LIMIT_REASON } from "../guest-mode-gate.js";
 import { canStartMatch, recordMatchStart } from "./daily-limit.js";
@@ -16,6 +16,7 @@ import {
   findMatchForUser,
   getOrCreateLobby,
   handleFinalRoundWin,
+  resolveShareCode,
   type RoundLifecycleDeps,
   scheduleLobbyStart,
   startMatch,
@@ -383,8 +384,12 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       checkEarlyRoundEnd(match, nsp, config, lifecycleDeps);
     });
 
-    socket.on("join", async () => {
-      logger.info({ socketId: socket.id, userId, name }, "Player joining race");
+    socket.on("join", async (payload?: { code?: string }) => {
+      const joinCode = payload?.code?.trim();
+      logger.info(
+        { socketId: socket.id, userId, name, joinCode: joinCode || undefined },
+        "Player joining race",
+      );
 
       // --- reconnect handling ------------------------------------------------
       // If this user is already tracked in a match, decide between reconnecting
@@ -454,8 +459,37 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         return;
       }
 
-      // --- fresh-lobby placement ---------------------------------------------
-      const match = getOrCreateLobby(matches, config);
+      // --- join-by-code (v1 play-with-friends) -------------------------------
+      // With a share code, try to join THAT specific lobby instead of the
+      // open-lobby scan. It must still be in the `lobby` phase and have a free
+      // slot. On any miss (code unknown, match started, lobby full) fall back to
+      // normal matchmaking so the player still gets into a race, and emit a
+      // one-off `join:notice` so the client can explain the fallback.
+      let match: RaceMatch;
+      let joinedViaCode = false;
+
+      if (joinCode) {
+        const codedMatch = resolveShareCode(matches, joinCode);
+        const joinable =
+          codedMatch &&
+          codedMatch.room.phase === "lobby" &&
+          codedMatch.players.size < config.maxLobbySize;
+
+        if (joinable && codedMatch) {
+          match = codedMatch;
+          joinedViaCode = true;
+        } else {
+          match = getOrCreateLobby(matches, config);
+          socket.emit("join:notice", { reason: "room-unavailable" });
+          logger.info(
+            { userId, joinCode, matchFound: Boolean(codedMatch) },
+            "Race join-by-code fell back to matchmaking: lobby missing/started/full",
+          );
+        }
+      } else {
+        match = getOrCreateLobby(matches, config);
+      }
+
       const matchId = match.room.matchId;
 
       // Ensure the room's server-only record exists (per-player secrets + the
@@ -503,6 +537,27 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         { matchId, userId, playerCount: match.players.size },
         "Player added to race lobby",
       );
+
+      // v1 play-with-friends — a friend joined this lobby via a share code.
+      // Refresh the countdown so their arrival isn't a race against the
+      // original deadline: clear the armed countdown and bump the deadline a
+      // full window out, then let scheduleLobbyStart below re-arm it (its guard
+      // only skips when a countdown is still set, which we've just cleared).
+      // Safe at v1 scale — with ~0 strangers in the lobby, delaying the start
+      // inconveniences nobody. The max-size branch below still starts instantly.
+      if (
+        joinedViaCode &&
+        match.room.phase === "lobby" &&
+        roomServerData.timers.lobbyCountdown
+      ) {
+        clearTimeout(roomServerData.timers.lobbyCountdown);
+        roomServerData.timers.lobbyCountdown = undefined;
+        match.room.lobbyDeadline = Date.now() + config.lobbyCountdownMs;
+        logger.info(
+          { matchId, userId, newDeadline: match.room.lobbyDeadline },
+          "Refreshed race lobby countdown: friend joined via share code",
+        );
+      }
 
       // Start conditions: reaching the max lobby size starts immediately
       // (Req 3.3); otherwise arm the lobby countdown so the match starts when

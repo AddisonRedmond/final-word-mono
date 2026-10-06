@@ -47,6 +47,12 @@ type UseRaceSocketProps = {
 	 * game view (mirrors Battle Royale's disconnect-driven exit).
 	 */
 	onLeave?: () => void;
+	/**
+	 * v1 play-with-friends — optional share code. When present it is sent with
+	 * `join` so the server routes this socket into that specific lobby instead
+	 * of the open-lobby scan. Omitted for a normal public join.
+	 */
+	joinCode?: string;
 };
 
 export type UseRaceSocketResult = {
@@ -69,6 +75,13 @@ export type UseRaceSocketResult = {
 	 * this field a harmless passthrough of whatever reason the server sent.
 	 */
 	joinError: string | undefined;
+	/**
+	 * v1 play-with-friends — the `reason` from the most recent `join:notice`
+	 * (`room-unavailable` when a share-code join fell back to normal
+	 * matchmaking), or undefined when none has occurred. Unlike `joinError`,
+	 * a notice does NOT tear down the socket.
+	 */
+	joinNotice: string | undefined;
 	/** Emit a guess for the player's current word. */
 	sendGuess: (guess: string) => void;
 	/** Leave the current lobby/match. */
@@ -85,6 +98,7 @@ export type UseRaceSocketResult = {
 export const useRaceSocket = ({
 	token,
 	onLeave,
+	joinCode,
 }: UseRaceSocketProps): UseRaceSocketResult => {
 	const socketRef = useRef<Socket | null>(null);
 
@@ -95,6 +109,7 @@ export const useRaceSocket = ({
 	const [lastAck, setLastAck] = useState<GuessAck>();
 	const [isConnected, setIsConnected] = useState(false);
 	const [joinError, setJoinError] = useState<string>();
+	const [joinNotice, setJoinNotice] = useState<string>();
 
 	useEffect(() => {
 		if (!token) {
@@ -114,7 +129,9 @@ export const useRaceSocket = ({
 			// Correct for client/server clock skew so round timers and countdowns
 			// reflect the server's clock before we render them.
 			void useServerClockStore.getState().sync(socket);
-			socket.emit("join");
+			// Send the share code with the join when joining a friend's lobby;
+			// omit it entirely for a normal public join.
+			socket.emit("join", joinCode ? { code: joinCode } : undefined);
 		};
 
 		const handleDisconnect = () => {
@@ -153,6 +170,13 @@ export const useRaceSocket = ({
 			socket.disconnect();
 		};
 
+		const handleJoinNotice = (payload?: { reason?: string }) => {
+			// v1 play-with-friends — a share-code join fell back to normal
+			// matchmaking (lobby missing/started/full). Surface the reason; the
+			// socket stays connected because the player IS in a race.
+			setJoinNotice(payload?.reason);
+		};
+
 		socket.on("connect", handleConnect);
 		socket.on("disconnect", handleDisconnect);
 		socket.on("join:ack", handleJoinAck);
@@ -162,6 +186,7 @@ export const useRaceSocket = ({
 		socket.on("match:result", handleMatchResult);
 		socket.on("guess:ack", handleGuessAck);
 		socket.on("join:error", handleJoinError);
+		socket.on("join:notice", handleJoinNotice);
 
 		return () => {
 			socket.off("connect", handleConnect);
@@ -173,11 +198,12 @@ export const useRaceSocket = ({
 			socket.off("match:result", handleMatchResult);
 			socket.off("guess:ack", handleGuessAck);
 			socket.off("join:error", handleJoinError);
+			socket.off("join:notice", handleJoinNotice);
 			socket.disconnect();
 			socketRef.current = null;
 			useServerClockStore.getState().reset();
 		};
-	}, [token]);
+	}, [token, joinCode]);
 
 	const sendGuess = useCallback((guess: string) => {
 		const socket = socketRef.current;
@@ -211,6 +237,7 @@ export const useRaceSocket = ({
 		lastAck,
 		isConnected,
 		joinError,
+		joinNotice,
 		sendGuess,
 		leave,
 	};

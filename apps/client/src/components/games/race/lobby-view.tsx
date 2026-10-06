@@ -3,6 +3,7 @@ import { RACE_CONFIG } from "@/shared/race";
 import type { ClientRaceMatch } from "@/types/race.types";
 import GuessTiles, { type TileSlot } from "../../game-components/guess-tiles";
 import Keyboard from "../../game-components/keyboard";
+import ShareCode from "../../game-components/share-code";
 import CountDownTimer from "../../game-components/timer";
 
 type LobbyViewProps = {
@@ -12,6 +13,17 @@ type LobbyViewProps = {
 	userId: string;
 	/** Leave the lobby/match. */
 	onLeave: () => void;
+	/**
+	 * v1 play-with-friends — this lobby's share code, shown so the player can
+	 * invite friends into the SAME race. Undefined if the room has no code.
+	 */
+	shareCode?: string;
+	/**
+	 * v1 play-with-friends — set to `room-unavailable` when a share-code join
+	 * fell back to a fresh lobby, so the player is told they didn't land with
+	 * their friend.
+	 */
+	joinNotice?: string;
 };
 
 /**
@@ -26,7 +38,12 @@ type LobbyViewProps = {
  * actually starts. The tiles show the in-progress letters on the shared
  * `GuessTiles` (first round's word length); the keyboard colours nothing yet.
  */
-const LobbyView: React.FC<LobbyViewProps> = ({ match, onLeave }) => {
+const LobbyView: React.FC<LobbyViewProps> = ({
+	match,
+	onLeave,
+	shareCode,
+	joinNotice,
+}) => {
 	// Warm-up input length = the first round's word length (the length players
 	// will actually guess once the match starts).
 	const wordLength = RACE_CONFIG.rounds[0]?.wordLength ?? 5;
@@ -75,6 +92,15 @@ const LobbyView: React.FC<LobbyViewProps> = ({ match, onLeave }) => {
 				expiryTimestamp={match.room.lobbyDeadline}
 				timerTitle="Game Starting"
 			/>
+
+			{/* v1 play-with-friends — invite friends into this same race. */}
+			{shareCode && <ShareCode code={shareCode} />}
+			{joinNotice === "room-unavailable" && (
+				<p className="max-w-xs rounded-md bg-amber-100 px-3 py-2 text-[11px] text-amber-700">
+					That race couldn't be joined (it may have already started), so we
+					started a new one for you.
+				</p>
+			)}
 
 			<div className="rounded-md border border-white/30 bg-white/10 p-2 shadow-lg backdrop-blur-md">
 				<GuessTiles slots={slots} />
