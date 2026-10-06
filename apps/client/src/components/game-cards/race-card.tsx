@@ -1,15 +1,19 @@
 import GameCard from "../game-card";
 import RaceRules from "../game-components/race-rules";
+import Key from "./key";
 
 type RaceCardProps = {
-  handlePlay: () => void;
+  // Optional share code: Play starts a normal public race (no code); the Join
+  // Game panel calls this WITH a code to land in a friend's lobby.
+  handlePlay: (code?: string) => void;
 };
 
 const PlayButton: React.FC<{ onPlay: () => void }> = ({ onPlay }) => {
   return (
     <button
       className="cursor-pointer flex w-full items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-white text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
-      onClick={onPlay}
+      // Wrap so the click event isn't forwarded as the `code` argument.
+      onClick={() => onPlay()}
     >
       <svg
         className="h-3 w-3"
@@ -38,9 +42,12 @@ const RaceCard: React.FC<RaceCardProps> = ({ handlePlay }) => {
         { word: "R", variant: "present" },
       ]}
       title="Elimination Race"
+      rules={({ isOpen, setIsOpen }) => (
+        <RaceRules isOpen={isOpen} setIsOpen={setIsOpen} />
+      )}
     >
       <PlayButton onPlay={handlePlay} />
-      <RaceRules />
+      <Key onJoin={(code) => handlePlay(code)} />
     </GameCard>
   );
 };

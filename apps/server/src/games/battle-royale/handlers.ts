@@ -6,6 +6,8 @@ import {
   findGameForUser,
   checkWord,
   getOrCreateGame,
+  resolveShareCode,
+  Max_Wait_Time,
   getRandomWord,
   handleAddBots,
   applyCorrectGuessReward,
@@ -150,9 +152,13 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       ack?.({ ok: true });
     });
 
-    socket.on("join", async () => {
+    socket.on("join", async (payload?: { code?: string }) => {
       const { userId, name } = socket.data;
-      logger.info({ socketId: socket.id, userId, name }, "Player joining game");
+      const joinCode = payload?.code?.trim();
+      logger.info(
+        { socketId: socket.id, userId, name, joinCode: joinCode || undefined },
+        "Player joining game",
+      );
 
       // reconnect logic:start
       const existingGame = findGameForUser(games, userId);
@@ -226,13 +232,114 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         return;
       }
 
-      const game = getOrCreateGame(games, MAX_PLAYERS);
+      // --- join-by-code (v1 play-with-friends) -------------------------------
+      // When a share code is supplied, try to join THAT specific public room
+      // instead of the first-open-room scan. The room must still exist, not have
+      // started, and have a free slot. If any of those fail (friend arrived too
+      // late, room filled, bad code) we fall back to normal matchmaking so the
+      // player still gets into a game, and emit a one-off `join:notice` so the
+      // client can explain why they didn't land with their friend.
+      let game: Game;
+      let joinedViaCode = false;
+
+      if (joinCode) {
+        const codedGame = resolveShareCode(games, joinCode);
+        const joinable =
+          codedGame &&
+          !codedGame.room.isStarted &&
+          codedGame.players.size < MAX_PLAYERS;
+
+        if (joinable && codedGame) {
+          game = codedGame;
+          joinedViaCode = true;
+        } else {
+          game = getOrCreateGame(games, MAX_PLAYERS);
+          socket.emit("join:notice", { reason: "room-unavailable" });
+          logger.info(
+            { userId, joinCode, roomFound: Boolean(codedGame) },
+            "Join-by-code fell back to matchmaking: coded room missing/started/full",
+          );
+        }
+      } else {
+        game = getOrCreateGame(games, MAX_PLAYERS);
+      }
+
       const roomId = game.room.lobbyId;
 
       logger.info(
-        { roomId, userId, playerCount: game.players.size + 1 },
+        { roomId, userId, playerCount: game.players.size + 1, joinedViaCode },
         "Player added to game",
       );
+
+      // Shared start-timer behavior: fill short lobbies with bots, start the
+      // lobby, and (if bots were added) run them. Named so BOTH the first-join
+      // path (initial 45s timer) and the share-code refresh path (extended
+      // window when a friend joins) arm the exact same callback. Reads the
+      // room's timers/playerData at fire time via serverOnlyData so it stays
+      // correct no matter which path scheduled it.
+      const runStartTimer = () => {
+        const roomData = serverOnlyData.get(roomId);
+        if (!roomData) {
+          return;
+        }
+        const timers = roomData.timers;
+        const totalPlayersJoined = game.players.size;
+
+        if (MAX_PLAYERS > totalPlayersJoined) {
+          const numberOfBotsToAdd = MAX_PLAYERS - totalPlayersJoined;
+
+          const { botsDisplayData, roomBotServerData } =
+            handleAddBots(numberOfBotsToAdd);
+
+          logger.info(
+            {
+              roomId,
+              humansJoined: totalPlayersJoined,
+              botsAdded: numberOfBotsToAdd,
+              maxPlayers: MAX_PLAYERS,
+            },
+            "Added bots to Battle Royale lobby: not enough humans joined to fill the field",
+          );
+
+          serverOnlyBotData.set(roomId, roomBotServerData);
+
+          // Key bots in game.players by their botId (the Map key), NOT their
+          // display name — runBots and the UUID-based bot detection look bots up
+          // by botId (`bot0`...). The display name lives on the value's `name`.
+          botsDisplayData.forEach((bot, botId) => {
+            game.players.set(botId, bot);
+          });
+        }
+
+        const lobbyStarted = handleStartLobbyTimer(
+          game,
+          io,
+          timers,
+          games,
+          serverOnlyData,
+          serverOnlyBotData,
+        );
+
+        if (lobbyStarted) {
+          logger.info(
+            { roomId, playerCount: game.players.size },
+            "Lobby timer started",
+          );
+          const bots = serverOnlyBotData.get(roomId);
+
+          if (bots) {
+            timers.botTicker = runBots(
+              bots,
+              game.players,
+              roomData.playerData,
+              () => {
+                scheduleLobbyUpdate(io, roomId, game);
+              },
+              () => getMatchStartMs(game),
+            );
+          }
+        }
+      };
 
       let roomServerOnlyData = serverOnlyData.get(roomId);
 
@@ -261,65 +368,30 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         const timers = roomServerOnlyData.timers;
 
         const startTimer = setTimeout(
-          () => {
-            const totalPlayersJoined = game.players.size;
-
-            if (MAX_PLAYERS > totalPlayersJoined) {
-              const numberOfBotsToAdd = MAX_PLAYERS - totalPlayersJoined;
-
-              const { botsDisplayData, roomBotServerData } =
-                handleAddBots(numberOfBotsToAdd);
-
-              logger.info(
-                {
-                  roomId,
-                  humansJoined: totalPlayersJoined,
-                  botsAdded: numberOfBotsToAdd,
-                  maxPlayers: MAX_PLAYERS,
-                },
-                "Added bots to Battle Royale lobby: not enough humans joined to fill the field",
-              );
-
-              serverOnlyBotData.set(roomId, roomBotServerData);
-
-              botsDisplayData.forEach((bot) => {
-                game.players.set(bot.name, bot);
-              });
-            }
-
-            const lobbyStarted = handleStartLobbyTimer(
-              game,
-              io,
-              timers,
-              games,
-              serverOnlyData,
-              serverOnlyBotData,
-            );
-
-            if (lobbyStarted) {
-              logger.info(
-                { roomId, playerCount: game.players.size },
-                "Lobby timer started",
-              );
-              const bots = serverOnlyBotData.get(roomId);
-
-              if (bots) {
-                timers.botTicker = runBots(
-                  bots,
-                  game.players,
-                  newRoomServerOnlyData.playerData,
-                  () => {
-                    scheduleLobbyUpdate(io, roomId, game);
-                  },
-                  () => getMatchStartMs(game),
-                );
-              }
-            }
-          },
+          runStartTimer,
           Math.max(game.room.startTime - Date.now(), 0),
         );
 
         timers.startTimer = startTimer;
+      } else if (joinedViaCode && !game.room.isStarted) {
+        // A friend joined an existing, not-yet-started room via a share code.
+        // Push the start window out so their arrival isn't a race against the
+        // original 45s countdown. We rearm the SAME start behavior by clearing
+        // the current timer and scheduling `runStartTimer` (the shared callback
+        // defined above) at a fresh full window. Only the deadline moves. Safe
+        // at v1 scale: with ~0 strangers in the room, delaying the start
+        // inconveniences nobody. The capacity short-circuit below still starts
+        // instantly if the room fills.
+        const timers = roomServerOnlyData.timers;
+        if (timers.startTimer) {
+          clearTimeout(timers.startTimer);
+          game.room.startTime = Date.now() + Max_Wait_Time;
+          timers.startTimer = setTimeout(runStartTimer, Max_Wait_Time);
+          logger.info(
+            { roomId, userId, newStartTime: game.room.startTime },
+            "Refreshed start timer: friend joined via share code",
+          );
+        }
       }
       // end: if there isn't existing roomServerData build it
       roomServerOnlyData.playerData[userId] = {

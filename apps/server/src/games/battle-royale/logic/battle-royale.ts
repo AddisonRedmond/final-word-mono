@@ -25,16 +25,18 @@ import {
 } from "../stats.js";
 import {
   ATTACK_PENDING_MS,
-  ATTACK_WORD_BONUS_MS,
   getGuessBonusMs,
   getPendingClearCount,
   getStartingHintCount,
   MATCH_TIME_LIMIT_MS,
   MAX_CEMENTED_ATTACK_WORDS,
 } from "shared/battle-royale.js";
+import { shareCodes } from "../state.js";
 
 const initialTimer = 1.5 * 60 * 1000;
-const Max_Wait_Time = 45 * 1000; //Seconds
+// Lobby wait before a short room is bot-filled and started. Exported so the
+// join handler can refresh the window when a friend joins via share code.
+export const Max_Wait_Time = 30 * 1000; //Seconds
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
 // §5.2a: cap applies to CEMENTED words only; pending words are an escapable
 // buffer and don't count. Re-exported under the old name so existing callers
@@ -297,6 +299,14 @@ export const cleanupGame = (
   const finishedGame = games.get(roomId);
   if (finishedGame?.room.isFinished) {
     void persistBattleRoyaleStats(finishedGame);
+  }
+
+  // Drop this room's share code so it can't resolve to a dead room (and so the
+  // short code space is reclaimed). The code lives on the room, so read it
+  // before the game is deleted below.
+  const shareCode = games.get(roomId)?.room.shareCode;
+  if (shareCode) {
+    shareCodes.delete(shareCode);
   }
 
   games.delete(roomId);
@@ -659,6 +669,64 @@ export const checkWord = (guess: string, word: string) => {
   };
 };
 
+// Share-code alphabet: no 0/O/1/I/L so a code is unambiguous when read aloud or
+// typed. Format is LLLL-DD style length (e.g. "FROG-72") — short enough to
+// share over chat/voice, large enough to avoid collisions at this scale.
+const SHARE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const SHARE_CODE_LENGTH = 6;
+
+const randomShareCode = (): string => {
+  let code = "";
+  for (let i = 0; i < SHARE_CODE_LENGTH; i++) {
+    const idx = Math.floor(Math.random() * SHARE_CODE_ALPHABET.length);
+    code += SHARE_CODE_ALPHABET[idx];
+    // Group as XXX-XXX for readability.
+    if (i === 2) {
+      code += "-";
+    }
+  }
+  return code;
+};
+
+/**
+ * Mint a share code that isn't already in use, and register it against the
+ * given `lobbyId`. Collision-checked against the live `shareCodes` map; retries
+ * a bounded number of times before giving up (returns undefined), so a code is
+ * never silently reused for two rooms.
+ */
+export const generateShareCode = (lobbyId: string): string | undefined => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = randomShareCode();
+    if (!shareCodes.has(code)) {
+      shareCodes.set(code, lobbyId);
+      return code;
+    }
+  }
+  logger.warn(
+    { lobbyId },
+    "Could not generate a unique share code after retries",
+  );
+  return undefined;
+};
+
+/**
+ * Resolve a user-entered share code to the room it belongs to, or undefined if
+ * the code is unknown or its room is gone. Case-insensitive (codes are stored
+ * uppercase); trims surrounding whitespace. Returns the live Game so the caller
+ * can check joinability (not started, has capacity).
+ */
+export const resolveShareCode = (
+  games: Map<string, Game>,
+  code: string,
+): Game | undefined => {
+  const normalized = code.trim().toUpperCase();
+  const lobbyId = shareCodes.get(normalized);
+  if (!lobbyId) {
+    return undefined;
+  }
+  return games.get(lobbyId);
+};
+
 export const getOrCreateGame = (
   games: Map<string, Game>,
   maxPlayers: number,
@@ -673,6 +741,7 @@ export const getOrCreateGame = (
   const game: Game = {
     room: {
       lobbyId,
+      shareCode: generateShareCode(lobbyId),
       startTime: Date.now() + Max_Wait_Time,
       createdAt: Date.now(),
       isStarted: false,
@@ -684,7 +753,7 @@ export const getOrCreateGame = (
 
   games.set(lobbyId, game);
   logger.info(
-    { roomId: lobbyId, startTime: game.room.startTime },
+    { roomId: lobbyId, shareCode: game.room.shareCode, startTime: game.room.startTime },
     "Created game lobby",
   );
   return game;

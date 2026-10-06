@@ -70,6 +70,15 @@ export const serverOnlyData = new Map<string, RaceRoomServerData>();
 export const serverOnlyBotData: RaceServerBotData = new Map();
 
 /**
+ * Maps a short, human-friendly share code to the `matchId` of the lobby it
+ * belongs to (v1 play-with-friends). A friend who enters a code is resolved
+ * through this map to the specific lobby, bypassing the open-lobby scan.
+ * Entries are added when a lobby is created and removed in `cleanupMatch`, so a
+ * code never outlives its match. Mirrors Battle Royale's `shareCodes`.
+ */
+export const shareCodes = new Map<string, string>();
+
+/**
  * Validated Race config loaded at module init. `RACE_CONFIG` is parsed by its
  * Zod schema in `shared/race.js`, so an invalid default throws on import
  * rather than shipping a broken config (Req 2.6). Re-exported here as the

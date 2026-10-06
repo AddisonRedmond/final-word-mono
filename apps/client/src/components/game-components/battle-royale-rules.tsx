@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useState } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useState } from "react";
 import Modal from "@/components/modal";
 import Tile from "@/components/tile";
 
@@ -238,48 +238,23 @@ const BattleRoyaleRulesContent: React.FC = () => {
 	);
 };
 
-const RulesButton: React.FC<{ onOpen: () => void }> = ({ onOpen }) => (
-	<button
-		className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-gray-200 py-2 font-semibold text-[11px] text-gray-500 uppercase tracking-widest transition-all hover:bg-gray-100 active:scale-95"
-		onClick={(event) => {
-			// Prevent the surrounding clickable game card from also firing.
-			event.stopPropagation();
-			onOpen();
-		}}
-		type="button"
-	>
-		<svg
-			aria-hidden="true"
-			className="h-3.5 w-3.5"
-			fill="currentColor"
-			viewBox="0 0 24 24"
-			xmlns="http://www.w3.org/2000/svg"
-		>
-			<path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />
-		</svg>
-		How to play
-	</button>
-);
-
 /**
- * "How to play" button that opens a modal explaining the Battle Royale rules
- * through a small carousel. Drop it inside a GameCard alongside the play button.
+ * "How to play" modal explaining the Battle Royale rules through a small
+ * carousel. Controlled by the surrounding GameCard, which owns the open state
+ * and renders the Info trigger in the card header.
  */
-const BattleRoyaleRules: React.FC = () => {
-	const [isOpen, setIsOpen] = useState(false);
-
+const BattleRoyaleRules: React.FC<{
+	isOpen: boolean;
+	setIsOpen: Dispatch<SetStateAction<boolean>>;
+}> = ({ isOpen, setIsOpen }) => {
 	return (
-		<>
-			<RulesButton onOpen={() => setIsOpen(true)} />
-
-			<AnimatePresence>
-				{isOpen && (
-					<Modal className="max-w-2xl sm:p-8" onClose={() => setIsOpen(false)}>
-						<BattleRoyaleRulesContent />
-					</Modal>
-				)}
-			</AnimatePresence>
-		</>
+		<AnimatePresence>
+			{isOpen && (
+				<Modal className="max-w-2xl sm:p-8" onClose={() => setIsOpen(false)}>
+					<BattleRoyaleRulesContent />
+				</Modal>
+			)}
+		</AnimatePresence>
 	);
 };
 

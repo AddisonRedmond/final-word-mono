@@ -42,6 +42,11 @@ export type RacePlayer = {
 
 export type RaceRoom = {
   matchId: string;
+  // Short, human-friendly code (e.g. "FROG-72") that resolves to this match's
+  // `matchId`. Shared with friends so they can join the same public race via
+  // the "Join Game" entry (v1 play-with-friends). The `matchId` UUID stays the
+  // canonical id used everywhere internally; this is only the shareable handle.
+  shareCode?: string;
   phase: RacePhase;
   createdAt: number;
   lobbyDeadline: number; // countdown-to-start (Req 3.4, 10.1)

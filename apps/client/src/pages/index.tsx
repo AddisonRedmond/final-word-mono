@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import HeadToHeadCard from "@/components/duel-card";
 import BattleRoyalCard from "@/components/game-cards/battle-royale-card";
+import { KeyGroupProvider } from "@/components/game-cards/key";
 import RaceCard from "@/components/game-cards/race-card";
 import BattleRoyale from "@/components/games/battle-royale";
 import Race from "@/components/games/race";
@@ -13,8 +14,8 @@ import Navbar from "@/components/navigation/navbar";
 import PlayLimitNotice from "@/components/play-limit-notice";
 import Tile from "@/components/tile";
 import { env } from "@/env";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { useIsGuest } from "@/hooks/useIsGuest";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useAuthStore } from "@/state/auth-store";
 import { useGameSessionStore } from "@/state/game-session-store";
@@ -25,6 +26,15 @@ import { createClient } from "@/utils/supabase/client";
 export default function Home() {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [isPlayingRace, setIsPlayingRace] = useState(false);
+	// v1 play-with-friends — the share code entered via a card's "Join Game"
+	// panel, passed to <BattleRoyale> so it joins that friend's room. Undefined
+	// for a normal public play.
+	const [joinCode, setJoinCode] = useState<string | undefined>(undefined);
+	// v1 play-with-friends — the Race equivalent of `joinCode`, passed to
+	// <Race> so it joins that friend's lobby on the /race namespace.
+	const [raceJoinCode, setRaceJoinCode] = useState<string | undefined>(
+		undefined,
+	);
 	const [raceToken, setRaceToken] = useState<string | undefined>(undefined);
 	// The latest realtime `join:error` reason bubbled up from a game, used to show
 	// a persistent play-limit notice on the menu (guest one-game-per-mode today;
@@ -88,13 +98,16 @@ export default function Home() {
 		return () => setRealtimeGameActive(false);
 	}, [isPlaying, isPlayingRace, setRealtimeGameActive]);
 
-	const handlePlay = async () => {
+	const handlePlay = async (code?: string) => {
 		// Realtime modes are desktop-only; never start one from a small screen.
 		if (!isDesktop) {
 			return;
 		}
 		// Clear any stale play-limit notice when starting a fresh attempt.
 		setPlayLimitReason(undefined);
+		// v1 play-with-friends — remember the share code (if any) so the mounted
+		// game joins that friend's room; a normal Play clears it.
+		setJoinCode(code);
 		const supabase = createClient();
 		const {
 			data: { session },
@@ -158,13 +171,16 @@ export default function Home() {
 		};
 	};
 
-	const handlePlayRace = async () => {
+	const handlePlayRace = async (code?: string) => {
 		// Realtime modes are desktop-only; never start one from a small screen.
 		if (!isDesktop) {
 			return;
 		}
 		// Clear any stale play-limit notice when starting a fresh attempt.
 		setPlayLimitReason(undefined);
+		// v1 play-with-friends — remember the share code (if any) so the mounted
+		// Race joins that friend's lobby; a normal Play clears it.
+		setRaceJoinCode(code);
 		const supabase = createClient();
 		const {
 			data: { session },
@@ -255,12 +271,14 @@ export default function Home() {
 						    below the desktop breakpoint and the play handlers no-op). */}
 						{isPlaying && user?.id ? (
 							<BattleRoyale
+								joinCode={joinCode}
 								onJoinError={handleGameJoinError}
 								socketRef={socketRef}
 								userId={user.id}
 							/>
 						) : isPlayingRace && user?.id && raceToken ? (
 							<Race
+								joinCode={raceJoinCode}
 								onJoinError={handleGameJoinError}
 								onLeave={handleRaceLeave}
 								token={raceToken}
@@ -281,34 +299,38 @@ export default function Home() {
 										onDismiss={() => setPlayLimitReason(undefined)}
 										reason={playLimitReason}
 									/>
-									<div className="flex w-full flex-col items-center gap-5 sm:flex-row sm:flex-wrap sm:justify-center">
-										{/* Guest gating (R7.3): duels entry hidden for guests; the
+									{/* KeyGroupProvider coordinates the cards' Join Game panels so
+									    only one is open at a time (opening one closes the rest). */}
+									<KeyGroupProvider>
+										<div className="flex w-full flex-col items-center gap-5 sm:flex-row sm:flex-wrap sm:justify-center">
+											{/* Guest gating (R7.3): duels entry hidden for guests; the
 										    realtime game cards stay (R7.5, the single exception).
 										    Responsiveness (Feature 2a): the duel card is available
 										    on every screen size; the realtime cards render only on
 										    desktop. */}
-										{!isGuest && <HeadToHeadCard />}
-										{/* Only decide desktop-vs-mobile once hydrated so the
+											{!isGuest && <HeadToHeadCard />}
+											{/* Only decide desktop-vs-mobile once hydrated so the
 										    server markup (desktop) doesn't flash a realtime card
 										    onto a phone. */}
-										{hydrated &&
-											(isDesktop ? (
-												<>
-													<BattleRoyalCard handlePlay={handlePlay} />
-													<RaceCard handlePlay={handlePlayRace} />
-												</>
-											) : (
-												<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm">
-													<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
-														Desktop only
-													</p>
-													<p className="mt-1 text-sm text-stone-600">
-														Battle Royale and Race need a larger screen. Open
-														Final Word on a desktop to play the live modes.
-													</p>
-												</div>
-											))}
-									</div>
+											{hydrated &&
+												(isDesktop ? (
+													<>
+														<BattleRoyalCard handlePlay={handlePlay} />
+														<RaceCard handlePlay={handlePlayRace} />
+													</>
+												) : (
+													<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm">
+														<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
+															Desktop only
+														</p>
+														<p className="mt-1 text-sm text-stone-600">
+															Battle Royale and Race need a larger screen. Open
+															Final Word on a desktop to play the live modes.
+														</p>
+													</div>
+												))}
+										</div>
+									</KeyGroupProvider>
 								</div>
 							)
 						)}
