@@ -12,31 +12,64 @@
 --
 -- OWNERSHIP: table STRUCTURE (profiles, race_stats, battle_royale_stats, and the
 -- auth.users rows this touches) is owned elsewhere — Drizzle for the public
--- tables, Supabase for auth. This migration tracks ONLY the pg_cron job and the
--- cleanup function it calls.
+-- tables, Supabase for auth. This migration tracks the cleanup relationship
+-- required for anonymous account deletion and the pg_cron job/function it calls.
 --
 -- CASCADE, NOT EXPLICIT STATS DELETE (R8.5/R8.6): deleting an auth.users row
--- cascades through profiles -> race_stats / battle_royale_stats via the existing
-  -- `onDelete: cascade` foreign keys, so this job removes guest stats automatically
-  -- and contains NO separate stats-deletion statement.
+-- cascades through profiles -> race_stats / battle_royale_stats via foreign keys.
+-- The profiles.id -> auth.users.id relationship is also configured with
+-- ON DELETE CASCADE here, so deleting an auth.users row automatically removes
+-- the matching profile and all dependent guest stats.
 --
 -- ATOMICITY / OBSERVABILITY (R8.7): the DELETE is a single atomic statement, so a
--- failing run leaves every guest row and its cascaded stats unchanged, and pg_cron
--- records the run (including failures) in cron.job_run_details.
+-- failing run leaves every guest row and its cascaded profiles/stats unchanged,
+-- and pg_cron records the run (including failures) in cron.job_run_details.
 --
 -- IDEMPOTENT: safe to run more than once — the extension and function use
--- create-if-not-exists / create-or-replace, and the schedule is torn down and
--- recreated below.
+-- create-if-not-exists / create-or-replace, the foreign key is created only when
+-- it does not already exist, and the schedule is torn down and recreated below.
 
 create extension if not exists pg_cron;
+
+-- ---------------------------------------------------------------------------
+-- Profile -> auth.users cascade
+-- ---------------------------------------------------------------------------
+-- profiles.id matches auth.users.id. There are currently no orphaned profiles,
+-- so the foreign key can be safely added.
+--
+-- ON DELETE CASCADE means deleting an auth.users row automatically deletes its
+-- matching profiles row. Existing profile -> race_stats / battle_royale_stats
+-- cascade relationships then remove the dependent guest stats.
+
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.table_constraints
+    where constraint_schema = 'public'
+      and table_name = 'profiles'
+      and constraint_name = 'profiles_id_fkey'
+      and constraint_type = 'FOREIGN KEY'
+  ) then
+    alter table public.profiles
+      add constraint profiles_id_fkey
+      foreign key (id)
+      references auth.users(id)
+      on delete cascade;
+  end if;
+end
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Cleanup function
 -- ---------------------------------------------------------------------------
 -- Deletes anonymous auth.users older than 24h. ONLY is_anonymous = true is ever
 -- touched; false/null rows are never selected (R8.1/R8.2). Age is computed as
--- now() - created_at (R8.1). No stats DELETE here — the FK cascade handles it
--- (R8.5/R8.6).
+-- now() - created_at (R8.1).
+--
+-- No profiles or stats DELETE statements are needed. The FK cascade handles the
+-- complete cleanup automatically (R8.5/R8.6).
+
 create or replace function public.cleanup_anonymous_accounts()
 returns void
 language sql
@@ -54,11 +87,14 @@ $$;
 -- Unschedule any prior copy first so re-running this migration does not create a
 -- duplicate job, then (re)schedule to run every 24 hours (R8.3). The unschedule
 -- is guarded on the job existing so the first install does not error.
+
 do $$
 begin
   perform cron.unschedule('cleanup_anonymous_accounts')
   where exists (
-    select 1 from cron.job where jobname = 'cleanup_anonymous_accounts'
+    select 1
+    from cron.job
+    where jobname = 'cleanup_anonymous_accounts'
   );
 end
 $$;
@@ -67,6 +103,7 @@ $$;
 -- exact 24h-from-install cadence is preferred over a fixed wall-clock time, swap
 -- this cron expression for an interval-based schedule; the delete predicate is
 -- unchanged.
+
 select cron.schedule(
   'cleanup_anonymous_accounts',
   '0 0 * * *',
