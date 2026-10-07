@@ -22,4 +22,4 @@ export * from "./schema.js";
 // Re-export common Drizzle query helpers so consumers (server, client) can use
 // them without taking a direct dependency on drizzle-orm — the db package is
 // the single surface for all database concerns.
-export { and, eq, sql, desc, asc, inArray } from "drizzle-orm";
+export { and, eq, sql, desc, asc, inArray, gte } from "drizzle-orm";

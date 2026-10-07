@@ -4,6 +4,17 @@ import type { RevealedLetters } from "@/types/battle-royale.types";
 export const GAP = 8;
 export const GUESS_LENGTH = 5;
 
+/**
+ * Upper bound on an opponent card's width. The layout sizes cards to fill the
+ * available column space, which is good when the field is full (shrinks cards
+ * to fit many opponents) but balloons each card when only a few opponents
+ * remain — making them larger than the player's own board. Clamping the
+ * computed width here keeps cards a sensible size with a small field (extra
+ * space becomes whitespace) while still allowing them to shrink below the cap
+ * when the field is large. Roughly matches Race's fixed `w-28` card feel.
+ */
+export const MAX_OPPONENT_WIDTH = 150;
+
 // Tile sizes scale with card width
 export const HOPPER_TILE_RATIO = 0.11;
 export const HOPPER_FONT_RATIO = 0.7;

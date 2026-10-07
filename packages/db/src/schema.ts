@@ -253,6 +253,39 @@ export const profiles = pgTable("profiles", {
   premiumUntil: timestamp("premium_until", { withTimezone: true }),
 });
 
+/**
+ * Per-user, per-day realtime-game usage counter — the backing store for the
+ * free-tier realtime play limit (free accounts: 3 realtime games per UTC day,
+ * SHARED across Battle Royale and Race; premium: unlimited).
+ *
+ * Keyed by (userId, day) where `day` is a UTC calendar date string
+ * ("YYYY-MM-DD", see {@link utcDayKey}). One row per user per UTC day; `count`
+ * is incremented when a realtime match starts. The limit therefore resets at
+ * UTC midnight simply because a new day gets a fresh (absent) row — there is no
+ * sweep/reset job. Old rows are harmless and can be pruned later if desired.
+ *
+ * This exists because the aggregate `*_stats.gamesPlayed` counters are LIFETIME
+ * totals that never reset, so they cannot express a per-day limit. The usage
+ * row is independent of stats: it counts starts for gating, not outcomes.
+ */
+export const realtimeGameUsage = pgTable(
+  "realtime_game_usage",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    // UTC calendar day, "YYYY-MM-DD". A plain text key (not a date column) so
+    // the composite PK is trivial and the server computes it with utcDayKey().
+    day: text("day").notNull(),
+    // Realtime matches this user started on this UTC day, across all modes.
+    count: integer("count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day] })],
+);
+
 export type BattleRoyaleStats = typeof battleRoyaleStats.$inferSelect;
 export type NewBattleRoyaleStats = typeof battleRoyaleStats.$inferInsert;
 
@@ -272,3 +305,73 @@ export type Friendship = typeof friendships.$inferSelect;
 export type NewFriendship = typeof friendships.$inferInsert;
 
 export type Profile = typeof profiles.$inferSelect;
+
+export type RealtimeGameUsage = typeof realtimeGameUsage.$inferSelect;
+export type NewRealtimeGameUsage = typeof realtimeGameUsage.$inferInsert;
+
+/*
+ * PREMIUM ENTITLEMENT + FREE/PREMIUM TIER LIMITS
+ * ----------------------------------------------
+ * Single source of truth, shared by apps/client (billing router, UI) and
+ * apps/server (realtime match-start gate). Kept in the db package because it's
+ * the one dependency both apps already share, so the "what counts as premium"
+ * rule and the per-tier limits can never drift between client and server.
+ */
+
+/**
+ * Polar subscription statuses that currently grant premium access. `trialing`
+ * counts so active trials are treated as premium.
+ */
+export const PREMIUM_ACTIVE_STATUSES = new Set(["active", "trialing"]);
+
+/**
+ * Pure predicate: is a user premium right now, given the raw Polar status and
+ * entitlement end recorded on their `profiles` row?
+ *
+ * Premium iff the latest status is an entitling one AND (if an end date is
+ * known) it hasn't passed — belt-and-suspenders against a missed "revoked"
+ * webhook. `now` is injectable for testing; defaults to the current time.
+ */
+export const isPremiumEntitlement = (
+  status: string | null | undefined,
+  premiumUntil: Date | null | undefined,
+  now: Date = new Date(),
+): boolean => {
+  if (status == null || !PREMIUM_ACTIVE_STATUSES.has(status)) {
+    return false;
+  }
+  return !premiumUntil || premiumUntil.getTime() > now.getTime();
+};
+
+/**
+ * Free vs premium tier limits. The one place these numbers live.
+ *   - duelInvitees: additional players a user can invite to a duel (NOT
+ *     counting themselves). Free 2 (3 total incl. self); premium 4 (5 total).
+ *   - activeDuels: concurrent in-progress duels. Free 2; premium 5.
+ *   - realtimeGamesPerDay: realtime matches per UTC day, shared across modes.
+ *     Free 3; premium `null` = unlimited.
+ */
+export const TIER_LIMITS = {
+  free: {
+    duelInvitees: 2,
+    activeDuels: 2,
+    realtimeGamesPerDay: 3 as number | null,
+  },
+  premium: {
+    duelInvitees: 4,
+    activeDuels: 5,
+    realtimeGamesPerDay: null as number | null,
+  },
+} as const;
+
+/** Limits for a given tier, selected by the derived premium flag. */
+export const tierLimits = (isPremium: boolean) =>
+  isPremium ? TIER_LIMITS.premium : TIER_LIMITS.free;
+
+/**
+ * The UTC calendar-day key ("YYYY-MM-DD") used to bucket realtime usage. Shared
+ * so the server's counter writes and any reads agree on the day boundary (UTC
+ * midnight). `now` is injectable for testing.
+ */
+export const utcDayKey = (now: Date = new Date()): string =>
+  now.toISOString().slice(0, 10);

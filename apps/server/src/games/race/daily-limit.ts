@@ -21,79 +21,52 @@
  * (Req 11.3).
  */
 
-import { db, eq, raceStats } from "db";
+import { raceStats } from "db";
 
 import { guestModeGate } from "../guest-mode-gate.js";
-import logger from "../../utils/logger.js";
+import {
+  canStartRealtimeGame,
+  recordRealtimeGameStart,
+} from "../realtime-daily-limit.js";
 
 /**
- * Optional registered-user daily cap, read from the `DAILY_GAME_LIMIT` env var.
- * Unset or non-positive => dormant (registered users are never gated), which
- * preserves the beta behavior. Set to a positive integer (e.g. 3) to enforce a
- * per-user cap on realtime games.
+ * Returns whether the player may start a Race match.
  *
- * NOTE: enforcement currently counts the lifetime `gamesPlayed` aggregate, not a
- * rolling 24h window — enough to exercise/trigger the `daily-limit` client
- * notice. Swapping in true 24h-windowed counting is a change to this one spot.
- */
-const registeredDailyLimit = (): number | null => {
-  const raw = Number(process.env.DAILY_GAME_LIMIT);
-  return Number.isInteger(raw) && raw > 0 ? raw : null;
-};
-
-/**
- * Returns whether the player may start a match against their daily usage.
+ * Guests (`isAnonymous`) delegate to the shared one-game-per-mode gate
+ * (`guestModeGate` against this mode's `raceStats` row, R6.1, R6.2) — unchanged.
  *
- * Dormant beta implementation: always permits (Req 11.2).
+ * Registered users are gated by the shared free-tier realtime limit
+ * (`canStartRealtimeGame`): free accounts get a fixed number of realtime games
+ * per UTC day SHARED across Race and Battle Royale; premium is unlimited. This
+ * replaces the old dormant lifetime-`gamesPlayed` stub (which could not express
+ * a per-day limit). A block maps to the `daily-limit` `join:error` reason in
+ * the join handler.
  *
- * Future enforcing implementation: return `false` only when the
- * Daily_Game_Counter is available and the player has reached the daily limit
- * (Req 11.3); fail open (return `true`) on any counter-backend error.
- *
- * Guest (anonymous) players additionally pass through the shared one-game-per-
- * mode gate (R6.1, R6.2): the decision delegates to `guestModeGate` against
- * this mode's `raceStats` row. Registered users are never gated (R6.8) and
- * short-circuit to `true` without reading any stats — preserving the dormant
- * beta behavior.
+ * NOTE: this seam is consulted at TWO points for Race (see `handlers.ts`): once
+ * at join with the real `isAnonymous` (the gate), and once per real player at
+ * match start pinned to `isAnonymous = false`. The match-start consultation is
+ * post-admission, so the authoritative block is the join-time one; recording
+ * (not re-blocking) is what matters at start, via `recordMatchStart`.
  */
 export const canStartMatch = async (
   userId: string,
   isAnonymous: boolean, // from socket.data.isAnonymous via the join handler
 ): Promise<boolean> => {
-  // Registered users: gated only when DAILY_GAME_LIMIT is set (otherwise the
-  // dormant beta behavior, Req 11.2, R6.8 — permit without reading stats).
-  if (!isAnonymous) {
-    const limit = registeredDailyLimit();
-    if (limit === null) return true;
-    try {
-      const rows = await db
-        .select({ gamesPlayed: raceStats.gamesPlayed })
-        .from(raceStats)
-        .where(eq(raceStats.userId, userId))
-        .limit(1);
-      const played = rows[0]?.gamesPlayed ?? 0;
-      // Block once the user has reached the configured limit.
-      return played < limit;
-    } catch (error) {
-      // Fail open: a stats outage must never block play (Req 11.3 policy).
-      logger.error(
-        { userId, err: error instanceof Error ? error.message : error },
-        "race daily-limit stats read failed; failing open (ALLOW)",
-      );
-      return true;
-    }
-  }
   // Guests: one game per mode, derived from this mode's stats row (R6.1, R6.2).
-  return guestModeGate(userId, raceStats);
+  if (isAnonymous) {
+    return guestModeGate(userId, raceStats);
+  }
+
+  // Registered users: free 3/UTC-day shared across modes, premium unlimited.
+  return canStartRealtimeGame(userId);
 };
 
 /**
- * Records a match start against the player's daily usage.
- *
- * Dormant beta implementation: no-op (Req 11.1).
- *
- * Future enforcing implementation: increment the Daily_Game_Counter for the
- * player; swallow/log backend errors rather than throwing so a counter outage
- * never breaks the game loop.
+ * Records a Race match start against the shared realtime daily counter. Called
+ * once per real player when a match actually starts (via `startMatch`'s seam).
+ * No-op for premium; swallows errors so a counter outage never breaks the game
+ * loop.
  */
-export const recordMatchStart = async (_userId: string): Promise<void> => {}; // Req 11.1
+export const recordMatchStart = async (userId: string): Promise<void> => {
+  await recordRealtimeGameStart(userId);
+};

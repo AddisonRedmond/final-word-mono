@@ -48,8 +48,8 @@ export const LIMIT_NOTICES: Record<string, LimitNotice> = {
 	},
 	[DAILY_LIMIT_REASON]: {
 		title: "Daily game limit reached",
-		body: "You've played all your realtime games for today. Check back tomorrow when your limit resets.",
-		// No CTA: the user already has an account and the limit is time-based.
+		body: "Free accounts get 3 realtime games per day, shared across Battle Royale and Race. Your limit resets at midnight UTC — or go premium for unlimited play.",
+		cta: { label: "Go premium", href: "/api/polar/checkout" },
 	},
 };
 

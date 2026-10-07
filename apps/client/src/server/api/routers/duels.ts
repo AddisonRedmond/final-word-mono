@@ -2,7 +2,16 @@ import { TRPCError } from "@trpc/server";
 import { and, arrayContains, eq, exists, inArray, not, or } from "drizzle-orm";
 import { z } from "zod";
 
-import { duelParticipants, duelSecrets, duels, friendships } from "@/db/schema";
+import {
+	duelParticipants,
+	duelSecrets,
+	duels,
+	friendships,
+	isPremiumEntitlement,
+	profiles,
+	TIER_LIMITS,
+	tierLimits,
+} from "@/db/schema";
 import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
 import {
 	determineDuelWinner,
@@ -13,8 +22,11 @@ import {
 } from "@/utils/duel";
 import { buildDuelResponse } from "@/utils/duel-response";
 
-const MAX_ACTIVE_DUELS = 5;
-const MAX_INVITEES = 4;
+// The Zod input ceiling for invitees is the PREMIUM cap; the per-request limit
+// a user is actually held to (free vs premium) is enforced at runtime in
+// `sendDuel` against their entitlement. Free users who send more than their cap
+// get a clear error rather than a silent truncation.
+const MAX_INVITEES_CEILING = TIER_LIMITS.premium.duelInvitees;
 
 export const duelsRouter = createTRPCRouter({
 	/*
@@ -69,7 +81,7 @@ export const duelsRouter = createTRPCRouter({
 	 * Create a new duel.
 	 */
 	sendDuel: guestProtectedProcedure
-		.input(z.array(z.string().uuid()).min(1).max(MAX_INVITEES))
+		.input(z.array(z.string().uuid()).min(1).max(MAX_INVITEES_CEILING))
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
 
@@ -77,6 +89,37 @@ export const duelsRouter = createTRPCRouter({
 				throw new TRPCError({
 					code: "BAD_REQUEST",
 					message: "Invitees must be unique users other than yourself.",
+				});
+			}
+
+			// Premium gating: free accounts can invite fewer players and hold fewer
+			// concurrent duels than premium. Read the caller's entitlement from
+			// their profile (same rule as `billing.status`) and pick their tier's
+			// limits. A read is cheap and keeps the gate authoritative server-side.
+			const [profile] = await ctx.db
+				.select({
+					premiumStatus: profiles.premiumStatus,
+					premiumUntil: profiles.premiumUntil,
+				})
+				.from(profiles)
+				.where(eq(profiles.id, userId))
+				.limit(1);
+
+			const isPremium = isPremiumEntitlement(
+				profile?.premiumStatus,
+				profile?.premiumUntil,
+			);
+			const limits = tierLimits(isPremium);
+
+			// Invitee cap (free 2 / premium 4). The Zod schema already caps at the
+			// premium ceiling; this holds a free user to their lower cap and tells
+			// them premium raises it.
+			if (input.length > limits.duelInvitees) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: isPremium
+						? `You can invite up to ${limits.duelInvitees} players to a duel.`
+						: `Free accounts can invite up to ${limits.duelInvitees} players. Upgrade to premium to invite up to ${TIER_LIMITS.premium.duelInvitees}.`,
 				});
 			}
 
@@ -88,10 +131,13 @@ export const duelsRouter = createTRPCRouter({
 					and(eq(duelParticipants.userId, userId), eq(duels.completed, false)),
 				);
 
-			if (activeDuels.length >= MAX_ACTIVE_DUELS) {
+			// Active (ongoing) duel cap (free 2 / premium 5).
+			if (activeDuels.length >= limits.activeDuels) {
 				throw new TRPCError({
 					code: "BAD_REQUEST",
-					message: `You can only have ${MAX_ACTIVE_DUELS} active duels at a time.`,
+					message: isPremium
+						? `You can only have ${limits.activeDuels} active duels at a time.`
+						: `Free accounts can have ${limits.activeDuels} active duels at a time. Upgrade to premium for up to ${TIER_LIMITS.premium.activeDuels}.`,
 				});
 			}
 

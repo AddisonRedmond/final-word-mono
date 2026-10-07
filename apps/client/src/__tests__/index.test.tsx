@@ -86,6 +86,13 @@ vi.mock("@/components/navigation/navbar", () => ({
 	default: () => <nav data-testid="navbar" />,
 }));
 
+// The realtime-games-remaining indicator issues a tRPC query (billing.realtimeUsage)
+// which needs the tRPC/react-query provider this gating test doesn't mount. It's
+// unrelated to the card gating under test, so stub it to an inert marker.
+vi.mock("@/components/realtime-games-remaining", () => ({
+	default: () => <div data-testid="realtime-games-remaining" />,
+}));
+
 import Home from "../pages/index";
 
 afterEach(() => {

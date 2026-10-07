@@ -28,6 +28,7 @@ vi.mock("db", () => ({
 
 vi.mock("./daily-limit.js", () => ({
   canStartMatch: vi.fn(async () => true),
+  recordMatchStart: vi.fn(async () => undefined),
 }));
 
 const { registerBattleRoyaleHandlers } = await import("./handlers.js");

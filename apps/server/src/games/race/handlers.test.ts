@@ -35,6 +35,15 @@ vi.mock("db", () => {
   };
 });
 
+// The registered-user branch of the join-time match-start gate now routes into
+// the shared realtime daily limit (free 3/UTC-day, premium unlimited). These
+// reconnect/leave/disconnect tests are not about that limit, so stub it to
+// always permit — isolating the connection-handler behaviour under test.
+vi.mock("./daily-limit.js", () => ({
+  canStartMatch: vi.fn(async () => true),
+  recordMatchStart: vi.fn(async () => undefined),
+}));
+
 // Import AFTER the mock is registered. The handlers read the module globals
 // (`matches`, `serverOnlyData`, `serverOnlyBotData`, `config`) from state.js,
 // so we import those same references to set up and tear down scenarios.

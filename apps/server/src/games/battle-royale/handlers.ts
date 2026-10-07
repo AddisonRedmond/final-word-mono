@@ -25,7 +25,7 @@ import { runBots } from "./logic/battle-royale-bots.js";
 import { persistLeaverAsLoss } from "./stats.js";
 import logger from "../../utils/logger.js";
 import { GUEST_MODE_LIMIT_REASON } from "../guest-mode-gate.js";
-import { canStartMatch } from "./daily-limit.js";
+import { canStartMatch, recordMatchStart } from "./daily-limit.js";
 import {
   MAX_PLAYERS,
   games,
@@ -40,6 +40,21 @@ import { getGuessContext, hasUnrevealedOccurrence } from "./guess.js";
 // handler to decide whether any real human remains in the room.
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Count a started Battle Royale match against the shared realtime daily limit —
+ * once per REAL player (bots are keyed `bot0`/`bot1`/… and excluded by the UUID
+ * check, mirroring stats.ts). Mirrors Race, which records per real player in
+ * `startMatch`. `recordMatchStart` is a no-op for premium and swallows its own
+ * errors, so this is fire-and-forget and never blocks or breaks match start.
+ */
+const recordRealPlayerStarts = (game: Game): void => {
+  for (const playerId of game.players.keys()) {
+    if (UUID_RE.test(playerId)) {
+      void recordMatchStart(playerId);
+    }
+  }
+};
 
 /**
  * Wires up all battle-royale socket event handlers on the shared Socket.IO
@@ -321,6 +336,9 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         );
 
         if (lobbyStarted) {
+          // Count this started match against the shared realtime daily limit,
+          // once per real player (bots excluded).
+          recordRealPlayerStarts(game);
           logger.info(
             { roomId, playerCount: game.players.size },
             "Lobby timer started",
@@ -415,6 +433,9 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
           serverOnlyData,
           serverOnlyBotData,
         );
+        // Count this started match against the shared realtime daily limit, once
+        // per real player (bots excluded).
+        recordRealPlayerStarts(game);
         logger.info(
           { roomId, playerCount: game.players.size },
           "Game started at player capacity",

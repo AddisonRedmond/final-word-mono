@@ -45,10 +45,17 @@ const Navbar = () => {
   }, []);
 
   // Close the mobile menu on navigation so it never lingers over a new page.
+  // Guard `router.events` — it's always present with a real Next router, but a
+  // defensive check keeps the component robust (and testable without a full
+  // router harness).
   useEffect(() => {
+    const events = router.events;
+    if (!events) {
+      return;
+    }
     const handleRouteChange = () => setMobileMenuOpen(false);
-    router.events.on("routeChangeComplete", handleRouteChange);
-    return () => router.events.off("routeChangeComplete", handleRouteChange);
+    events.on("routeChangeComplete", handleRouteChange);
+    return () => events.off("routeChangeComplete", handleRouteChange);
   }, [router.events]);
 
   const handleSignOut = async () => {
@@ -72,7 +79,7 @@ const Navbar = () => {
     : "?";
 
   return (
-    <div className="w-full h-14 p-4 flex justify-between items-center">
+    <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-10 bg-white/50">
       {/* Logo */}
       <div className="flex gap-x-1">
         <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
@@ -142,6 +149,17 @@ const Navbar = () => {
 
                 {/* Actions */}
                 <div className="py-1">
+                  {/* Profile / manage subscription. Hidden for guests (billing
+                      and profile management are registered-only). */}
+                  {!isGuest && (
+                    <Link
+                      href="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="block w-full px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                    >
+                      Profile
+                    </Link>
+                  )}
                   <button
                     type="button"
                     disabled={isSigningOut}
@@ -228,6 +246,24 @@ const Navbar = () => {
                       F
                     </span>
                     Friends
+                  </Link>
+                )}
+
+                {/* Profile / manage subscription. Hidden for guests. */}
+                {!isGuest && (
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                      router.pathname === "/profile"
+                        ? "text-green-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                      P
+                    </span>
+                    Profile
                   </Link>
                 )}
               </div>

@@ -94,6 +94,16 @@ vi.mock("db", () => {
   };
 });
 
+// The registered-user branch of `canStartMatch` now routes into the shared
+// realtime daily limit (free 3/UTC-day, premium unlimited). This test is about
+// the GUEST one-game-per-mode gate, so stub the realtime limit to always permit
+// — isolating the guest gate (and keeping the "registered users are never
+// blocked by a prior leaver-loss" assertion a pure guest-gate check).
+vi.mock("./realtime-daily-limit.js", () => ({
+  canStartRealtimeGame: vi.fn(async () => true),
+  recordRealtimeGameStart: vi.fn(async () => undefined),
+}));
+
 // Import AFTER the mock is registered.
 const { persistLeaverAsLoss } = await import("./race/stats.js");
 const { canStartMatch } = await import("./race/daily-limit.js");

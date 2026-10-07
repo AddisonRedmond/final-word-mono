@@ -1,21 +1,24 @@
 import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Feature: anonymous-sign-in, Property 12: Registered users bypass the gate without reading stats
+// Feature: anonymous-sign-in / premium-tiers — Registered users do NOT read
+// Mode_Stats; they delegate to the shared realtime daily limit.
 //
-// For any Mode_Stats state, a non-anonymous (registered) user is permitted to
-// start a match AND the Daily_Limit_Seam performs no Mode_Stats read for that
-// user. The seam short-circuits to `true` before ever touching the stats table
-// (R6.8); only guests (`isAnonymous === true`) delegate to `guestModeGate`,
-// which reads the mode's stats row.
+// Behaviour change (premium tiers): registered users are no longer
+// unconditionally permitted. The per-mode seam now routes a registered user to
+// the SHARED realtime daily limit (`realtime-daily-limit.ts`: free 3/UTC-day
+// across modes, premium unlimited) — it does NOT consult the mode's own stats
+// row. Only guests (`isAnonymous === true`) delegate to `guestModeGate`, which
+// reads the mode's stats row.
+//
+// So the invariant this test guards is now: for a registered user, the per-mode
+// seam performs NO Mode_Stats read (`db.select` is never called) and the
+// decision is whatever the realtime limit returns. We mock the realtime limit
+// to isolate the per-mode seam. The guest control case is unchanged: it still
+// reads Mode_Stats via `guestModeGate`.
 //
 // We exercise BOTH mode seams -- `race/daily-limit.ts` and
-// `battle-royale/daily-limit.ts` -- since each independently owns the registered-
-// user short-circuit. The `db` module is mocked (as guest-mode-gate.test.ts does)
-// and `db.select` is a spy: for a registered user we assert it is NEVER called;
-// for a guest we assert it IS called, proving the spy actually observes reads.
-//
-// Validates: Requirements 6.8
+// `battle-royale/daily-limit.ts` -- since each independently owns this routing.
 
 // The rows the next mocked stats read will resolve to. Only the guest path
 // (control case) ever reaches a read; registered runs must never consult this.
@@ -51,6 +54,17 @@ vi.mock("db", () => {
   };
 });
 
+// Stub the shared realtime daily limit so the registered-user path is isolated
+// from the mode seam: we control its decision and assert the per-mode seam
+// never reads Mode_Stats for a registered user. `canStartRealtimeGame` returns
+// a toggle so we can prove the registered decision tracks the realtime limit.
+let realtimeAllow = true;
+const canStartRealtimeGameSpy = vi.fn(async () => realtimeAllow);
+vi.mock("./realtime-daily-limit.js", () => ({
+  canStartRealtimeGame: (userId: string) => canStartRealtimeGameSpy(),
+  recordRealtimeGameStart: vi.fn(async () => undefined),
+}));
+
 // Import AFTER the mock is registered.
 const raceSeam = await import("./race/daily-limit.js");
 const brSeam = await import("./battle-royale/daily-limit.js");
@@ -65,33 +79,41 @@ const seams: Array<{
   { name: "battle-royale", canStartMatch: brSeam.canStartMatch },
 ];
 
-describe("Daily-limit seam registered-user bypass (Property 12)", () => {
+describe("Daily-limit seam registered-user routing", () => {
   beforeEach(() => {
     nextRows = [];
+    realtimeAllow = true;
     selectSpy.mockClear();
+    canStartRealtimeGameSpy.mockClear();
   });
 
-  it("permits a registered user and reads no Mode_Stats, for any stats state (both modes)", async () => {
+  it("routes a registered user to the realtime limit and reads no Mode_Stats, for any stats state (both modes)", async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uuid(),
         fc.constantFrom(...seams),
-        // Any stats state the gate COULD have read: absent (null), or a present
-        // row with an arbitrary gamesPlayed (including values that would BLOCK a
-        // guest). A registered user must be permitted regardless and must never
-        // trigger the read, so this state is irrelevant to the outcome.
+        // Any Mode_Stats state the per-mode seam COULD have read. A registered
+        // user must never trigger that read (the realtime limit reads profiles /
+        // realtime_game_usage instead), so this state is irrelevant.
         fc.option(fc.integer({ min: -1_000, max: 1_000_000 }), { nil: null }),
-        async (userId, seam, maybeGamesPlayed) => {
+        // The realtime limit's decision, which the registered path must return.
+        fc.boolean(),
+        async (userId, seam, maybeGamesPlayed, limitAllow) => {
           nextRows =
             maybeGamesPlayed === null
               ? []
               : [{ gamesPlayed: maybeGamesPlayed }];
+          realtimeAllow = limitAllow;
+          canStartRealtimeGameSpy.mockClear();
+          selectSpy.mockClear();
 
           const allowed = await seam.canStartMatch(userId, false);
 
-          // Registered users are always permitted (R6.8)...
-          expect(allowed).toBe(true);
-          // ...and the gate performed no Mode_Stats read.
+          // The registered decision is exactly what the realtime limit returned,
+          // which the seam consulted exactly once...
+          expect(allowed).toBe(limitAllow);
+          expect(canStartRealtimeGameSpy).toHaveBeenCalledTimes(1);
+          // ...and the per-mode seam performed no Mode_Stats read.
           expect(selectSpy).not.toHaveBeenCalled();
         },
       ),
