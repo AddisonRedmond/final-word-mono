@@ -1,0 +1,124 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "2.1 Add scoring + mode-stats unit tests first (TDD)": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477580936
+      }
+    ],
+    "2.2 Implement the shared `upsertModeStats` helper": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581054
+      }
+    ],
+    "2.3 Dual-write Battle Royale + Race onto `player_mode_stats`": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581212
+      }
+    ],
+    "2.4 Add the duel completion writer": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581326
+      }
+    ],
+    "2.5 Pipeline tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581411
+      }
+    ],
+    "3.1 Implement season ranking + archival": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581495
+      }
+    ],
+    "3.2 Archival tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581594
+      }
+    ],
+    "4.1 `stats` router": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581692
+      }
+    ],
+    "4.2 `leaderboard` router": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581775
+      }
+    ],
+    "4.3 `duels.rematchDuel` mutation": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581923
+      }
+    ],
+    "4.4 `duels.headToHead` + `duels.history`": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582027
+      }
+    ],
+    "4.5 Router tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582114
+      }
+    ],
+    "5.1 `/stats` page": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582202
+      }
+    ],
+    "5.2 `/leaderboard` page": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582300
+      }
+    ],
+    "5.3 Duel result view: Rematch + head-to-head": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582395
+      }
+    ],
+    "5.4 Navbar links": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582510
+      }
+    ],
+    "5.5 Page/UI tests + final verification": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582620
+      }
+    ]
+  }
+}

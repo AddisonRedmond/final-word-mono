@@ -66,6 +66,7 @@ export const duelsRouter = createTRPCRouter({
 				completed: duels.completed,
 				winner: duels.winner,
 				participants: duels.participants,
+				rematchOfDuelId: duels.rematchOfDuelId,
 			})
 			.from(duels)
 			.where(
@@ -595,6 +596,7 @@ export const duelsRouter = createTRPCRouter({
 				completed: duels.completed,
 				winner: duels.winner,
 				participants: duels.participants,
+				rematchOfDuelId: duels.rematchOfDuelId,
 			})
 			.from(duels)
 			.where(

@@ -57,6 +57,13 @@
       "when": 1791309008221,
       "tag": "0007_serious_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791476946184,
+      "tag": "0008_powerful_onslaught",
+      "breakpoints": true
     }
   ]
 }

@@ -89,6 +89,51 @@ export const seasonKey = (now: Date = new Date()): string =>
 
 /** A stats scope value is either lifetime or a season key. */
 export type StatsScope = typeof LIFETIME_SCOPE | string; // "lifetime" | "YYYY-MM"
+
+/**
+ * Apex-style scoring config — the single source of truth for how a realtime
+ * match awards points (R2A.5). Tunable without a migration: change these
+ * numbers, redeploy. `duel` and `classic` are intentionally NOT scored here.
+ */
+export const SCORING_CONFIG = {
+  // placementPoints by finishing-tier. Evaluated best-tier-first; a player gets
+  // the points of the best tier their placement satisfies.
+  placementTiers: [
+    { maxPlacement: 1, points: 10 },
+    { maxPlacement: 3, points: 6 },
+    { maxPlacement: 5, points: 4 },
+    { maxPlacement: 10, points: 2 },
+  ] as const,
+  // Flat bonus added only when placement === 1.
+  winBonus: 12,
+  // combatPoints = min(correctGuesses * combatPointsPerGuess, combatPointsCap).
+  combatPointsPerGuess: 1,
+  combatPointsCap: 15,
+} as const;
+
+/** Modes that participate in the Phase 1 points leaderboard (duel excluded). */
+export const SCORED_MODES = ["battle_royale", "race"] as const;
+export type ScoredMode = (typeof SCORED_MODES)[number];
+
+/**
+ * Pure Match_Points function (R2A.1–R2A.4, R2A.9). `combatInput` is the
+ * swappable combat proxy — Phase 1 passes `correctGuesses`; a future real
+ * eliminations count drops in here with NO other change (R2A.4).
+ */
+export const matchPoints = (
+  placement: number,
+  combatInput: number,
+  config = SCORING_CONFIG,
+): number => {
+  const tier = config.placementTiers.find((t) => placement <= t.maxPlacement);
+  const placementPoints = tier?.points ?? 0;
+  const winBonus = placement === 1 ? config.winBonus : 0;
+  const combatPoints = Math.min(
+    Math.max(0, combatInput) * config.combatPointsPerGuess,
+    config.combatPointsCap,
+  );
+  return placementPoints + winBonus + combatPoints;
+};
 ```
 
 ### 1.1 `player_mode_stats` — unified lifetime + seasonal aggregates (NEW, D2)
@@ -137,6 +182,16 @@ export const playerModeStats = pgTable(
     totalSolveMs: integer("total_solve_ms").notNull().default(0), // sum, for avg
     fastestSolveMs: integer("fastest_solve_ms"), // min, null until first solve
 
+    // --- Season_Points (R2A.6). SEASONAL ONLY: these are meaningful only on
+    //     rows where scope is a season key, and only for SCORED_MODES
+    //     (battle_royale/race). On lifetime rows and on duel rows they stay 0 —
+    //     there is deliberately NO lifetime points total. The leaderboard sorts
+    //     a season's rows by seasonPoints DESC. ---
+    seasonPoints: integer("season_points").notNull().default(0),
+    // Best single-match points this scope (personal best, R2A.7). 0 until first
+    // scored match. Also only populated on seasonal scored rows.
+    bestMatchPoints: integer("best_match_points").notNull().default(0),
+
     lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -168,6 +223,14 @@ Design notes on `player_mode_stats`:
   values in the `onConflictDoUpdate` SET.
 - **Streak SQL** reuses the proven `case when ... then +1 else 0` /
   `greatest(...)` pattern from the current stats upsert.
+- **Points are seasonal-only, kept on the same table (not a separate one).**
+  `seasonPoints`/`bestMatchPoints` are populated only on seasonal rows of
+  SCORED_MODES; they stay 0 on lifetime rows and on `duel` rows (R2A.6, R2A.8).
+  Keeping them as columns here (rather than a `season_points` table) means the
+  leaderboard is a single indexed scan of `(mode, scope)` ordered by
+  `seasonPoints` — no join — and the pipeline writes points in the SAME upsert
+  that bumps the seasonal counters. The tradeoff (two always-zero columns on
+  lifetime/duel rows) is cheap and keeps one stats table instead of two.
 
 ### 1.2 `duel_results` — per-participant duel fact table (NEW, D4)
 
@@ -354,6 +417,8 @@ erDiagram
       int solveCount
       int totalSolveMs
       int fastestSolveMs "nullable"
+      int seasonPoints "seasonal+scored only"
+      int bestMatchPoints "seasonal+scored only"
     }
     duel_results {
       uuid duel_id PK
@@ -395,6 +460,20 @@ The SET clause reuses the proven recurrences from `battle-royale/stats.ts`:
 - solve timing: `solveCount +1`, `totalSolveMs + ms`,
   `fastestSolveMs = least(coalesce(fastest, ms), ms)` — only when timed.
 
+**Points (seasonal + scored modes only, R2A).** The caller computes
+`pts = matchPoints(placement, correctGuesses)` ONCE per completed match (pure
+function from Section 1.0), then:
+
+- On the **lifetime** upsert: points are NOT written (seasonal-only, R2A.6).
+- On the **seasonal** upsert, when `mode ∈ SCORED_MODES`:
+  - `seasonPoints = seasonPoints + pts`
+  - `bestMatchPoints = greatest(bestMatchPoints, pts)`
+- For `duel` (and any non-scored mode) both stay 0.
+
+Because `matchPoints` is pure and the proxy is a single argument, swapping
+`correctGuesses` for a real eliminations count later is a one-line change at the
+call site — the upsert, columns, and leaderboard are untouched (R2A.4, R2A.9).
+
 ### 2.2 Migrating existing writers
 
 - `apps/server` Battle Royale (`battle-royale/stats.ts`) and Race (`race/stats.ts`)
@@ -420,9 +499,10 @@ existing transaction that sets `completed = true`.
 ### 2.4 Season archival
 
 A `seasonKey`-driven routine computes ranks for a just-ended season from
-`player_mode_stats` (WHERE `scope = season`) and upserts `season_placements`.
-Invoked by a scheduled task or lazily when a past season is first requested
-(R4.6). Idempotent and reproducible (R4.5).
+`player_mode_stats` (WHERE `scope = season` AND `mode ∈ SCORED_MODES`), ordered
+by the ranking metric above, and upserts `season_placements` with
+`rankingValue = seasonPoints`. Invoked by a scheduled task or lazily when a past
+season is first requested (R4.6). Idempotent and reproducible (R4.5).
 
 ---
 
@@ -437,12 +517,15 @@ existing `guestProtectedProcedure` pattern.
 - `myPlacements` → `season_placements` for the current user (placement history).
 
 ### 3.2 `leaderboard` router
-- `board({ mode, season? })` → ranked page from `player_mode_stats`
-  (current season / lifetime) or `season_placements` (archived), with the
-  caller's own rank surfaced (R3.4). Ranking metric + tiebreakers per mode:
-  - **duel**: wins DESC, then win rate DESC, then avg solve ASC.
-  - **battle_royale / race**: wins DESC, then avg placement ASC, then games DESC.
-  - Tiebreakers are deterministic (final tiebreak on `userId`).
+- `board({ mode, season? })` → ranked page from `player_mode_stats` (current
+  season) or `season_placements` (archived), with the caller's own rank
+  surfaced (R3.4). Phase 1 leaderboards are **seasonal and scored-mode only**:
+  - **battle_royale / race**: `seasonPoints` DESC, then `wins` DESC, then
+    `averagePlacement` ASC, then `gamesPlayed` DESC, final tiebreak `userId`.
+    `rankingValue` stored in `season_placements` on archival = `seasonPoints`.
+  - **duel**: excluded from the Phase 1 points leaderboard (R2A.8). Duel
+    competitive ranking is a later phase; `duel` H2H/history still ship (R6).
+  - All tiebreakers are deterministic so ranks are stable and reproducible.
 
 ### 3.3 `duels` router additions
 - `rematchDuel(sourceDuelId)` → validates completion + participation, re-runs the
@@ -478,8 +561,13 @@ existing `guestProtectedProcedure` pattern.
   DB already holding `battle_royale_stats`/`race_stats` data (additive check).
 - **Pipeline**: property tests mirroring the existing `stats-eligibility` /
   `persisted-stats` tests — eligibility is `isRealPlayer` alone; the lifetime
-  and seasonal rows written for one game are consistent; duel completion writes
-  exactly one `duel_results` row per finisher (idempotent).
+  and seasonal rows written for one game are consistent; points are added to the
+  seasonal scored row only (lifetime + duel rows keep points at 0); duel
+  completion writes exactly one `duel_results` row per finisher (idempotent).
+- **Scoring**: unit/property tests for `matchPoints` — monotonic in better
+  placement, win bonus applies iff placement 1, combat capped, non-negative,
+  pure (same inputs → same output); swapping the combat input source doesn't
+  change the formula's shape.
 - **Routers**: unit tests for ranking determinism + tiebreakers, H2H aggregation
   (incl. draws and multi-player duels), and rematch eligibility rejection paths.
 - **Pages**: render/loading/empty states; premium gating doesn't break free
@@ -495,7 +583,15 @@ existing `guestProtectedProcedure` pattern.
    later — lowest risk.)
 2. **Qualifying threshold** for leaderboard inclusion (R3.6) — minimum games in a
    season/mode to appear (e.g. ≥1 vs ≥5)? Affects early-season sparsity.
-3. **Duel ranking metric** — is "wins, then win rate, then avg solve" the right
-   competitive signal, or should solo solve speed matter more?
+3. ~~Duel ranking metric~~ — **Resolved:** duel is excluded from the Phase 1
+   points leaderboard; scored modes are battle_royale/race only (R2A.8).
 4. **Classic timing** — confirm Classic is future-only (no write path now); the
    schema already accepts it with no change (D1).
+
+**Resolved during review:**
+- Combat proxy = `correctGuesses` for now, swappable to real eliminations later
+  via the single `combatInput` arg of `matchPoints` (no schema change).
+- Scoring weights = defaults in `SCORING_CONFIG` (win +12; placement 10/6/4/2;
+  +1/correct guess capped at 15), all configurable without a migration.
+- Points are **seasonal-only** — no lifetime points total; lifetime stats stay
+  as-is.

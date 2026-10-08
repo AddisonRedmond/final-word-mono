@@ -55,8 +55,16 @@ and is the hardest thing to change after the fact.
 - **Placement**: A player's rank within a season's leaderboard (1 = best).
 - **Leaderboard**: An ordered ranking of players by a mode's ranking metric,
   for the current season (default) or a past archived season.
-- **Ranking_Metric**: The value a leaderboard sorts by for a mode (see design;
-  e.g. wins, then win-rate, then average solve, with explicit tiebreakers).
+- **Ranking_Metric**: The value a leaderboard sorts by for a mode (see design).
+  For realtime modes (`battle_royale`, `race`) this is **Season_Points** with
+  explicit tiebreakers. `duel` is excluded from the points system in Phase 1.
+- **Match_Points**: The Apex-style points a single completed realtime match
+  awards one player = placement points + win bonus + combat points. Combat
+  points are derived from `correctGuesses` in Phase 1 (a swappable proxy for a
+  future real "eliminations" stat). All weights/thresholds are configurable.
+- **Season_Points**: A player's running sum of Match_Points for one mode within
+  one season. **Points are a seasonal-only concept** — there is no lifetime
+  points total; lifetime stats remain plain counters/streaks/averages.
 - **Duel_Result**: The recorded outcome of one completed duel for stats and
   head-to-head purposes (winner, per-participant success/guesses/time).
 - **Rematch**: A new duel created from a completed duel, reusing the same set of
@@ -129,6 +137,40 @@ improving so that I have a reason to keep playing.
 8. THE `/stats` page SHALL be read-only and SHALL NOT expose any other player's
    private data beyond what the leaderboard already shows publicly.
 
+### Requirement 2A: Match Scoring (Apex-style Points)
+
+**User Story:** As a competitive player, I want matches to award points for
+placing well, winning, and performing well — not just a binary win — so that
+every game meaningfully moves my season ranking.
+
+#### Acceptance Criteria
+
+1. WHEN a realtime match (`battle_royale` or `race`) completes for a real
+   player, THE Stats_Pipeline SHALL compute that player's Match_Points as
+   `placementPoints + winBonus + combatPoints`.
+2. THE `placementPoints` SHALL be awarded by finishing-placement tier using a
+   **configurable** tier table (default: 1st = 10, top 3 = 6, top 5 = 4, top
+   10 = 2, otherwise 0).
+3. THE `winBonus` SHALL be a **configurable** flat bonus added only when the
+   player's placement is 1 (default: 12).
+4. THE `combatPoints` SHALL be derived from the player's `correctGuesses` for
+   the match at a **configurable** per-guess rate (default: 1 point each),
+   capped at a **configurable** per-match maximum (default: 15). Phase 1 uses
+   `correctGuesses` as a swappable proxy; a future real "eliminations" stat
+   SHALL be substitutable by changing one function, WITHOUT a schema change.
+5. THE scoring weights/thresholds (tier table, win bonus, per-guess rate, cap)
+   SHALL live as a single shared, configurable constant in `packages/db` so
+   client and server cannot drift and retuning needs no migration.
+6. THE Stats_Pipeline SHALL add the computed Match_Points to the player's
+   **Season_Points** for the current season and mode ONLY. There SHALL be NO
+   lifetime points total; lifetime stats remain unchanged counters/averages.
+7. THE system SHALL retain the player's best single-match points for a season
+   as a displayable personal-best stat.
+8. THE `duel` mode SHALL NOT participate in the Phase 1 points system; duel
+   scoring is handled separately in a later phase.
+9. Match_Points computation SHALL be a pure, independently testable function of
+   `(placement, correctGuesses, config)`.
+
 ### Requirement 3: Global Leaderboard
 
 **User Story:** As a competitive player, I want a global leaderboard so that I
@@ -137,8 +179,10 @@ have something to climb and a reason to return.
 #### Acceptance Criteria
 
 1. THE application SHALL provide a `/leaderboard` page reachable from the navbar.
-2. THE `/leaderboard` SHALL rank players for a selected mode by that mode's
-   Ranking_Metric with deterministic tiebreakers (design-defined), 1 = best.
+2. THE `/leaderboard` SHALL rank players for a selected realtime mode
+   (`battle_royale`, `race`) by **Season_Points** DESC with deterministic
+   tiebreakers (design-defined), 1 = best. THE `duel` mode SHALL be excluded
+   from the Phase 1 points leaderboard.
 3. THE `/leaderboard` SHALL default to the **current season** and SHALL allow
    selecting a **past archived season**.
 4. THE `/leaderboard` SHALL be paginated or capped to a top-N with the current
