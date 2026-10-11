@@ -117,6 +117,37 @@ New RN app in the monorepo for native phone/tablet distribution, reusing shared 
 
 ---
 
+## Feature 5 — Observability & paging (logs → monitors → on-call)
+
+**Problem:** The app already emits structured, server-side logs (pino, one JSON line per event, `service:` tag, stable dot-namespaced `event` field — see `apps/client/src/server/logger.ts`), and the payment path deliberately logs its "silent black hole" failure modes. But **nothing turns those logs into an alert.** Several of the most dangerous failures are invisible by design — they return 200/4xx to the caller and never surface as a user complaint — so without paging, a misconfigured webhook secret or an unmatched paying customer can go unnoticed for days. This is the gap flagged in the pre-launch security/payments review.
+
+**Goal:** Ship logs from BOTH apps to a queryable pipeline, define monitors keyed on the `event` field, and route them to an on-call channel with severity tiers — so money- and security-impacting failures page a human, while fail-open/by-design events stay on a dashboard.
+
+**Severity tiers (map to the actual emitted events):**
+
+- **P1 — page immediately (money / security, silent by design):**
+  - `polar.webhook.signature_invalid` — webhook secret wrong/rotated; EVERY premium grant is silently failing (Polar does not retry 4xx). The single highest-value alert.
+  - `polar.webhook.user_unmatched` — a subscription event couldn't be mapped to a user; a paying customer may never get premium.
+  - `polar.webhook.profile_not_found` — resolved a user id that matched no profile row; premium not applied.
+  - `polar.webhook.handler_error` (sustained) — handler throwing; retries failing too.
+  - `billing.reconcile.polar_error` — the webhook's safety-net reconciliation is also broken.
+- **P2 — notify (Slack/email), review within hours:**
+  - A *spike* in `polar.webhook.handler_error`, or in the game server's premium/usage DB-read failures (currently logged as free-text: "isPremiumUser read failed…", "getRealtimeUsage read failed…"). Transient blips are expected; a sustained spike means an outage degrading the paywall.
+- **P3 — dashboard only, no page:**
+  - Fail-OPEN-by-design events (guest-gate / daily-limit read failures, stats write swallow). Worst case is a free extra game; chart them, don't page.
+
+**Rough approach:**
+- Pick a low-cost pipeline with built-in alerting (Better Stack / Axiom free tier to start; Datadog is the documented upgrade path — the logger already sets a `service:` facet for it). Point BOTH apps' stdout at it.
+- Create the ~4 P1 monitors on the `event` values above, routed to a channel that reaches a phone (PagerDuty/Opsgenie, or Better Stack on-call for a solo operator). Alert on `event`, never on the free-text message (the message can change; the event name is the contract — this convention is already documented in `logger.ts`).
+- **Absence/heartbeat alert:** error-paging can't catch total silence (Polar can't reach the endpoint at all — DNS, deploy, 500 loop). Add a "no `polar.webhook.applied` in N hours during active hours" absence alert, or an uptime check hitting the webhook URL. This is the one failure mode error-logs cannot surface.
+- **Ship the game server's logs (`apps/server`, on Hetzner).** Unlike a managed platform, a bare box won't auto-collect stdout — needs a log shipper (the pipeline's agent, or configure pino's output to its ingest endpoint). Otherwise realtime-side errors (premium read failures, game crashes) never reach a monitor.
+
+**Prerequisite cleanup (small, in-repo):** `apps/server`'s pino call sites log **free-text messages**, not the structured `{ event: "…" }` convention `apps/client` uses — so server-side failures can't be alerted on cleanly by event name. Normalize the server logger to the same `event`-keyed shape (e.g. `games.premium.read_failed`, `games.realtime_usage.read_failed`) before wiring monitors, so both apps share one alertable contract.
+
+**Open questions:** which pipeline/pager (cost vs features at current volume); exact P1 escalation policy (how long before escalate, quiet hours vs money-critical always-on); what "sustained" means per event (rate threshold + window); whether to add light APM / event-loop-lag + RSS sampling here too (overlaps with Feature 4's "measure first").
+
+---
+
 ## Cross-cutting — Beta messaging
 
 **What:** A persistent chyron/crawl fixed to the bottom of the app indicating the product is in beta, currently unlimited and free, with a premium tier planned. Serves as expectation-setting during the pre-premium period.
@@ -134,5 +165,7 @@ New RN app in the monorepo for native phone/tablet distribution, reusing shared 
 3. **Feature 1 — Polar Subscriptions** last. Introduces the daily usage counter and enforcement, activates Feature 3's daily-limit interaction, and retires/updates the beta chyron.
 
 **Feature 4 — Realtime delta broadcasts** is demand-driven rather than fixed in this order: schedule it once real-player concurrency (not bots) starts stressing a single realtime process — the telemetry it recommends is the trigger. It pairs naturally with Feature 2 (mobile clients benefit most from the reduced bandwidth) and should land before any per-game process/EC2 split, since it lowers per-connection cost no matter where the process runs.
+
+**Feature 5 — Observability & paging** should land BEFORE real (non-sandbox) payments go live — i.e. as part of or just ahead of Feature 1's premium launch. Its P1 alerts guard exactly the silent payment-failure modes Feature 1 introduces into production. The small prerequisite (normalizing the game server's logs to the `event`-keyed shape) can be done any time and is independent of the rest.
 
 Beta messaging is live from Feature 3 through the launch of Feature 1.
