@@ -1612,7 +1612,7 @@ export const FOUR_LETTER_WORDS: string[] = [
   "RANI",
   "RANK",
   "RANT",
-  "RAPE",
+  // "RAPE",
   "RAPT",
   "RARE",
   "RASH",

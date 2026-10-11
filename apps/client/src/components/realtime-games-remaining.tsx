@@ -8,8 +8,10 @@
 //
 // Renders nothing for:
 //   - guests (they have the separate one-game-per-mode gate + sign-up prompt),
-//   - premium users (unlimited realtime play),
-//   - the loading/unknown state (avoids a flash of a wrong count).
+//   - premium users (unlimited realtime play).
+// While premium status is still resolving it shows a neutral skeleton pill
+// rather than a concrete count, so a premium user never flashes a wrong number
+// and a free user transitions skeleton→content without a layout snap.
 
 import { useEffect, useState } from "react";
 import { TIER_LIMITS } from "@/db/schema";
@@ -19,77 +21,100 @@ import { api } from "@/utils/api";
 
 /** Formats milliseconds until reset as "Hh Mm" (or "Mm" under an hour). */
 const formatResetIn = (ms: number): string => {
-  if (ms <= 0) {
-    return "soon";
-  }
-  const totalMinutes = Math.floor(ms / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
+	if (ms <= 0) {
+		return "soon";
+	}
+	const totalMinutes = Math.floor(ms / 60_000);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours > 0) {
+		return `${hours}h ${minutes}m`;
+	}
+	return `${minutes}m`;
 };
 
 const RealtimeGamesRemaining: React.FC = () => {
-  const isGuest = useIsGuest();
-  // Premium status resolves faster than the usage row and tells us immediately
-  // whether to show the counter at all (premium = unlimited, nothing to show).
-  const { isPremium } = usePremium();
+	const isGuest = useIsGuest();
+	// Premium status tells us whether to show the counter at all (premium =
+	// unlimited, nothing to show). `isPremium` defaults to false WHILE LOADING, so
+	// we must also wait on `isPremiumLoading` before rendering — otherwise a
+	// premium user briefly sees the free-tier "games left today" pill, which then
+	// vanishes once premium resolves (the flash this guards against).
+	const { isPremium, isLoading: isPremiumLoading } = usePremium();
 
-  // Guests can't query this (guestProtectedProcedure) and have their own gate.
-  const { data } = api.billing.realtimeUsage.useQuery(undefined, {
-    enabled: !isGuest,
-    // Keep in step with the server counter; refetch when the user returns.
-    refetchOnWindowFocus: true,
-  });
+	// Guests can't query this (guestProtectedProcedure) and have their own gate.
+	const { data } = api.billing.realtimeUsage.useQuery(undefined, {
+		enabled: !isGuest,
+		// Keep in step with the server counter; refetch when the user returns.
+		refetchOnWindowFocus: true,
+	});
 
-  // Live countdown to the UTC-midnight reset, recomputed each minute.
-  const [resetIn, setResetIn] = useState<string | null>(null);
-  useEffect(() => {
-    if (!data?.resetsAt) {
-      setResetIn(null);
-      return;
-    }
-    const target = new Date(data.resetsAt).getTime();
-    const tick = () => setResetIn(formatResetIn(target - Date.now()));
-    tick();
-    const id = setInterval(tick, 60_000);
-    return () => clearInterval(id);
-  }, [data?.resetsAt]);
+	// Live countdown to the UTC-midnight reset, recomputed each minute.
+	const [resetIn, setResetIn] = useState<string | null>(null);
+	useEffect(() => {
+		if (!data?.resetsAt) {
+			setResetIn(null);
+			return;
+		}
+		const target = new Date(data.resetsAt).getTime();
+		const tick = () => setResetIn(formatResetIn(target - Date.now()));
+		tick();
+		const id = setInterval(tick, 60_000);
+		return () => clearInterval(id);
+	}, [data?.resetsAt]);
 
-  // Nothing to show for guests or premium (unlimited realtime play).
-  if (isGuest || isPremium || data?.isPremium) {
-    return null;
-  }
+	// Guests never see this (they have their own gate), and neither do premium
+	// users (unlimited realtime play) once their status is known.
+	if (isGuest || isPremium || data?.isPremium) {
+		return null;
+	}
 
-  // Show the free limit immediately using TIER_LIMITS as a fallback, so the
-  // pill is visible before the usage row loads rather than flashing empty.
-  // Once the real usage arrives it replaces the fallback.
-  const limit = data?.limit ?? TIER_LIMITS.free.realtimeGamesPerDay ?? 0;
-  const remaining = data?.remaining ?? limit;
-  const noneLeft = remaining <= 0;
+	// While premium status is still resolving, show a neutral skeleton pill
+	// instead of the concrete free-tier count. This both avoids the flash (a
+	// premium user never sees a real "games left" number that then vanishes) and
+	// prevents a layout snap: the skeleton matches the real pill's size, so a
+	// free user transitions skeleton→content with no jump. A premium user's
+	// skeleton simply disappears — a neutral placeholder collapsing is far less
+	// jarring than a concrete number doing so.
+	if (isPremiumLoading) {
+		return (
+			<output
+				aria-label="Loading your daily games"
+				className="inline-flex animate-pulse items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur-sm"
+			>
+				<span className="size-5 shrink-0 rounded-md bg-gray-200" />
+				<span className="h-3 w-28 rounded bg-gray-200" />
+			</output>
+		);
+	}
 
-  return (
-    <div
-      aria-live="polite"
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest shadow-sm backdrop-blur-sm ${
-        noneLeft
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-gray-200 bg-white/70 text-gray-600"
-      }`}
-    >
-      <span
-        className={`grid size-5 shrink-0 place-content-center rounded-md font-bold text-[11px] text-white ${
-          noneLeft ? "bg-amber-400" : "bg-green-400"
-        }`}
-      >
-        {remaining}
-      </span>
-      <span>/ {limit} games left today</span>
-      {resetIn && <span className="text-gray-400">· resets in {resetIn}</span>}
-    </div>
-  );
+	// Show the free limit immediately using TIER_LIMITS as a fallback, so the
+	// pill is visible before the usage row loads rather than flashing empty.
+	// Once the real usage arrives it replaces the fallback.
+	const limit = data?.limit ?? TIER_LIMITS.free.realtimeGamesPerDay ?? 0;
+	const remaining = data?.remaining ?? limit;
+	const noneLeft = remaining <= 0;
+
+	return (
+		<div
+			aria-live="polite"
+			className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest shadow-sm backdrop-blur-sm ${
+				noneLeft
+					? "border-amber-200 bg-amber-50 text-amber-700"
+					: "border-gray-200 bg-white/70 text-gray-600"
+			}`}
+		>
+			<span
+				className={`grid size-5 shrink-0 place-content-center rounded-md font-bold text-[11px] text-white ${
+					noneLeft ? "bg-amber-400" : "bg-green-400"
+				}`}
+			>
+				{remaining}
+			</span>
+			<span>/ {limit} games left today</span>
+			{resetIn && <span className="text-gray-400">· resets in {resetIn}</span>}
+		</div>
+	);
 };
 
 export default RealtimeGamesRemaining;
