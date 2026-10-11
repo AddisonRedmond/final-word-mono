@@ -2,7 +2,6 @@ import { billingRouter } from "@/server/api/routers/billing";
 import { friendsRouter } from "@/server/api/routers/friends";
 import { guestRouter } from "@/server/api/routers/guest";
 import { leaderboardRouter } from "@/server/api/routers/leaderboard";
-import { postRouter } from "@/server/api/routers/post";
 import { statsRouter } from "@/server/api/routers/stats";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { duelsRouter } from "./routers/duels";
@@ -13,7 +12,6 @@ import { duelsRouter } from "./routers/duels";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-	post: postRouter,
 	friends: friendsRouter,
 	duels: duelsRouter,
 	guest: guestRouter,
