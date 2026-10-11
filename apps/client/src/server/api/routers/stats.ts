@@ -36,6 +36,7 @@ const scopeInput = z.enum([LIFETIME_SCOPE, "season"]);
  */
 export interface ModeStatsView {
 	mode: GameMode;
+	// --- Free core stats (shown to everyone) ---
 	gamesPlayed: number;
 	wins: number;
 	losses: number;
@@ -43,28 +44,33 @@ export interface ModeStatsView {
 	/** 0..1, or null when no games played. */
 	winRate: number | null;
 	currentWinStreak: number;
-	bestWinStreak: number;
 	/** Average guesses per game, or null when no games played. */
 	averageGuesses: number | null;
-	/** Average finishing placement (multiplayer modes), null if not tracked. */
-	averagePlacement: number | null;
-	bestPlacement: number | null;
-	// --- Solve timing (modes that time a solve), in milliseconds ---
-	/** Average solve time (ms), or null when no timed solves. */
-	averageSolveMs: number | null;
-	/** Fastest solve time (ms), or null when no timed solves. */
-	fastestSolveMs: number | null;
-	// --- Seasonal + scored-mode only; stays 0 elsewhere (R2A.6) ---
+	// --- Seasonal + scored-mode only; stays 0 elsewhere (R2A.6). Free. ---
 	seasonPoints: number;
-	bestMatchPoints: number;
+	// --- Premium-gated advanced stats (R2.7) ---
 	/**
-	 * True when this mode has advanced stats that are gated behind premium and
-	 * the caller is NOT premium (R2.7). When true, the advanced fields below are
-	 * null regardless of the stored values.
+	 * True when the caller is NOT premium. When true, every advanced field below
+	 * is null regardless of the stored values, so the free layout renders a gate
+	 * rather than a value.
 	 */
 	premiumLocked: boolean;
-	/** Average correct guesses per game — advanced/premium (R2.7). */
+	/** Longest win streak — advanced/premium. */
+	bestWinStreak: number | null;
+	/** Average finishing placement (multiplayer modes) — advanced/premium. */
+	averagePlacement: number | null;
+	/** Best (lowest) finishing placement (multiplayer modes) — advanced/premium. */
+	bestPlacement: number | null;
+	/** Average solve time (ms), timed modes — advanced/premium. */
+	averageSolveMs: number | null;
+	/** Fastest solve time (ms), timed modes — advanced/premium. */
+	fastestSolveMs: number | null;
+	/** Guess accuracy as a 0..1 rate (correct ÷ total) — advanced/premium. */
+	accuracyRate: number | null;
+	/** Average correct guesses per game — advanced/premium. */
 	averageCorrectGuesses: number | null;
+	/** Best single-match points (personal record) — advanced/premium. */
+	bestMatchPoints: number | null;
 }
 
 /**
@@ -86,28 +92,35 @@ const toModeStatsView = (
 		row.solveCount > 0 ? row.totalSolveMs / row.solveCount : null;
 	const averageCorrectGuesses =
 		gamesPlayed > 0 ? row.totalCorrectGuesses / gamesPlayed : null;
+	// Accuracy as a rate: correct ÷ total guesses. Null when the player has made
+	// no guesses yet so the UI shows an empty state rather than a 0/0 NaN.
+	const accuracyRate =
+		row.totalGuesses > 0 ? row.totalCorrectGuesses / row.totalGuesses : null;
 
 	const premiumLocked = !isPremium;
 
 	return {
 		mode: row.mode as GameMode,
+		// Free core stats — always populated.
 		gamesPlayed,
 		wins,
 		losses,
 		draws,
 		winRate: gamesPlayed > 0 ? wins / gamesPlayed : null,
 		currentWinStreak: row.currentWinStreak,
-		bestWinStreak: row.bestWinStreak,
 		averageGuesses,
-		averagePlacement: row.averagePlacement,
-		bestPlacement: row.bestPlacement,
-		averageSolveMs,
-		fastestSolveMs: row.fastestSolveMs,
 		seasonPoints: row.seasonPoints,
-		bestMatchPoints: row.bestMatchPoints,
+		// Premium-gated advanced stats: nulled for free callers so the UI renders
+		// the upgrade gate instead of a value (R2.7).
 		premiumLocked,
-		// Advanced/premium stat: only exposed to premium callers (R2.7).
+		bestWinStreak: isPremium ? row.bestWinStreak : null,
+		averagePlacement: isPremium ? row.averagePlacement : null,
+		bestPlacement: isPremium ? row.bestPlacement : null,
+		averageSolveMs: isPremium ? averageSolveMs : null,
+		fastestSolveMs: isPremium ? row.fastestSolveMs : null,
+		accuracyRate: isPremium ? accuracyRate : null,
 		averageCorrectGuesses: isPremium ? averageCorrectGuesses : null,
+		bestMatchPoints: isPremium ? row.bestMatchPoints : null,
 	};
 };
 
@@ -203,9 +216,31 @@ export const statsRouter = createTRPCRouter({
 	/**
 	 * The caller's archived season placements (placement history), newest first
 	 * (R2.5, R4.4). Only the caller's own rows are returned (R8.1).
+	 *
+	 * Full history is premium: a free caller only sees the CURRENT season's
+	 * placement (enough for the per-mode "Season #N" badge the page shows), while
+	 * a premium caller gets every archived season. `isPremium` and `premiumLocked`
+	 * are returned so the page can render a "full history is premium" gate without
+	 * guessing at entitlement.
 	 */
 	myPlacements: guestProtectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
+
+		// Premium entitlement — read from the caller's profile, the same
+		// authoritative source billing and `me` use.
+		const [profile] = await ctx.db
+			.select({
+				premiumStatus: profiles.premiumStatus,
+				premiumUntil: profiles.premiumUntil,
+			})
+			.from(profiles)
+			.where(eq(profiles.id, userId))
+			.limit(1);
+
+		const isPremium = isPremiumEntitlement(
+			profile?.premiumStatus,
+			profile?.premiumUntil,
+		);
 
 		const rows = await ctx.db
 			.select({
@@ -222,9 +257,23 @@ export const statsRouter = createTRPCRouter({
 			// Newest season first; the season key sorts lexicographically ("YYYY-MM").
 			.orderBy(desc(seasonPlacements.season));
 
-		return rows.map((row) => ({
+		const shaped = rows.map((row) => ({
 			...row,
 			mode: row.mode as GameMode,
 		}));
+
+		// Free callers only get the current season's placements (the badge data);
+		// premium callers get the entire archived history.
+		const currentSeason = seasonKey();
+		const placements = isPremium
+			? shaped
+			: shaped.filter((row) => row.season === currentSeason);
+
+		return {
+			isPremium,
+			premiumLocked: !isPremium,
+			currentSeason,
+			placements,
+		};
 	}),
 });

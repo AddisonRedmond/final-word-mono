@@ -49,29 +49,45 @@ vi.mock("@/utils/api", () => ({
 	},
 }));
 
-import type { ModeStatsView } from "@/server/api/routers/stats";
 import Stats from "@/pages/stats";
+import type { ModeStatsView } from "@/server/api/routers/stats";
 
 /** A fully-populated mode view; override per test for the case under exercise. */
 const makeMode = (over: Partial<ModeStatsView> = {}): ModeStatsView => ({
 	mode: "battle_royale",
+	// Free core.
 	gamesPlayed: 10,
 	wins: 4,
 	losses: 5,
 	draws: 1,
 	winRate: 0.4,
 	currentWinStreak: 2,
-	bestWinStreak: 3,
 	averageGuesses: 4.2,
+	seasonPoints: 0,
+	// Premium-gated advanced (null when premiumLocked for a free caller).
+	premiumLocked: true,
+	bestWinStreak: 3,
 	averagePlacement: 3.5,
 	bestPlacement: 1,
 	averageSolveMs: null,
 	fastestSolveMs: null,
-	seasonPoints: 0,
-	bestMatchPoints: 0,
-	premiumLocked: true,
+	accuracyRate: null,
 	averageCorrectGuesses: null,
+	bestMatchPoints: 0,
 	...over,
+});
+
+/** The `myPlacements` read now returns an object, not a bare array. */
+const makePlacements = (
+	rows: Array<Record<string, unknown>> = [],
+	over: Partial<{ isPremium: boolean; premiumLocked: boolean }> = {},
+) => ({
+	data: {
+		isPremium: over.isPremium ?? false,
+		premiumLocked: over.premiumLocked ?? true,
+		currentSeason: "2026-10",
+		placements: rows,
+	},
 });
 
 const setStatsMe = (value: {
@@ -87,7 +103,7 @@ const setStatsMe = (value: {
 beforeEach(() => {
 	authResolvedMock.mockReturnValue(true);
 	isGuestMock.mockReturnValue(false);
-	myPlacementsQuery.mockReturnValue({ data: [] });
+	myPlacementsQuery.mockReturnValue(makePlacements());
 	setStatsMe({ isLoading: false, data: undefined });
 });
 
@@ -180,23 +196,30 @@ describe("/stats page states (R2.6, R2.7)", () => {
 				season: "2026-10",
 				isPremium: true,
 				modes: [
-					makeMode({ premiumLocked: false, seasonPoints: 42, bestMatchPoints: 20 }),
+					makeMode({
+						premiumLocked: false,
+						seasonPoints: 42,
+						bestMatchPoints: 20,
+					}),
 				],
 			},
 		});
-		myPlacementsQuery.mockReturnValue({
-			data: [
-				{
-					mode: "battle_royale",
-					season: "2026-10",
-					placement: 7,
-					gamesPlayed: 10,
-					wins: 4,
-					rankingValue: 42,
-					archivedAt: new Date(),
-				},
-			],
-		});
+		myPlacementsQuery.mockReturnValue(
+			makePlacements(
+				[
+					{
+						mode: "battle_royale",
+						season: "2026-10",
+						placement: 7,
+						gamesPlayed: 10,
+						wins: 4,
+						rankingValue: 42,
+						archivedAt: new Date(),
+					},
+				],
+				{ isPremium: true, premiumLocked: false },
+			),
+		);
 
 		render(<Stats />);
 

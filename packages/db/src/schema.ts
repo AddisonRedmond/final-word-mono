@@ -154,6 +154,12 @@ export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), // matches auth.users.id
   email: text("email"), // mirrors auth.users.email
   name: text("name"), // mirrors auth.users user_metadata.full_name
+  // When the user last changed their display name via the profile page. Null
+  // until they change it for the first time (the original name came from
+  // auth user_metadata at sign-up, not a user edit). Used to enforce the
+  // once-per-year rename cooldown (see DISPLAY_NAME.cooldownMs) so a user can
+  // pick a leaderboard-friendly name but not churn it constantly.
+  nameChangedAt: timestamp("name_changed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -184,6 +190,59 @@ export const profiles = pgTable("profiles", {
     .notNull()
     .default(false),
 });
+
+/**
+ * Display-name rules — the single source of truth shared by the profile tRPC
+ * mutation (server validation) and the profile page (client-side pre-checks and
+ * copy). Keep validation keyed on these so client hints and server enforcement
+ * can never drift.
+ *
+ *   - minLength / maxLength: a sensible leaderboard-friendly length.
+ *   - pattern: "normal characters only" — letters, numbers, spaces, and a small
+ *     set of common name punctuation. No emoji, control chars, or markup, so a
+ *     name rendered on the leaderboard can't inject or distort layout. Anchored,
+ *     tested against the whole trimmed string.
+ *   - cooldownMs: one change per 365 days. Enforced server-side against
+ *     `profiles.nameChangedAt`; the UI surfaces the next-eligible date.
+ */
+export const DISPLAY_NAME = {
+  minLength: 3,
+  maxLength: 20,
+  // Letters (incl. accented via \p{L}), numbers, spaces, and - _ . ' between.
+  pattern: /^[\p{L}\p{N} ._'-]+$/u,
+  cooldownMs: 365 * 24 * 60 * 60 * 1000,
+} as const;
+
+/**
+ * Whether a rename is allowed right now given the last change time. A user who
+ * has never changed their name (`nameChangedAt` null) may always change it; a
+ * user who has is gated until `cooldownMs` has elapsed. `now` is injectable so
+ * the rule is unit-testable and shared between client and server.
+ */
+export const canChangeDisplayName = (
+  nameChangedAt: Date | null | undefined,
+  now: Date = new Date(),
+): boolean => {
+  if (!nameChangedAt) {
+    return true;
+  }
+  return now.getTime() - nameChangedAt.getTime() >= DISPLAY_NAME.cooldownMs;
+};
+
+/**
+ * The instant a user becomes eligible to change their name again, or null if
+ * they can change it now (never changed, or the cooldown has elapsed).
+ */
+export const nextDisplayNameChangeAt = (
+  nameChangedAt: Date | null | undefined,
+  now: Date = new Date(),
+): Date | null => {
+  if (canChangeDisplayName(nameChangedAt, now)) {
+    return null;
+  }
+  // nameChangedAt is non-null here (canChange returned false).
+  return new Date((nameChangedAt as Date).getTime() + DISPLAY_NAME.cooldownMs);
+};
 
 /**
  * Per-user, per-day realtime-game usage counter — the backing store for the

@@ -7,8 +7,8 @@ import Navbar from "@/components/navigation/navbar";
 import type { GameMode } from "@/db/schema";
 import { useIsGuest } from "@/hooks/useIsGuest";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { useAuthStore } from "@/state/auth-store";
 import type { ModeStatsView } from "@/server/api/routers/stats";
+import { useAuthStore } from "@/state/auth-store";
 import { api } from "@/utils/api";
 
 /** Which aggregate the page is showing: all-time, or the current UTC-month. */
@@ -66,6 +66,11 @@ const ModeCard: React.FC<{
 	scope: Scope;
 	placement?: number;
 }> = ({ stats, scope, placement }) => {
+	// Placement / solve-timing rows only exist for modes that track them. For a
+	// free caller these advanced fields are null regardless of mode, so key the
+	// "does this mode have placement/timing" decision on whether the value is
+	// present rather than on mode — a premium caller sees them, a free caller
+	// gets the single advanced-stats gate below instead.
 	const hasPlacement = stats.averagePlacement !== null;
 	const hasSolveTiming = stats.averageSolveMs !== null;
 	const showSeasonPoints = scope === "season" && stats.seasonPoints > 0;
@@ -83,7 +88,7 @@ const ModeCard: React.FC<{
 				)}
 			</div>
 
-			{/* Core counters — present for every mode. */}
+			{/* Free core counters — shown to every registered player. */}
 			<div className="grid grid-cols-3 gap-x-4 gap-y-3">
 				<Stat label="Games" value={stats.gamesPlayed} />
 				<Stat label="Wins" value={stats.wins} />
@@ -92,32 +97,18 @@ const ModeCard: React.FC<{
 				<Stat label="Win rate" value={formatRate(stats.winRate)} />
 				<Stat label="Avg guesses" value={formatAvg(stats.averageGuesses)} />
 				<Stat label="Current streak" value={stats.currentWinStreak} />
-				<Stat label="Best streak" value={stats.bestWinStreak} />
-				{hasPlacement && (
-					<Stat
-						label="Avg placement"
-						value={formatAvg(stats.averagePlacement)}
-					/>
-				)}
 			</div>
 
-			{/* Solve timing — only for modes that time an individual solve. */}
-			{hasSolveTiming && (
-				<div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-3 border-gray-100 border-t pt-3">
-					<Stat label="Avg solve" value={formatMs(stats.averageSolveMs)} />
-					<Stat label="Fastest solve" value={formatMs(stats.fastestSolveMs)} />
-				</div>
-			)}
-
-			{/* Season points — scored seasonal rows only (BR/Race). */}
+			{/* Season points — scored seasonal rows only (BR/Race). Free. */}
 			{showSeasonPoints && (
 				<div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-3 border-gray-100 border-t pt-3">
 					<Stat label="Season points" value={stats.seasonPoints} />
-					<Stat label="Best match" value={stats.bestMatchPoints} />
 				</div>
 			)}
 
-			{/* Advanced / premium-gated rows (R2.7). */}
+			{/* Advanced / premium-gated cluster (R2.7). A free caller sees a single
+			    upgrade gate; a premium caller sees the full advanced stat set
+			    (streak, accuracy, placement, solve timing, personal records). */}
 			<div className="mt-3 border-gray-100 border-t pt-3">
 				{stats.premiumLocked ? (
 					<div className="flex items-center justify-between gap-3">
@@ -126,7 +117,8 @@ const ModeCard: React.FC<{
 								Advanced stats
 							</span>
 							<span className="text-[11px] text-gray-400">
-								Unlock average correct guesses and more with premium.
+								Unlock accuracy, best streak, placement, solve times and
+								personal records with premium.
 							</span>
 						</div>
 						<a
@@ -137,12 +129,46 @@ const ModeCard: React.FC<{
 						</a>
 					</div>
 				) : (
-					<div className="grid grid-cols-3 gap-x-4 gap-y-3">
-						<Stat
-							label="Avg correct"
-							value={formatAvg(stats.averageCorrectGuesses)}
-						/>
-					</div>
+					<>
+						<span className="text-[10px] text-green-700 uppercase tracking-widest">
+							Advanced
+						</span>
+						<div className="mt-2 grid grid-cols-3 gap-x-4 gap-y-3">
+							<Stat label="Best streak" value={stats.bestWinStreak ?? "—"} />
+							<Stat label="Accuracy" value={formatRate(stats.accuracyRate)} />
+							<Stat
+								label="Avg correct"
+								value={formatAvg(stats.averageCorrectGuesses)}
+							/>
+							{hasPlacement && (
+								<>
+									<Stat
+										label="Avg placement"
+										value={formatAvg(stats.averagePlacement)}
+									/>
+									<Stat
+										label="Best placement"
+										value={stats.bestPlacement ?? "—"}
+									/>
+								</>
+							)}
+							{hasSolveTiming && (
+								<>
+									<Stat
+										label="Avg solve"
+										value={formatMs(stats.averageSolveMs)}
+									/>
+									<Stat
+										label="Fastest solve"
+										value={formatMs(stats.fastestSolveMs)}
+									/>
+								</>
+							)}
+							{showSeasonPoints && (
+								<Stat label="Best match" value={stats.bestMatchPoints ?? "—"} />
+							)}
+						</div>
+					</>
 				)}
 			</div>
 		</section>
@@ -171,10 +197,12 @@ const Stats: React.FC = () => {
 
 	// Current-season placement per mode, from the archived placement history
 	// (R2.5). We look up by this read's season key so the badge matches the
-	// season the cards are showing.
+	// season the cards are showing. `myPlacements` now returns an object
+	// ({ placements, … }); the current season is always included even for free
+	// callers (full history is the premium part), so the badge still resolves.
 	const placementByMode = new Map<string, number>();
 	if (stats?.season && placements) {
-		for (const row of placements) {
+		for (const row of placements.placements) {
 			if (row.season === stats.season) {
 				placementByMode.set(row.mode, row.placement);
 			}
@@ -255,7 +283,9 @@ const Stats: React.FC = () => {
 							{/* Loading state (R2.6). */}
 							{statsLoading ? (
 								<div className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm">
-									<p className="py-3 text-gray-400 text-sm">Loading your stats…</p>
+									<p className="py-3 text-gray-400 text-sm">
+										Loading your stats…
+									</p>
 								</div>
 							) : modes.length === 0 ? (
 								/* Empty state — no games in this scope. Avoid showing zeros

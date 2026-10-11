@@ -1,7 +1,8 @@
-import { ChartColumn, Home, Trophy, Users } from "lucide-react";
+import { ChartColumn, Home, LifeBuoy, Trophy, Users } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { SUPPORT_EMAIL } from "@/constants";
 import { useAuthStore } from "@/state/auth-store";
 import { useIsGuest } from "@/hooks/useIsGuest";
 import { AnimatePresence, motion } from "motion/react";
@@ -200,6 +201,17 @@ const Navbar = () => {
                       Profile
                     </Link>
                   )}
+                  {/* Contact support — a mailto escape hatch so no one ever
+                      feels stuck without help. Shown to everyone, guests
+                      included (unlike Profile, which is registered-only). */}
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                  >
+                    <LifeBuoy aria-hidden="true" size={14} />
+                    Contact support
+                  </a>
                   <button
                     type="button"
                     disabled={isSigningOut}
@@ -358,6 +370,19 @@ const Navbar = () => {
                     Profile
                   </Link>
                 )}
+
+                {/* Contact support — mailto escape hatch, shown to everyone
+                    (guests included) so no one feels stuck without help. */}
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-amber-400 text-white">
+                    <LifeBuoy aria-hidden="true" size={13} />
+                  </span>
+                  Contact support
+                </a>
               </div>
 
               {/* Actions */}
