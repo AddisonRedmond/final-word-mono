@@ -115,6 +115,30 @@ const Navbar = () => {
             Friends
           </Link>
         )}
+        {/* Stats link hidden for guests (registered-only, like Friends). */}
+        {!isGuest && (
+          <Link
+            href="/stats"
+            className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+              router.pathname === "/stats"
+                ? "border-green-400 bg-green-50 text-green-700"
+                : "border-gray-200 hover:bg-gray-100 text-gray-700"
+            }`}
+          >
+            Stats
+          </Link>
+        )}
+        {/* Leaderboard link visible to everyone (including guests). */}
+        <Link
+          href="/leaderboard"
+          className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            router.pathname === "/leaderboard"
+              ? "border-green-400 bg-green-50 text-green-700"
+              : "border-gray-200 hover:bg-gray-100 text-gray-700"
+          }`}
+        >
+          Leaderboard
+        </Link>
 
         {/* Profile badge + dropdown */}
         <div ref={menuRef} className="relative">
@@ -248,6 +272,40 @@ const Navbar = () => {
                     Friends
                   </Link>
                 )}
+
+                {/* Stats tile hidden for guests (registered-only). */}
+                {!isGuest && (
+                  <Link
+                    href="/stats"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                      router.pathname === "/stats"
+                        ? "text-green-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                      S
+                    </span>
+                    Stats
+                  </Link>
+                )}
+
+                {/* Leaderboard tile visible to everyone (including guests). */}
+                <Link
+                  href="/leaderboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/leaderboard"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                    L
+                  </span>
+                  Leaderboard
+                </Link>
 
                 {/* Profile / manage subscription. Hidden for guests. */}
                 {!isGuest && (

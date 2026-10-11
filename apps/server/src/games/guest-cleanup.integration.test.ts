@@ -7,8 +7,11 @@
 // the two guarantees the design makes for the scheduled job:
 //
 //   R8.5 — Cascade, no orphans: deleting an aged anonymous auth.users row removes
-//          its profiles row and its per-mode stats rows via onDelete: cascade, so
-//          no orphaned race_stats / battle_royale_stats rows are left behind.
+//          its profiles row and its unified player_mode_stats rows via
+//          onDelete: cascade, so no orphaned stats rows are left behind. (The
+//          legacy race_stats / battle_royale_stats tables have been dropped;
+//          player_mode_stats is the sole stats surface and carries the same
+//          profiles.id -> ... ON DELETE CASCADE FK.)
 //
 //   R8.7 — Failure atomicity: the cleanup DELETE is a single atomic statement, so
 //          a run that errors leaves every row unchanged (nothing is half-deleted).
@@ -29,16 +32,17 @@
 // Two faithful caveats about THIS harness, documented rather than papered over:
 //
 //   1. auth.users -> profiles cascade. The design describes a cascade chain
-//      auth.users -> profiles -> *_stats. In this local database `profiles` is a
-//      trigger-populated shadow table with a real ON DELETE CASCADE FK from
-//      *_stats -> profiles, but NO FK / delete-trigger from auth.users -> profiles
-//      (only an INSERT trigger, on_auth_user_created). So we assert the chain in
-//      the two linked segments that are actually enforceable here: the real
-//      cleanup DELETE removes the auth.users row (R8.5, upstream), and the real
-//      ON DELETE CASCADE from *_stats -> profiles removes the per-mode stats with
-//      no orphans (R8.5, downstream). The auth.users -> profiles cascade itself is
-//      an operator install-time concern (the production project wires it); we note
-//      where it is missing instead of pretending it fired.
+//      auth.users -> profiles -> player_mode_stats. In this local database
+//      `profiles` is a trigger-populated shadow table with a real ON DELETE
+//      CASCADE FK from player_mode_stats -> profiles, but NO FK / delete-trigger
+//      from auth.users -> profiles (only an INSERT trigger, on_auth_user_created).
+//      So we assert the chain in the two linked segments that are actually
+//      enforceable here: the real cleanup DELETE removes the auth.users row (R8.5,
+//      upstream), and the real ON DELETE CASCADE from player_mode_stats ->
+//      profiles removes the stats rows with no orphans (R8.5, downstream). The
+//      auth.users -> profiles cascade itself is an operator install-time concern
+//      (the production project wires it); we note where it is missing instead of
+//      pretending it fired.
 //
 //   2. cron.job_run_details observability. pg_cron is not installed in the local
 //      stack (no `cron` schema), so the "run recorded in cron.job_run_details"
@@ -98,7 +102,9 @@ afterAll(async () => {
 /**
  * Insert one aged anonymous auth.users row INSIDE the given transaction. The
  * on_auth_user_created trigger mirrors it into public.profiles, after which we
- * add that user's race_stats and battle_royale_stats rows (FK -> profiles).
+ * add that user's unified player_mode_stats rows (FK -> profiles) — one lifetime
+ * row per mode (battle_royale + race) so the cascade proof still covers a
+ * profile with MULTIPLE dependent stats rows.
  *
  * `ageHours` controls created_at relative to now() so a row can be made eligible
  * (> 24h) or fresh (<= 24h) for the cleanup predicate.
@@ -135,9 +141,10 @@ const seedGuest = async (
 	const userId = (row as { id: string }).id;
 
 	// The INSERT trigger should have created the mirror profile. Make the stats
-	// rows depend on it (FK race_stats/battle_royale_stats.user_id -> profiles.id).
-	await tx`insert into race_stats (user_id, games_played) values (${userId}, 1)`;
-	await tx`insert into battle_royale_stats (user_id, games_played) values (${userId}, 1)`;
+	// rows depend on it (FK player_mode_stats.user_id -> profiles.id). One
+	// lifetime row per mode so a single profile has multiple dependent rows.
+	await tx`insert into player_mode_stats (user_id, mode, scope, games_played) values (${userId}, 'race', 'lifetime', 1)`;
+	await tx`insert into player_mode_stats (user_id, mode, scope, games_played) values (${userId}, 'battle_royale', 'lifetime', 1)`;
 
 	return userId;
 };
@@ -146,8 +153,8 @@ const seedGuest = async (
 const countChain = async (tx: typeof client, userId: string) => {
 	const [u] = await tx`select count(*)::int as n from auth.users where id = ${userId}`;
 	const [p] = await tx`select count(*)::int as n from profiles where id = ${userId}`;
-	const [r] = await tx`select count(*)::int as n from race_stats where user_id = ${userId}`;
-	const [b] = await tx`select count(*)::int as n from battle_royale_stats where user_id = ${userId}`;
+	const [r] = await tx`select count(*)::int as n from player_mode_stats where user_id = ${userId} and mode = 'race'`;
+	const [b] = await tx`select count(*)::int as n from player_mode_stats where user_id = ${userId} and mode = 'battle_royale'`;
 	return {
 		authUsers: (u as { n: number }).n,
 		profiles: (p as { n: number }).n,

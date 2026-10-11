@@ -22,6 +22,7 @@ import { useAuthStore } from "@/state/auth-store";
 import { useGameSessionStore } from "@/state/game-session-store";
 import { useGuestWelcomeStore } from "@/state/guest-welcome-store";
 import { useServerClockStore } from "@/state/server-clock-store";
+import { api } from "@/utils/api";
 import { createClient } from "@/utils/supabase/client";
 
 export default function Home() {
@@ -79,6 +80,16 @@ export default function Home() {
   // flashes the menu. This also removes the first-paint flashes.
   const isReady = mounted && authResolved && user !== null;
   const showGuestWelcome = isReady && isGuest && !hasSeenWelcome;
+
+  // Champion cosmetic: light up the FINAL/WORD hero tiles in gold with a sparkle
+  // when the player won their most recent realtime game (Race or Battle Royale).
+  // `stats.champion` is a guestProtectedProcedure, so only fire it for a
+  // resolved, registered user; guests never see the cosmetic.
+  const { data: championData } = api.stats.champion.useQuery(undefined, {
+    enabled: isReady && !isGuest,
+    staleTime: 30_000,
+  });
+  const isChampion = championData?.isChampion ?? false;
 
   useEffect(() => {
     setMounted(true);
@@ -260,13 +271,13 @@ export default function Home() {
                   <Tile
                     revealed={true}
                     size={isPlaying ? "sm" : "lg"}
-                    variant="correct"
+                    variant={isChampion ? "champion" : "correct"}
                     word="FINAL"
                   />
                   <Tile
                     revealed={true}
                     size={isPlaying ? "sm" : "md"}
-                    variant="present"
+                    variant={isChampion ? "champion" : "present"}
                     word="WORD"
                   />
                 </div>

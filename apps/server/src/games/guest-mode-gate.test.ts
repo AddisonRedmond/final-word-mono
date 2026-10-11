@@ -13,58 +13,58 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the `db` module: the chainable `db.select(...).from(...).where(...).limit(...)`
 // resolves to a scripted rows array that each property run controls.
 //
+// The gate now reads the unified `player_mode_stats` table and distinguishes
+// modes via a `where mode = $mode` filter (plus `scope = 'lifetime'`), NOT by
+// choosing a different table. So the mock captures the `mode` value out of the
+// composed where clause and resolves that mode's scripted rows.
+//
 // Validates: Requirements 6.1, 6.3
 
 // The rows the next db read will resolve to. Each run sets this to model a
 // particular stats-row state (absent -> [], present -> [{ gamesPlayed }]).
-// Property 10 uses this single, table-agnostic script.
+// Property 10 uses this single, mode-agnostic script.
 let nextRows: Array<{ gamesPlayed: number }> = [];
 
-// Per-table scripted rows, keyed by a table tag ("race" / "br"). When a tag has
-// an entry here it takes precedence over `nextRows`, letting Property 11 drive
-// each mode's stats read independently. Left empty for Property 10 so the
-// existing single-script behaviour is preserved.
-const rowsByTable: Record<string, Array<{ gamesPlayed: number }>> = {};
+// Per-mode scripted rows, keyed by the GameMode string ("race" /
+// "battle_royale"). When a mode has an entry here it takes precedence over
+// `nextRows`, letting Property 11 drive each mode's stats read independently.
+// Left empty for Property 10 so the single-script behaviour is preserved.
+const rowsByMode: Record<string, Array<{ gamesPlayed: number }>> = {};
 
 vi.mock("db", () => {
-  // raceStats / battleRoyaleStats are only referenced for column identifiers
-  // (table.userId, table.gamesPlayed). Each proxy also carries a hidden
-  // `__tableTag` so the mocked `from(table)` can tell the two tables apart and
-  // resolve each one's own scripted rows.
-  const tableProxy = (tag: string) =>
-    new Proxy(
-      {},
-      {
-        get: (_t, key) => (key === "__tableTag" ? tag : key),
-      },
-    );
-
-  const raceStats = tableProxy("race");
-  const battleRoyaleStats = tableProxy("br");
+  // playerModeStats is only referenced for column identifiers; the proxy
+  // returns the property key as the column id (e.g. playerModeStats.mode ->
+  // "mode"), so a captured eq can be matched to the column it filters on.
+  const playerModeStats = new Proxy({}, { get: (_t, key) => key });
 
   // A chainable stub mirroring
-  //   db.select({...}).from(table).where(...).limit(1) -> Promise<rows>.
-  // `from(table)` captures which table is being read so the resolved rows can
-  // depend on it (per-table script if present, else the shared `nextRows`).
+  //   db.select({...}).from(table).where(and(...)).limit(1) -> Promise<rows>.
+  // `where(clause)` pulls the mode out of the composed and() so the resolved
+  // rows can depend on it (per-mode script if present, else shared `nextRows`).
   const select = () => ({
-    from: (table: { __tableTag?: string }) => {
-      const tag = table?.__tableTag;
-      const rows =
-        tag !== undefined && tag in rowsByTable ? rowsByTable[tag] : nextRows;
-      return {
-        where: () => ({
+    from: () => ({
+      where: (clause: { and?: Array<{ col: unknown; value: unknown }> }) => {
+        const modeEq = clause.and?.find((c) => c.col === "mode");
+        const mode = modeEq?.value as string | undefined;
+        const rows =
+          mode !== undefined && mode in rowsByMode ? rowsByMode[mode] : nextRows;
+        return {
           limit: () => Promise.resolve(rows),
-        }),
-      };
-    },
+        };
+      },
+    }),
   });
 
   return {
     db: { select },
-    raceStats,
-    battleRoyaleStats,
-    // eq is a passthrough used only to build the (ignored) where clause.
+    playerModeStats,
+    LIFETIME_SCOPE: "lifetime",
+    // eq is a passthrough recording the column + value it compared.
     eq: (col: unknown, value: unknown) => ({ col, value }),
+    // and collects its predicate args so where() can inspect them.
+    and: (...clauses: Array<{ col: unknown; value: unknown }>) => ({
+      and: clauses,
+    }),
   };
 });
 
@@ -72,7 +72,10 @@ vi.mock("db", () => {
 const { guestModeGate, GUEST_MODE_LIMIT_REASON } = await import(
   "./guest-mode-gate.js"
 );
-const { raceStats, battleRoyaleStats } = await import("db");
+
+// The two scored modes the gate is exercised with, as plain GameMode strings.
+const RACE = "race" as const;
+const BATTLE_ROYALE = "battle_royale" as const;
 
 describe("guestModeGate per-mode decision (Property 10)", () => {
   beforeEach(() => {
@@ -83,11 +86,11 @@ describe("guestModeGate per-mode decision (Property 10)", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uuid(),
-        fc.constantFrom(raceStats, battleRoyaleStats),
-        async (userId, table) => {
+        fc.constantFrom(RACE, BATTLE_ROYALE),
+        async (userId, mode) => {
           nextRows = []; // absent row
 
-          const allowed = await guestModeGate(userId, table as never);
+          const allowed = await guestModeGate(userId, mode);
 
           expect(allowed).toBe(true);
         },
@@ -100,13 +103,13 @@ describe("guestModeGate per-mode decision (Property 10)", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uuid(),
-        fc.constantFrom(raceStats, battleRoyaleStats),
+        fc.constantFrom(RACE, BATTLE_ROYALE),
         // gamesPlayed strictly below 1 (0 and defensive negatives).
         fc.integer({ min: -1_000, max: 0 }),
-        async (userId, table, gamesPlayed) => {
+        async (userId, mode, gamesPlayed) => {
           nextRows = [{ gamesPlayed }];
 
-          const allowed = await guestModeGate(userId, table as never);
+          const allowed = await guestModeGate(userId, mode);
 
           expect(allowed).toBe(true);
         },
@@ -119,12 +122,12 @@ describe("guestModeGate per-mode decision (Property 10)", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uuid(),
-        fc.constantFrom(raceStats, battleRoyaleStats),
+        fc.constantFrom(RACE, BATTLE_ROYALE),
         fc.integer({ min: 1, max: 1_000_000 }),
-        async (userId, table, gamesPlayed) => {
+        async (userId, mode, gamesPlayed) => {
           nextRows = [{ gamesPlayed }];
 
-          const blocked = await guestModeGate(userId, table as never);
+          const blocked = await guestModeGate(userId, mode);
 
           // false == BLOCK; the join handler maps a block to this reason.
           expect(blocked).toBe(false);
@@ -139,17 +142,17 @@ describe("guestModeGate per-mode decision (Property 10)", () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uuid(),
-        fc.constantFrom(raceStats, battleRoyaleStats),
+        fc.constantFrom(RACE, BATTLE_ROYALE),
         // option<gamesPlayed>: null models an absent row, a number models a
         // present row with that counter.
         fc.option(fc.integer({ min: -1_000, max: 1_000_000 }), { nil: null }),
-        async (userId, table, maybeGamesPlayed) => {
+        async (userId, mode, maybeGamesPlayed) => {
           nextRows =
             maybeGamesPlayed === null
               ? []
               : [{ gamesPlayed: maybeGamesPlayed }];
 
-          const decision = await guestModeGate(userId, table as never);
+          const decision = await guestModeGate(userId, mode);
 
           const expectedAllow =
             maybeGamesPlayed === null || maybeGamesPlayed < 1;
@@ -168,8 +171,8 @@ describe("guestModeGate per-mode decision (Property 10)", () => {
 // decision depends only on brGamesPlayed; a block in one mode never changes the
 // decision in the other.
 //
-// The db mock is extended to resolve a *different* rows array depending on which
-// table `from(table)` receives (keyed by a hidden __tableTag), so each mode's
+// The db mock is extended to resolve a *different* rows array depending on the
+// `mode` captured from the where clause (keyed in `rowsByMode`), so each mode's
 // read is driven independently. A per-mode state is modelled with option<number>:
 // null -> absent row ([]), a number -> present row with that gamesPlayed.
 //
@@ -188,9 +191,9 @@ const rowsForState = (
 describe("guestModeGate cross-mode independence (Property 11)", () => {
   beforeEach(() => {
     nextRows = [];
-    // Clear any per-table script between runs so each case is isolated.
-    delete rowsByTable.race;
-    delete rowsByTable.br;
+    // Clear any per-mode script between runs so each case is isolated.
+    delete rowsByMode.race;
+    delete rowsByMode.battle_royale;
   });
 
   it("Race decision depends only on race stats; BR decision only on BR stats", async () => {
@@ -201,18 +204,12 @@ describe("guestModeGate cross-mode independence (Property 11)", () => {
         fc.option(fc.integer({ min: -1_000, max: 1_000_000 }), { nil: null }),
         fc.option(fc.integer({ min: -1_000, max: 1_000_000 }), { nil: null }),
         async (userId, raceGamesPlayed, brGamesPlayed) => {
-          // Script each table's read independently.
-          rowsByTable.race = rowsForState(raceGamesPlayed);
-          rowsByTable.br = rowsForState(brGamesPlayed);
+          // Script each mode's read independently.
+          rowsByMode.race = rowsForState(raceGamesPlayed);
+          rowsByMode.battle_royale = rowsForState(brGamesPlayed);
 
-          const raceDecision = await guestModeGate(
-            userId,
-            raceStats as never,
-          );
-          const brDecision = await guestModeGate(
-            userId,
-            battleRoyaleStats as never,
-          );
+          const raceDecision = await guestModeGate(userId, RACE);
+          const brDecision = await guestModeGate(userId, BATTLE_ROYALE);
 
           // Each decision matches the expectation derived from ONLY its own
           // mode's stats — proving the other mode's state had no effect.
@@ -234,13 +231,13 @@ describe("guestModeGate cross-mode independence (Property 11)", () => {
         fc.option(fc.integer({ min: -1_000, max: 1_000_000 }), { nil: null }),
         async (userId, fixedRaceState, brStateA, brStateB) => {
           // Hold Race fixed; read it under two different BR states.
-          rowsByTable.race = rowsForState(fixedRaceState);
+          rowsByMode.race = rowsForState(fixedRaceState);
 
-          rowsByTable.br = rowsForState(brStateA);
-          const raceUnderA = await guestModeGate(userId, raceStats as never);
+          rowsByMode.battle_royale = rowsForState(brStateA);
+          const raceUnderA = await guestModeGate(userId, RACE);
 
-          rowsByTable.br = rowsForState(brStateB);
-          const raceUnderB = await guestModeGate(userId, raceStats as never);
+          rowsByMode.battle_royale = rowsForState(brStateB);
+          const raceUnderB = await guestModeGate(userId, RACE);
 
           // The Race decision is invariant to whatever BR's state was.
           expect(raceUnderA).toBe(raceUnderB);

@@ -10,17 +10,18 @@
  * Behaviour mirrors Race's seam (`race/daily-limit.ts`):
  *   - Registered users (`!isAnonymous`) are never gated (R6.8).
  *   - Guests are allowed ONE realtime Battle Royale game, derived from this
- *     mode's own `battle_royale_stats` row via the shared `guestModeGate`
- *     (R6.1, R6.2, R6.4).
+ *     mode's own lifetime `player_mode_stats` row via the shared
+ *     `guestModeGate(userId, "battle_royale")` (R6.1, R6.2, R6.4).
  *
  * Because the gate reads the *mode's own* stats table, a guest blocked in
  * Battle Royale can still start Race and vice versa (R6.4).
  *
  * Fail-open policy: `guestModeGate` resolves to `true` on any stats-store error
  * so a counter/stats outage never blocks play or crashes the game loop.
+ *
+ * The gate reads the unified `player_mode_stats` lifetime row (filtered by
+ * `mode = "battle_royale"`), not the legacy `battle_royale_stats` table.
  */
-
-import { battleRoyaleStats } from "db";
 
 import { guestModeGate } from "../guest-mode-gate.js";
 import {
@@ -31,7 +32,7 @@ import {
 /**
  * Returns whether the player may start a Battle Royale match.
  *
- * Guests (`isAnonymous`) delegate to `guestModeGate(userId, battleRoyaleStats)`,
+ * Guests (`isAnonymous`) delegate to `guestModeGate(userId, "battle_royale")`,
  * which allows exactly one game per mode (R6.1, R6.2, R6.4) — unchanged.
  *
  * Registered users are gated by the shared free-tier realtime limit
@@ -47,7 +48,7 @@ export const canStartMatch = async (
 ): Promise<boolean> => {
   // Guests: one game per mode, derived from this mode's stats row (R6.1–R6.4).
   if (isAnonymous) {
-    return guestModeGate(userId, battleRoyaleStats);
+    return guestModeGate(userId, "battle_royale");
   }
 
   // Registered users: free 3/UTC-day shared across modes, premium unlimited.

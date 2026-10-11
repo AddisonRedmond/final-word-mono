@@ -64,6 +64,27 @@
       "when": 1791476946184,
       "tag": "0008_powerful_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791490604587,
+      "tag": "0009_backfill_lifetime_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791552809468,
+      "tag": "0010_drop_legacy_stats_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791559096239,
+      "tag": "0011_add_won_last_realtime_game",
+      "breakpoints": true
     }
   ]
 }

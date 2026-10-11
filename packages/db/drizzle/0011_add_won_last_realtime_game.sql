@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "won_last_realtime_game" boolean DEFAULT false NOT NULL;

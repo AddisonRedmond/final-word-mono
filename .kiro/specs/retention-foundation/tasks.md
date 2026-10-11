@@ -81,9 +81,9 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R1, R2A.5, R4.1, R5.5, R6.1, R7.1, R7.3, R7.4_
   - _Design: Section 1 (all), D1-D6_
 
-- [ ] 2. Unified stats pipeline (write path)
+- [x] 2. Unified stats pipeline (write path)
 
-- [~] 2.1 Add scoring + mode-stats unit tests first (TDD)
+- [x] 2.1 Add scoring + mode-stats unit tests first (TDD)
   - In `packages/db` (or a shared test file), add property/unit tests for
     `matchPoints`: monotonic in better placement, win bonus iff placement 1,
     combat capped at `combatPointsCap`, result always >= 0, pure (same inputs ->
@@ -91,7 +91,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R2A.1-R2A.4, R2A.9_
   - _Design: Section 1.0 (matchPoints), Testing Strategy (Scoring)_
 
-- [~] 2.2 Implement the shared `upsertModeStats` helper
+- [x] 2.2 Implement the shared `upsertModeStats` helper
   - Create a single upsert that writes one `player_mode_stats` row for a given
     `(userId, mode, scope, outcome)`, reusing the proven SQL recurrences from
     `apps/server/src/games/battle-royale/stats.ts` (running avg placement, streak
@@ -103,7 +103,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R1.1-R1.8, R2A.6, R8.1-R8.2_
   - _Design: Section 2.1_
 
-- [~] 2.3 Dual-write Battle Royale + Race onto `player_mode_stats`
+- [x] 2.3 Dual-write Battle Royale + Race onto `player_mode_stats`
   - In `battle-royale/stats.ts` and `race/stats.ts`, call `upsertModeStats` for
     both `scope = "lifetime"` and `scope = seasonKey(now)` in the same operation,
     computing `pts = matchPoints(placement, correctGuesses)` once per player.
@@ -114,7 +114,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R1.3-R1.5, R1.7, R2A.1-R2A.6_
   - _Design: Section 2.1, 2.2, D3_
 
-- [~] 2.4 Add the duel completion writer
+- [x] 2.4 Add the duel completion writer
   - Where a duel transitions to `completed = true` in
     `apps/client/src/server/api/routers/duels.ts` (the completion branch shared
     by `handleDuelGuess` / `declineDuel` / `forfeitDuel`), within the existing
@@ -126,7 +126,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R1.4-R1.5, R2A.8, R6.1, R6.5, R6.7_
   - _Design: Section 2.3, D4_
 
-- [~] 2.5 Pipeline tests
+- [x] 2.5 Pipeline tests
   - Tests mirroring `persisted-stats`: one game writes a consistent lifetime +
     seasonal row; points land only on the seasonal scored row (lifetime + duel
     rows keep points 0); duel completion writes exactly one `duel_results` row
@@ -135,9 +135,9 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R1.5, R2A.6, R6.1_
   - _Design: Testing Strategy (Pipeline)_
 
-- [ ] 3. Season archival routine
+- [x] 3. Season archival routine
 
-- [~] 3.1 Implement season ranking + archival
+- [x] 3.1 Implement season ranking + archival
   - A `seasonKey`-driven routine that, for a completed season, reads
     `player_mode_stats WHERE scope = season AND mode in SCORED_MODES`, orders by
     the ranking metric (`seasonPoints` DESC, then `wins` DESC, `averagePlacement`
@@ -148,15 +148,15 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R4.3, R4.5, R4.6, R4.7_
   - _Design: Section 2.4, D6_
 
-- [~] 3.2 Archival tests
+- [x] 3.2 Archival tests
   - Re-running archival for a season yields identical placements (idempotent);
     archival never mutates `player_mode_stats`; ties broken deterministically.
   - _Requirements: R4.5_
   - _Design: Testing Strategy_
 
-- [ ] 4. tRPC routers (read + rematch)
+- [x] 4. tRPC routers (read + rematch)
 
-- [~] 4.1 `stats` router
+- [x] 4.1 `stats` router
   - `me({ scope })` -> current user's `player_mode_stats` rows shaped per mode
     with derived rates (win rate, losses, avg guesses, avg solve); `scope` =
     lifetime or current season. `myPlacements()` -> `season_placements` for the
@@ -166,7 +166,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R2.2-R2.5, R2.7, R2.8, R8.1_
   - _Design: Section 3.1_
 
-- [~] 4.2 `leaderboard` router
+- [x] 4.2 `leaderboard` router
   - `board({ mode, season? })` -> ranked page from `player_mode_stats` (current
     season) or `season_placements` (archived), scored modes only, with the
     caller's own rank surfaced even when outside the visible page. Qualifying
@@ -175,7 +175,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R3.2-R3.7, R2A.8, R8.3_
   - _Design: Section 3.2_
 
-- [~] 4.3 `duels.rematchDuel` mutation
+- [x] 4.3 `duels.rematchDuel` mutation
   - Validate the source duel is completed and the caller participated; re-run the
     `sendDuel` eligibility checks (friends still valid, active-duel cap, invitee
     cap per tier) and reject with clear tier-aware messages on failure; create a
@@ -184,7 +184,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R5.1-R5.7_
   - _Design: Section 3.3, D-rematch_
 
-- [~] 4.4 `duels.headToHead` + `duels.history`
+- [x] 4.4 `duels.headToHead` + `duels.history`
   - `headToHead(opponentId)` -> aggregate `duel_results` over duel IDs where both
     users have result rows: totals, each side's wins, draws, rivalry streak,
     recent results (newest first). `history()` -> caller's `duel_results` joined
@@ -192,16 +192,16 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R6.2-R6.6_
   - _Design: Section 3.3, D4_
 
-- [~] 4.5 Router tests
+- [x] 4.5 Router tests
   - Ranking determinism + tiebreakers; H2H aggregation incl. draws and
     multi-player duels; rematch eligibility rejection paths. Verify client
     typecheck passes with the new routers registered.
   - _Requirements: R3.2, R5.4, R6.2-R6.3_
   - _Design: Testing Strategy (Routers)_
 
-- [ ] 5. Client pages + UI
+- [x] 5. Client pages + UI
 
-- [~] 5.1 `/stats` page
+- [x] 5.1 `/stats` page
   - `apps/client/src/pages/stats.tsx`: per-mode cards (games/wins/losses/draws/
     win rate/current+best streak; avg guesses, avg/fastest solve where present),
     Lifetime vs current-Season toggle, current-season placement per scored mode,
@@ -210,7 +210,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R2.1-R2.8_
   - _Design: Section 4_
 
-- [~] 5.2 `/leaderboard` page
+- [x] 5.2 `/leaderboard` page
   - `apps/client/src/pages/leaderboard.tsx`: mode + season selectors, ranked
     table (placement, name, headline metrics incl. season points), caller row
     pinned, free-visible core with premium-gated expanded columns. Loading +
@@ -218,7 +218,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R3.1, R3.3-R3.7_
   - _Design: Section 4_
 
-- [~] 5.3 Duel result view: Rematch + head-to-head
+- [x] 5.3 Duel result view: Rematch + head-to-head
   - Add a "Rematch" action and a head-to-head panel ("You vs. Sarah - 23 games,
     11-10, 2 draws, Sarah won the last 2") to the existing duel result component,
     wired to `rematchDuel` and `headToHead`, so "see record -> rematch" is one
@@ -226,7 +226,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R5.1, R5.6, R6.6_
   - _Design: Section 4_
 
-- [~] 5.4 Navbar links
+- [x] 5.4 Navbar links
   - Add `Stats` (registered-only, like Friends/Profile) and `Leaderboard`
     (visible to all) links to both desktop and mobile menus in
     `apps/client/src/components/navigation/navbar.tsx`, matching the existing
@@ -234,7 +234,7 @@ waves (each wave may run in parallel once the previous wave completes) are:
   - _Requirements: R2.1, R3.1_
   - _Design: Section 4_
 
-- [~] 5.5 Page/UI tests + final verification
+- [x] 5.5 Page/UI tests + final verification
   - Render/loading/empty-state checks; premium gating doesn't break the free
     layout. Full verification: `db` check-types, server build + tests, client
     typecheck + relevant tests all green.

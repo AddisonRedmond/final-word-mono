@@ -32,16 +32,17 @@ process.env.NEXT_PUBLIC_SUPABASE_URL ??= "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
 
 vi.mock("db", () => {
-  const insert = () => ({
-    values: () => ({ onConflictDoUpdate: () => Promise.resolve(undefined) }),
-  });
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // The stats pipeline writes player_mode_stats inside db.transaction; a
+      // passthrough + no-op upsertModeStats keeps any stray write harmless.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: () => Promise.resolve(undefined),
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 

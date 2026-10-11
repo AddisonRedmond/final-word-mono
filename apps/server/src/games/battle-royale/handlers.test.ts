@@ -6,21 +6,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // handlers.ts -> stats.ts -> db, so mock db before importing. Capture upserts
 // so we can assert the leaver (and only the leaver) is recorded on a bots-only
 // leave.
-const insertedRows: Array<{ userId: string; wins: number }> = [];
+const insertedRows: Array<{ userId: string; won: boolean }> = [];
 vi.mock("db", () => {
-  const insert = () => ({
-    values: (row: { userId: string; wins: number }) => {
-      insertedRows.push(row);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
   return {
-    db: { insert },
-    battleRoyaleStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      {
+        userId,
+        scope,
+        outcome,
+      }: { userId: string; scope: string; outcome: { won: boolean } },
+    ) => {
+      if (scope === "lifetime") {
+        insertedRows.push({ userId, won: outcome.won });
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 

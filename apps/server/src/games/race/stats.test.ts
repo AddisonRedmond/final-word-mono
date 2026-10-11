@@ -9,32 +9,40 @@ import type { RaceMatch, RacePlayer } from "types/race.types.js";
 // the UUID-keyed real players and no bots.
 //
 // `rankPlayers` is not exported, so we mock the `db` module and capture the
-// `userId` on every `.insert(...).values({ userId })` call `persistRaceStats`
-// makes, then assert the captured set equals exactly the UUID-keyed ids.
+// `userId` on every unified `upsertModeStats` call `persistRaceStats` makes,
+// then assert the captured set equals exactly the UUID-keyed ids.
+//
+// The stats pipeline writes two rows per player (lifetime + season). To keep the
+// "exactly one per user" assertion meaningful we capture only the LIFETIME-scope
+// call, which fires once per persisted player.
 //
 // Validates: Requirements 8.4
 
-// Records the userId of every values() call the code under test issues.
+// Records the userId of every LIFETIME-scope upsertModeStats call.
 const insertedUserIds: string[] = [];
 
 vi.mock("db", () => {
-  // A chainable stub mirroring db.insert(raceStats).values({...}).onConflictDoUpdate({...}).
-  const insert = () => ({
-    values: (row: { userId: string }) => {
-      insertedUserIds.push(row.userId);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
-
-  // raceStats is only referenced for column identifiers; a plain object with the
-  // accessed keys is enough. sql is a passthrough tag that never runs here.
+  // The only write path is now the player_mode_stats transaction; capture the
+  // lifetime-scope upsert per player.
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      { userId, scope }: { userId: string; scope: string },
+    ) => {
+      if (scope === "lifetime") {
+        insertedUserIds.push(userId);
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 

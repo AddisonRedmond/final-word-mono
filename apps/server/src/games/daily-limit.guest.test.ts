@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // the SHARED realtime daily limit (`realtime-daily-limit.ts`: free 3/UTC-day
 // across modes, premium unlimited) — it does NOT consult the mode's own stats
 // row. Only guests (`isAnonymous === true`) delegate to `guestModeGate`, which
-// reads the mode's stats row.
+// reads the mode's unified `player_mode_stats` row.
 //
 // So the invariant this test guards is now: for a registered user, the per-mode
 // seam performs NO Mode_Stats read (`db.select` is never called) and the
@@ -35,22 +35,17 @@ const selectSpy = vi.fn(() => ({
 }));
 
 vi.mock("db", () => {
-  // raceStats / battleRoyaleStats are referenced only for column identifiers
-  // (table.userId, table.gamesPlayed); plain proxies suffice.
-  const tableProxy = () =>
-    new Proxy(
-      {},
-      {
-        get: (_t, key) => key,
-      },
-    );
+  // playerModeStats is referenced only for column identifiers
+  // (playerModeStats.userId/.mode/.scope); a plain proxy suffices.
+  const playerModeStats = new Proxy({}, { get: (_t, key) => key });
 
   return {
     db: { select: selectSpy },
-    raceStats: tableProxy(),
-    battleRoyaleStats: tableProxy(),
-    // eq is a passthrough used only to build the (ignored) where clause.
+    playerModeStats,
+    LIFETIME_SCOPE: "lifetime",
+    // eq / and are passthroughs used only to build the (ignored) where clause.
     eq: (col: unknown, value: unknown) => ({ col, value }),
+    and: (...clauses: unknown[]) => ({ and: clauses }),
   };
 });
 

@@ -26,100 +26,11 @@ import {
  * Those run AFTER the Drizzle tables exist.
  */
 
-/**
- * Aggregate Battle Royale statistics — ONE row per user (userId is the PK).
- *
- * When a match finishes, the realtime game server (apps/server) upserts each
- * REAL player's row (bots excluded), incrementing the running totals with that
- * match's outcome. There is no per-match history table; everything here is a
- * maintained aggregate.
- *
- * `averagePlacement` is stored as a running average (bounded between 1 and the
- * max lobby size) rather than a growing sum, updated each game as:
- *   newAvg = (oldAvg * oldGamesPlayed + placement) / (oldGamesPlayed + 1)
- * Other rates are still derived on read:
- *   - win rate = wins / gamesPlayed
- *   - losses   = gamesPlayed - wins - draws
- * (gamesPlayed is guaranteed > 0 for any row that exists, since a row is only
- * created on a player's first completed match.)
- */
-export const battleRoyaleStats = pgTable("battle_royale_stats", {
-  // One row per user — the aggregate key.
-  userId: uuid("user_id")
-    .primaryKey()
-    .references(() => profiles.id, { onDelete: "cascade" }),
-  gamesPlayed: integer("games_played").notNull().default(0),
-  wins: integer("wins").notNull().default(0),
-  draws: integer("draws").notNull().default(0),
-  // Running average finishing placement (1 = won). Bounded, updated per game.
-  averagePlacement: real("average_placement").notNull().default(0),
-  // Best (lowest) placement ever achieved; 1 means at least one win.
-  bestPlacement: integer("best_placement"),
-  // Running totals across all matches, for lifetime figures and averages.
-  totalGuesses: integer("total_guesses").notNull().default(0),
-  totalCorrectGuesses: integer("total_correct_guesses").notNull().default(0),
-  // Consecutive wins ending at the most recent game, and the best ever run.
-  currentWinStreak: integer("current_win_streak").notNull().default(0),
-  bestWinStreak: integer("best_win_streak").notNull().default(0),
-  // Whether the user's most recently completed match was a win. Overwritten
-  // every game (not accumulated) so the UI can react to the latest result.
-  wonLastGame: boolean("won_last_game").notNull().default(false),
-  lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
-
-/**
- * Aggregate Race_Mode statistics — ONE row per user (userId is the PK).
- *
- * Mirrors {@link battleRoyaleStats} exactly, retargeted to the round-based
- * elimination race. When a match finishes, the realtime game server upserts
- * each REAL player's row (bots excluded), incrementing the running totals with
- * that match's outcome. There is no per-match history table; everything here is
- * a maintained aggregate.
- *
- * `averagePlacement` is stored as a running average (bounded between 1 and the
- * max lobby size) rather than a growing sum, updated each game as:
- *   newAvg = (oldAvg * oldGamesPlayed + placement) / (oldGamesPlayed + 1)
- * Other rates are still derived on read:
- *   - win rate = wins / gamesPlayed
- *   - losses   = gamesPlayed - wins - draws
- * (gamesPlayed is guaranteed > 0 for any row that exists, since a row is only
- * created on a player's first completed match.)
- */
-export const raceStats = pgTable("race_stats", {
-  // One row per user — the aggregate key.
-  userId: uuid("user_id")
-    .primaryKey()
-    .references(() => profiles.id, { onDelete: "cascade" }),
-  gamesPlayed: integer("games_played").notNull().default(0),
-  wins: integer("wins").notNull().default(0),
-  draws: integer("draws").notNull().default(0),
-  // Running average finishing placement (1 = won). Bounded, updated per game.
-  averagePlacement: real("average_placement").notNull().default(0),
-  // Best (lowest) placement ever achieved; 1 means at least one win.
-  bestPlacement: integer("best_placement"),
-  // Running totals across all matches, for lifetime figures and averages.
-  totalGuesses: integer("total_guesses").notNull().default(0),
-  totalCorrectGuesses: integer("total_correct_guesses").notNull().default(0),
-  // Consecutive wins ending at the most recent game, and the best ever run.
-  currentWinStreak: integer("current_win_streak").notNull().default(0),
-  bestWinStreak: integer("best_win_streak").notNull().default(0),
-  // Whether the user's most recently completed match was a win. Overwritten
-  // every game (not accumulated) so the UI can react to the latest result.
-  wonLastGame: boolean("won_last_game").notNull().default(false),
-  lastPlayedAt: timestamp("last_played_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+// NOTE: the legacy per-mode aggregate tables `battle_royale_stats` and
+// `race_stats` were removed once the unified `playerModeStats` table (below)
+// became the sole read/write surface. Their historical data was backfilled into
+// `playerModeStats` as `scope = 'lifetime'` rows; the tables are dropped by a
+// Drizzle migration. See `playerModeStats` for the replacement shape.
 
 export const duels = pgTable("duels", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -261,6 +172,17 @@ export const profiles = pgTable("profiles", {
   premiumStatus: text("premium_status"),
   // When the current premium entitlement runs through. Null when not premium.
   premiumUntil: timestamp("premium_until", { withTimezone: true }),
+  // --- Champion cosmetic (cross-mode) ----------------------------------------
+  // Whether the user WON their most recent REALTIME game, across Battle Royale
+  // AND Race combined. Overwritten on every realtime game finish by whichever
+  // mode finished last (win -> true, loss/elimination -> false), so it reflects
+  // the single latest realtime result rather than a per-mode flag. Drives the
+  // gold/sparkle "Final Word" hero tiles. Duels never touch it (the cosmetic is
+  // about realtime wins). This is the cross-mode counterpart to the per-mode
+  // `player_mode_stats.wonLastGame`, which stays mode-scoped.
+  wonLastRealtimeGame: boolean("won_last_realtime_game")
+    .notNull()
+    .default(false),
 });
 
 /**
@@ -308,10 +230,9 @@ export const realtimeGameUsage = pgTable(
  *               A single completed game updates BOTH the lifetime row and the
  *               current-season row for that user+mode.
  *
- * This collapses the old table-per-mode shape (battleRoyaleStats, raceStats)
- * and the lifetime-vs-seasonal split into rows. The existing per-mode tables
- * are intentionally retained during the transition (additive migration); the
- * server write paths move onto this table separately.
+ * This collapses the old table-per-mode shape (the former `battle_royale_stats`
+ * / `race_stats` tables, now dropped) and the lifetime-vs-seasonal split into
+ * rows. It is the sole stats read/write surface.
  *
  * Derived-on-read (not stored): win rate = wins/gamesPlayed; losses =
  * gamesPlayed - wins - draws; avg guesses = totalGuesses/gamesPlayed; avg solve
@@ -456,12 +377,6 @@ export const seasonPlacements = pgTable(
     index("season_placements_board_idx").on(t.mode, t.season, t.placement),
   ],
 );
-
-export type BattleRoyaleStats = typeof battleRoyaleStats.$inferSelect;
-export type NewBattleRoyaleStats = typeof battleRoyaleStats.$inferInsert;
-
-export type RaceStats = typeof raceStats.$inferSelect;
-export type NewRaceStats = typeof raceStats.$inferInsert;
 
 export type Duel = typeof duels.$inferSelect;
 export type NewDuel = typeof duels.$inferInsert;

@@ -56,6 +56,20 @@ vi.mock("@/state/server-clock-store", () => ({
 
 vi.mock("@/env", () => ({ env: { NEXT_PUBLIC_WS_URL: "ws://localhost" } }));
 
+// The home screen reads `stats.champion` to decide whether to gild the hero
+// tiles. That tRPC query needs a provider this gating test doesn't mount and is
+// unrelated to the card gating under test, so stub `api` to resolve it to a
+// non-champion default (no gold, no sparkle).
+vi.mock("@/utils/api", () => ({
+	api: {
+		stats: {
+			champion: {
+				useQuery: () => ({ data: { isChampion: false } }),
+			},
+		},
+	},
+}));
+
 // The duels entry point (HeadToHeadCard) links via next/router, which has no
 // mounted router in jsdom; stub it so the registered-user render succeeds.
 vi.mock("next/router", () => ({

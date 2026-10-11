@@ -21,8 +21,6 @@
  * (Req 11.3).
  */
 
-import { raceStats } from "db";
-
 import { guestModeGate } from "../guest-mode-gate.js";
 import {
   canStartRealtimeGame,
@@ -33,7 +31,8 @@ import {
  * Returns whether the player may start a Race match.
  *
  * Guests (`isAnonymous`) delegate to the shared one-game-per-mode gate
- * (`guestModeGate` against this mode's `raceStats` row, R6.1, R6.2) — unchanged.
+ * (`guestModeGate(userId, "race")`, which reads this mode's lifetime
+ * `player_mode_stats` row, R6.1, R6.2) — unchanged.
  *
  * Registered users are gated by the shared free-tier realtime limit
  * (`canStartRealtimeGame`): free accounts get a fixed number of realtime games
@@ -54,7 +53,7 @@ export const canStartMatch = async (
 ): Promise<boolean> => {
   // Guests: one game per mode, derived from this mode's stats row (R6.1, R6.2).
   if (isAnonymous) {
-    return guestModeGate(userId, raceStats);
+    return guestModeGate(userId, "race");
   }
 
   // Registered users: free 3/UTC-day shared across modes, premium unlimited.

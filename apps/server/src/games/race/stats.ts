@@ -1,4 +1,11 @@
-import { db, raceStats, sql } from "db";
+import {
+  db,
+  LIFETIME_SCOPE,
+  matchPoints,
+  seasonKey,
+  setWonLastRealtimeGame,
+  upsertModeStats,
+} from "db";
 import type { RaceMatch, RacePlayer } from "types/race.types.js";
 
 import logger from "../../utils/logger.js";
@@ -114,58 +121,66 @@ type PlayerStatResult = {
 };
 
 /**
- * Upsert one user's aggregate row for a single completed match. Existing rows
- * are incremented in SQL so concurrent writes can't clobber each other's
- * totals; brand-new users get a fresh row.
+ * Write one completed match's outcome onto the unified `player_mode_stats`
+ * table: once for the all-time `lifetime` scope and once for the current
+ * season's scope, in the SAME transaction so both rows move together or not at
+ * all (R1.4). Points are computed ONCE per player via
+ * `matchPoints(placement, correctGuesses)` and handed to both calls;
+ * `upsertModeStats` applies them only on the seasonal scored row (R2A.6), so
+ * the lifetime row keeps points at 0.
+ *
+ * `mode` is fixed to "race" (a SCORED_MODE). This is the sole stats write path:
+ * the legacy `race_stats` dual-write has been retired now that nothing reads
+ * that table. `upsertModeStats` never throws into the caller (it logs and
+ * swallows), so a write failure can't break cleanup; the returned promise is
+ * awaited only so the one transaction completes.
  */
-const upsertPlayerStat = (result: PlayerStatResult, now: Date) => {
+const writeModeStats = (result: PlayerStatResult, now: Date) => {
   const { userId, placement, won, isDraw, totalGuesses, correctGuesses } =
     result;
-  const winInc = won ? 1 : 0;
-  const drawInc = isDraw ? 1 : 0;
+  // Combat proxy is correctGuesses for now (swappable later, R2A.4). Computed
+  // once per player per match and shared by both the lifetime and seasonal
+  // upserts.
+  const points = matchPoints(placement, correctGuesses);
+  const outcome = {
+    won,
+    isDraw,
+    totalGuesses,
+    correctGuesses,
+    placement,
+    points,
+  };
 
-  return db
-    .insert(raceStats)
-    .values({
-      userId,
-      gamesPlayed: 1,
-      wins: winInc,
-      draws: drawInc,
-      // First game: the average is just this game's placement.
-      averagePlacement: placement,
-      bestPlacement: placement,
-      totalGuesses,
-      totalCorrectGuesses: correctGuesses,
-      currentWinStreak: winInc,
-      bestWinStreak: winInc,
-      wonLastGame: won,
-      lastPlayedAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: raceStats.userId,
-      set: {
-        gamesPlayed: sql`${raceStats.gamesPlayed} + 1`,
-        wins: sql`${raceStats.wins} + ${winInc}`,
-        draws: sql`${raceStats.draws} + ${drawInc}`,
-        // Running average: (oldAvg * oldGamesPlayed + placement) / newGamesPlayed.
-        // Uses the pre-update games_played, so this must be computed from the
-        // existing column values (before the increment above is visible).
-        averagePlacement: sql`(${raceStats.averagePlacement} * ${raceStats.gamesPlayed} + ${placement}) / (${raceStats.gamesPlayed} + 1)`,
-        bestPlacement: sql`least(coalesce(${raceStats.bestPlacement}, ${placement}), ${placement})`,
-        totalGuesses: sql`${raceStats.totalGuesses} + ${totalGuesses}`,
-        totalCorrectGuesses: sql`${raceStats.totalCorrectGuesses} + ${correctGuesses}`,
-        // Win streak: extend on a win, reset to 0 otherwise.
-        currentWinStreak: sql`case when ${won} then ${raceStats.currentWinStreak} + 1 else 0 end`,
-        // Best streak: the greater of the prior best and the new current.
-        bestWinStreak: sql`greatest(${raceStats.bestWinStreak}, case when ${won} then ${raceStats.currentWinStreak} + 1 else 0 end)`,
-        // Overwrite (not accumulate) with the latest game's result.
-        wonLastGame: won,
-        lastPlayedAt: now,
-        updatedAt: now,
-      },
-    });
+  return db.transaction(async (tx) => {
+    await upsertModeStats(
+      tx,
+      { userId, mode: "race", scope: LIFETIME_SCOPE, outcome },
+      now,
+    );
+    await upsertModeStats(
+      tx,
+      { userId, mode: "race", scope: seasonKey(now), outcome },
+      now,
+    );
+    // Cross-mode champion flag: overwrite with THIS realtime game's outcome so
+    // the gold "Final Word" header reflects the single latest realtime result
+    // (and drops the moment the player loses either Race or Battle Royale).
+    await setWonLastRealtimeGame(tx, userId, won, now);
+  });
 };
+
+/**
+ * Persist one user's stats for a single completed match onto the unified
+ * `player_mode_stats` table (lifetime + current-season rows). Existing rows are
+ * incremented in SQL inside `upsertModeStats` so concurrent writes can't
+ * clobber each other's totals; brand-new users get a fresh row.
+ *
+ * This is now a thin wrapper over {@link writeModeStats} — the legacy
+ * `race_stats` write has been removed. Kept as the named entry point the
+ * finish/leaver paths call so those call sites are unchanged.
+ */
+const upsertPlayerStat = (result: PlayerStatResult, now: Date) =>
+  writeModeStats(result, now);
 
 /**
  * Upsert per-user aggregate Race stats for a finished match.

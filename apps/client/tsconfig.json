@@ -9,6 +9,10 @@
     "moduleDetection": "force",
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    // The `db` workspace package is consumed as source via the `@/db/*` alias and
+    // uses real `.ts` relative imports (so Turbopack can resolve them without
+    // `.js`->`.ts` extension aliasing). Allow those specifiers when type-checking.
+    "allowImportingTsExtensions": true,
     /* Strictness */
     "strict": true,
     "noUncheckedIndexedAccess": true,
