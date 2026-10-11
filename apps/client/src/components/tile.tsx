@@ -5,7 +5,7 @@ interface TileProps {
   word: string;
   revealed?: boolean;
   guess?: string | string[];
-  variant?: "default" | "correct" | "present" | "absent";
+  variant?: "default" | "correct" | "present" | "absent" | "champion";
   size?: "sm" | "md" | "lg";
 }
 
@@ -28,6 +28,11 @@ const variantClasses = {
   correct: "bg-emerald-500 text-white border border-emerald-600",
   present: "bg-amber-400 text-white border border-amber-500",
   absent: "bg-stone-400 text-white border border-stone-500",
+  // Champion cosmetic: a warm gold face with a brighter gold ring. Paired with
+  // the sparkle overlay (see <Tile>) when the player won their last realtime
+  // game.
+  champion:
+    "bg-gradient-to-br from-amber-300 to-yellow-500 text-white border border-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.55)]",
 } as const;
 
 const sizeClasses = {
@@ -113,6 +118,49 @@ export const SlotTile = memo<SlotTileProps>(
 
 SlotTile.displayName = "SlotTile";
 
+// Fixed sparkle positions (percent of the overlay box) + per-star timing so the
+// twinkle looks organic rather than synchronized. Kept module-level so the
+// array identity is stable across renders.
+const SPARKLES = [
+  { top: "-8%", left: "6%", size: 10, delay: 0, duration: 1.6 },
+  { top: "18%", left: "92%", size: 8, delay: 0.5, duration: 1.9 },
+  { top: "72%", left: "-6%", size: 9, delay: 0.9, duration: 1.7 },
+  { top: "96%", left: "70%", size: 7, delay: 0.3, duration: 2.1 },
+  { top: "40%", left: "48%", size: 6, delay: 1.2, duration: 1.5 },
+] as const;
+
+/**
+ * A twinkling sparkle layer for the champion tiles. Absolutely positioned over
+ * the tile row and non-interactive (`pointer-events-none`). Each star pulses its
+ * scale/opacity on its own loop; `motion` honours the user's reduced-motion
+ * setting, so the animation is skipped for those who opt out — the gold face
+ * still shows.
+ */
+const Sparkles: React.FC = () => (
+  <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+    {SPARKLES.map((s, i) => (
+      <motion.svg
+        key={i}
+        className="absolute text-yellow-100 drop-shadow-[0_0_4px_rgba(253,224,71,0.9)]"
+        style={{ top: s.top, left: s.left, width: s.size, height: s.size }}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+        transition={{
+          duration: s.duration,
+          delay: s.delay,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+      >
+        {/* Four-point sparkle/star. */}
+        <path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" />
+      </motion.svg>
+    ))}
+  </div>
+);
+
 const Tile = memo<TileProps>(
   ({ word, revealed = false, guess, variant = "default", size = "md" }) => {
     const letters = word.toUpperCase();
@@ -127,7 +175,7 @@ const Tile = memo<TileProps>(
         (letter, index) => revealed || guesses[index]?.toUpperCase() === letter,
       );
 
-    return (
+    const slot = (
       <SlotTile
         letters={letters}
         revealed={letterRevealed}
@@ -141,6 +189,19 @@ const Tile = memo<TileProps>(
         }
       />
     );
+
+    // Champion tiles get a sparkle layer over the row. The relative wrapper
+    // confines the absolutely-positioned sparkles to this tile row.
+    if (variant === "champion") {
+      return (
+        <div className="relative inline-block">
+          {slot}
+          <Sparkles />
+        </div>
+      );
+    }
+
+    return slot;
   },
 );
 

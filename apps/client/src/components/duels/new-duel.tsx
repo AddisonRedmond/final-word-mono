@@ -7,12 +7,24 @@ import type { Friend } from "../friends/types";
 interface NewDuelProps {
   friends: Friend[];
   isLoading?: boolean;
+  /**
+   * Maximum number of friends the current user can invite to a duel (NOT
+   * counting themselves). Free accounts get fewer than premium; the parent
+   * derives this from the user's tier. The server enforces the same cap.
+   */
+  maxInvitees: number;
+  /** Whether the current user is premium — drives the upsell copy at the cap. */
+  isPremium?: boolean;
   onSendDuel: (invitedFriends: Friend[]) => void | Promise<void>;
 }
 
-const MAX_PLAYERS = 5;
-
-const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
+const NewDuel = ({
+  friends,
+  isLoading = false,
+  maxInvitees,
+  isPremium = false,
+  onSendDuel,
+}: NewDuelProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [invitedFriends, setInvitedFriends] = useState<Friend[]>([]);
@@ -64,7 +76,7 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
 
   const addFriend = (friend: Friend) => {
     setInvitedFriends((current) =>
-      current.length >= MAX_PLAYERS ||
+      current.length >= maxInvitees ||
       current.some((invited) => invited.id === friend.id)
         ? current
         : [...current, friend],
@@ -133,7 +145,7 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
             className="overflow-hidden"
           >
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-              Invited players ({invitedFriends.length}/{MAX_PLAYERS})
+              Invited players ({invitedFriends.length}/{maxInvitees})
             </p>
             <div className="flex flex-wrap gap-2">
               <AnimatePresence initial={false}>
@@ -159,9 +171,11 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
                 ))}
               </AnimatePresence>
             </div>
-            {invitedFriends.length >= MAX_PLAYERS && (
+            {invitedFriends.length >= maxInvitees && (
               <p className="mt-2 text-[11px] text-amber-600">
-                You can invite up to {MAX_PLAYERS} players.
+                {isPremium
+                  ? `You can invite up to ${maxInvitees} players.`
+                  : `Free accounts can invite up to ${maxInvitees} players. Upgrade to premium to invite more.`}
               </p>
             )}
           </motion.div>
@@ -185,7 +199,7 @@ const NewDuel = ({ friends, isLoading = false, onSendDuel }: NewDuelProps) => {
                 onClick={() => addFriend(friend)}
                 disabled={invitedFriends.some(
                   (invited) => invited.id === friend.id,
-                ) || invitedFriends.length >= MAX_PLAYERS}
+                ) || invitedFriends.length >= maxInvitees}
                 aria-label={`Add ${friend.name} to invite list`}
                 className="size-7 px-0 py-0 grid place-content-center text-base leading-none disabled:cursor-not-allowed disabled:opacity-40"
               >

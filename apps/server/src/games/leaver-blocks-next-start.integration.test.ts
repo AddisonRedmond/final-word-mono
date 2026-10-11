@@ -33,66 +33,113 @@ import type { RaceMatch, RacePlayer } from "types/race.types.js";
 
 // --- Stateful db mock ------------------------------------------------------
 //
-// One in-memory "race_stats" table keyed by userId with a gamesPlayed counter.
-// `db.insert(...).values(...).onConflictDoUpdate(...)` seeds/increments it
-// exactly like the real upsert; `db.select(...).from(...).where(...).limit(1)`
-// returns the row (or []) that `guestModeGate` reads.
+// The write path now dual-writes: `race/stats.ts` fires the legacy
+// `race_stats` upsert AND a `db.transaction` that calls `upsertModeStats` for
+// the lifetime + seasonal `player_mode_stats` rows. The GATE now reads the
+// unified `player_mode_stats` lifetime row (`mode = 'race'`, `scope =
+// 'lifetime'`), so that is the row this test must drive end-to-end.
+//
+// We model one in-memory `player_mode_stats` table keyed by
+// `${userId}|${mode}|${scope}` with a gamesPlayed counter. A faithful (mocked)
+// `upsertModeStats` increments it the way the real SQL does (insert 1, or
+// gamesPlayed + 1 on conflict). The gate's
+// `select().from(playerModeStats).where(and(...)).limit(1)` reads the lifetime
+// row back. The legacy `race_stats` insert is mocked as a harmless no-op since
+// nothing reads it anymore.
 type StatsRow = { gamesPlayed: number };
 const statsTable = new Map<string, StatsRow>();
 
-// The userId captured from the current where(eq(table.userId, userId)) clause,
-// so a select resolves the right row.
-let whereUserId: string | null = null;
-// The userId captured from the current insert .values({...}) row, so the
-// onConflictDoUpdate upsert mutates the right row.
-let insertUserId: string | null = null;
+const pmsKey = (userId: string, mode: string, scope: string) =>
+  `${userId}|${mode}|${scope}`;
 
 vi.mock("db", () => {
-  const tableProxy = () => new Proxy({}, { get: (_t, key) => key });
+  const playerModeStats = new Proxy({}, { get: (_t, key) => key });
 
+  // Legacy race_stats write: accepted and ignored (no reader remains).
   const insert = () => ({
-    values: (row: { userId: string; gamesPlayed?: number }) => {
-      insertUserId = row.userId;
-      return {
-        onConflictDoUpdate: () => {
-          // Real SQL: insert gamesPlayed=1, or on conflict gamesPlayed + 1.
-          const id = insertUserId as string;
-          const existing = statsTable.get(id);
-          statsTable.set(id, {
-            gamesPlayed: existing ? existing.gamesPlayed + 1 : 1,
-          });
-          return Promise.resolve(undefined);
-        },
-      };
-    },
+    values: () => ({
+      onConflictDoUpdate: () => Promise.resolve(undefined),
+    }),
   });
 
+  // The gate read: select().from(playerModeStats).where(and(eq...)).limit(1).
+  // Pull userId/mode/scope out of the composed and() and resolve the matching
+  // lifetime row.
   const select = () => ({
     from: () => ({
-      where: (clause: { value: string }) => {
-        // eq() (below) packs the compared userId into `.value`.
-        whereUserId = clause.value;
+      where: (clause: { and?: Array<{ col: unknown; value: string }> }) => {
+        const get = (name: string) =>
+          clause.and?.find((c) => c.col === name)?.value;
+        const userId = get("user_id") ?? get("userId");
+        const mode = get("mode");
+        const scope = get("scope");
         return {
           limit: () => {
-            const row = whereUserId ? statsTable.get(whereUserId) : undefined;
-            return Promise.resolve(row ? [{ gamesPlayed: row.gamesPlayed }] : []);
+            const row =
+              userId && mode && scope
+                ? statsTable.get(pmsKey(userId, mode, scope))
+                : undefined;
+            return Promise.resolve(
+              row ? [{ gamesPlayed: row.gamesPlayed }] : [],
+            );
           },
         };
       },
     }),
   });
 
+  // The unified write path. `race/stats.ts` runs this inside db.transaction for
+  // both lifetime and seasonal scopes; we increment the keyed counter exactly
+  // like the real onConflictDoUpdate (insert 1, else +1).
+  const upsertModeStats = (
+    _tx: unknown,
+    {
+      userId,
+      mode,
+      scope,
+    }: { userId: string; mode: string; scope: string },
+  ) => {
+    const key = pmsKey(userId, mode, scope);
+    const existing = statsTable.get(key);
+    statsTable.set(key, { gamesPlayed: existing ? existing.gamesPlayed + 1 : 1 });
+    return Promise.resolve(undefined);
+  };
+
+  const db = {
+    insert,
+    select,
+    // dualWriteModeStats wraps both upserts in a transaction; run the callback
+    // with a dummy tx so the real upsertModeStats calls fire.
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+  };
+
   return {
-    db: { insert, select },
-    raceStats: tableProxy(),
-    battleRoyaleStats: tableProxy(),
-    eq: (col: unknown, value: string) => ({ col, value }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
+    db,
+    playerModeStats,
+    LIFETIME_SCOPE: "lifetime",
+    // seasonKey is called by race/stats.ts for the seasonal dual-write row.
+    seasonKey: () => "2026-01",
+    matchPoints: () => 0,
+    upsertModeStats,
+    // The champion-flag write is irrelevant to this guest-gate test; no-op it so
+    // the real writeModeStats transaction completes without needing tx.update.
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    and: (...clauses: Array<{ col: unknown; value: unknown }>) => ({
+      and: clauses,
     }),
+    eq: (col: unknown, value: string) => ({ col, value }),
   };
 });
+
+// The registered-user branch of `canStartMatch` now routes into the shared
+// realtime daily limit (free 3/UTC-day, premium unlimited). This test is about
+// the GUEST one-game-per-mode gate, so stub the realtime limit to always permit
+// — isolating the guest gate (and keeping the "registered users are never
+// blocked by a prior leaver-loss" assertion a pure guest-gate check).
+vi.mock("./realtime-daily-limit.js", () => ({
+  canStartRealtimeGame: vi.fn(async () => true),
+  recordRealtimeGameStart: vi.fn(async () => undefined),
+}));
 
 // Import AFTER the mock is registered.
 const { persistLeaverAsLoss } = await import("./race/stats.js");
@@ -134,8 +181,6 @@ const makeInProgressMatch = (userId: string): RaceMatch => ({
 describe("Guest leaver -> next-start-blocked (Requirements 6.6, 6.7)", () => {
   beforeEach(() => {
     statsTable.clear();
-    whereUserId = null;
-    insertUserId = null;
   });
 
   it("blocks the guest's next start in that mode after a leaver-loss writes gamesPlayed >= 1 (R6.7)", async () => {
@@ -146,17 +191,22 @@ describe("Guest leaver -> next-start-blocked (Requirements 6.6, 6.7)", () => {
           statsTable.clear();
           const userId = uuidFromSeed(seed);
 
+          // The lifetime player_mode_stats row the Race gate reads.
+          const lifetimeKey = pmsKey(userId, "race", "lifetime");
+
           // (1) Before play: no stats row -> a guest start is ALLOWED.
           const beforeAllowed = await canStartMatch(userId, true);
           expect(beforeAllowed).toBe(true);
-          expect(statsTable.has(userId)).toBe(false);
+          expect(statsTable.has(lifetimeKey)).toBe(false);
 
           // (2) Guest plays and leaves/disconnects mid-game: the leaver-loss
-          // write lands into the mode's stats row (gamesPlayed becomes 1).
+          // write lands into the mode's lifetime row (gamesPlayed becomes 1).
           const match = makeInProgressMatch(userId);
           await persistLeaverAsLoss(match, userId);
 
-          expect(statsTable.get(userId)?.gamesPlayed).toBeGreaterThanOrEqual(1);
+          expect(
+            statsTable.get(lifetimeKey)?.gamesPlayed,
+          ).toBeGreaterThanOrEqual(1);
 
           // (3) A subsequent start in that mode is now REJECTED by the seam.
           const afterAllowed = await canStartMatch(userId, true);
@@ -171,7 +221,9 @@ describe("Guest leaver -> next-start-blocked (Requirements 6.6, 6.7)", () => {
     const userId = uuidFromSeed(42);
     const match = makeInProgressMatch(userId);
     await persistLeaverAsLoss(match, userId);
-    expect(statsTable.get(userId)?.gamesPlayed).toBeGreaterThanOrEqual(1);
+    expect(
+      statsTable.get(pmsKey(userId, "race", "lifetime"))?.gamesPlayed,
+    ).toBeGreaterThanOrEqual(1);
 
     // Even with gamesPlayed >= 1, a registered user (isAnonymous=false) is
     // permitted — the leaver-loss gate only governs guests.

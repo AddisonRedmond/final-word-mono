@@ -7,6 +7,7 @@ import {
   GUESS_LENGTH,
   HOPPER_FONT_RATIO,
   HOPPER_TILE_RATIO,
+  MAX_OPPONENT_WIDTH,
   REVEALED_FONT_RATIO,
   REVEALED_TILE_RATIO,
   getCardHeight,
@@ -105,7 +106,10 @@ const Opponents = memo(
         largestWidth = Math.max(largestWidth, cardWidth);
       }
 
-      return Math.max(0, largestWidth);
+      // Clamp to the cap so a small field (1-3 opponents) doesn't inflate each
+      // card to fill the column and dwarf the player's own board. With a large
+      // field the computed width is already below the cap, so this is a no-op.
+      return Math.min(MAX_OPPONENT_WIDTH, Math.max(0, largestWidth));
     }, [activeOpponents.length, containerSize.width, containerSize.height]);
 
     return (

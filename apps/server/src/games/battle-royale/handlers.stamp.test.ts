@@ -15,19 +15,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("db", () => ({
   db: {
-    insert: () => ({
-      values: () => ({ onConflictDoUpdate: () => Promise.resolve(undefined) }),
-    }),
+    // The stats pipeline writes player_mode_stats inside db.transaction; a
+    // passthrough + no-op upsertModeStats keeps any stray write harmless. This
+    // test asserts the join-time stamp, not stats, so nothing is captured.
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
   },
-  battleRoyaleStats: new Proxy({}, { get: (_t, key) => key }),
-  sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-    strings,
-    values,
-  }),
+  upsertModeStats: () => Promise.resolve(undefined),
+  setWonLastRealtimeGame: () => Promise.resolve(undefined),
+  matchPoints: () => 0,
+  seasonKey: () => "2026-01",
+  LIFETIME_SCOPE: "lifetime",
 }));
 
 vi.mock("./daily-limit.js", () => ({
   canStartMatch: vi.fn(async () => true),
+  recordMatchStart: vi.fn(async () => undefined),
 }));
 
 const { registerBattleRoyaleHandlers } = await import("./handlers.js");

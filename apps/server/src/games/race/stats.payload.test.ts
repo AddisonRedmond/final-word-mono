@@ -4,52 +4,58 @@ import type { RaceMatch, RacePlayer } from "types/race.types.js";
 // Feature: round-based-elimination-race — unit tests for the persisted stats
 // payload shape (Req 8.5) and failure resilience of the cleanup path (Req 8.8).
 //
-// `upsertPlayerStat`/`rankPlayers` are not exported, so we mock the `db` module
-// and capture the arguments the code under test passes to
-// `db.insert(raceStats).values({...}).onConflictDoUpdate({...})`.
+// The legacy `race_stats` dual-write has been retired; the sole write path is
+// now the unified `player_mode_stats` upsert. `upsertPlayerStat`/`rankPlayers`
+// are not exported, so we mock the `db` module and capture the arguments the
+// code passes to `upsertModeStats(tx, { userId, mode, scope, outcome }, now)`.
+// We assert the LIFETIME-scope call's outcome, which carries this game's result.
 //
 // Validates: Requirements 8.5, 8.8
 
-// Captured row from the most recent `.values(...)` call.
-let capturedRow: Record<string, unknown> | undefined;
-// Captured config object from the most recent `.onConflictDoUpdate(...)` call.
-let capturedConflict: Record<string, unknown> | undefined;
-// When set, the mocked insert() throws to simulate a DB failure (Req 8.8).
-let insertShouldThrow = false;
+type ModeStatsCall = {
+  userId: string;
+  mode: string;
+  scope: string;
+  outcome: Record<string, unknown>;
+  now: Date;
+};
+
+// Every upsertModeStats call the code under test issues, in order.
+let calls: ModeStatsCall[] = [];
+// When set, the mocked upsertModeStats throws to simulate a write failure (Req 8.8).
+let writeShouldThrow = false;
 
 vi.mock("db", () => {
-  // Chainable stub mirroring db.insert(raceStats).values({...}).onConflictDoUpdate({...}).
-  const insert = () => {
-    if (insertShouldThrow) {
-      throw new Error("simulated db failure");
-    }
-    return {
-      values: (row: Record<string, unknown>) => {
-        capturedRow = row;
-        return {
-          onConflictDoUpdate: (config: Record<string, unknown>) => {
-            capturedConflict = config;
-            return Promise.resolve(undefined);
-          },
-        };
-      },
-    };
-  };
-
-  // raceStats is only referenced for column identifiers; a Proxy returning the
-  // accessed key name is enough. sql is a passthrough tag that never runs here.
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      args: { userId: string; mode: string; scope: string; outcome: Record<string, unknown> },
+      now: Date,
+    ) => {
+      if (writeShouldThrow) {
+        throw new Error("simulated db failure");
+      }
+      calls.push({ ...args, now });
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 
 // Import AFTER the mock is registered.
 const { persistRaceStats } = await import("./stats.js");
+
+/** The LIFETIME-scope call for a user, which carries this game's outcome. */
+const lifetimeCall = (userId: string): ModeStatsCall | undefined =>
+  calls.find((c) => c.userId === userId && c.scope === "lifetime");
 
 // A real (UUID-keyed) player id so isRealPlayer() treats it as a persisted user.
 const WINNER_ID = "11111111-1111-4111-8111-111111111111";
@@ -87,86 +93,78 @@ const makeWinnerMatch = (): RaceMatch => {
   };
 };
 
-describe("persistRaceStats upsert payload shape (Req 8.5)", () => {
+describe("persistRaceStats unified write payload (Req 8.5)", () => {
   beforeEach(() => {
-    capturedRow = undefined;
-    capturedConflict = undefined;
-    insertShouldThrow = false;
+    calls = [];
+    writeShouldThrow = false;
   });
 
-  it("includes every required stat field in the inserted row", async () => {
+  it("writes a lifetime and a seasonal row for the player, fixed to mode 'race'", async () => {
     await persistRaceStats(makeWinnerMatch());
 
-    expect(capturedRow).toBeDefined();
-    const row = capturedRow as Record<string, unknown>;
+    const scopes = calls
+      .filter((c) => c.userId === WINNER_ID)
+      .map((c) => c.scope)
+      .sort();
+    // One lifetime row + one seasonal row (seasonKey mocked to 2026-01).
+    expect(scopes).toEqual(["2026-01", "lifetime"]);
+    // Every write is fixed to the Race mode.
+    for (const c of calls) {
+      expect(c.mode).toBe("race");
+    }
+  });
 
-    // Req 8.5 required fields must all be present.
+  it("includes every outcome field the unified upsert needs", async () => {
+    await persistRaceStats(makeWinnerMatch());
+
+    const call = lifetimeCall(WINNER_ID);
+    expect(call).toBeDefined();
+    const outcome = (call as ModeStatsCall).outcome;
+
     for (const field of [
-      "gamesPlayed",
-      "wins",
-      "draws",
-      "averagePlacement",
-      "bestPlacement",
+      "won",
+      "isDraw",
       "totalGuesses",
-      "totalCorrectGuesses",
-      "currentWinStreak",
-      "bestWinStreak",
-      "wonLastGame",
-      "lastPlayedAt",
+      "correctGuesses",
+      "placement",
+      "points",
     ] as const) {
-      expect(row).toHaveProperty(field);
+      expect(outcome).toHaveProperty(field);
     }
   });
 
   it("records reasonable values for a first-game winner", async () => {
     await persistRaceStats(makeWinnerMatch());
 
-    const row = capturedRow as Record<string, unknown>;
+    const call = lifetimeCall(WINNER_ID);
+    expect(call).toBeDefined();
+    const { outcome, now } = call as ModeStatsCall;
 
-    expect(row.userId).toBe(WINNER_ID);
-    expect(row.gamesPlayed).toBe(1);
-    // Winner of a non-draw match.
-    expect(row.wins).toBe(1);
-    expect(row.draws).toBe(0);
-    // Sole finisher / winner is placement 1.
-    expect(row.averagePlacement).toBe(1);
-    expect(row.bestPlacement).toBe(1);
-    // Streaks start at this game's win.
-    expect(row.currentWinStreak).toBe(1);
-    expect(row.bestWinStreak).toBe(1);
-    expect(row.wonLastGame).toBe(true);
+    // Winner of a non-draw match, sole finisher -> placement 1.
+    expect(outcome.won).toBe(true);
+    expect(outcome.isDraw).toBe(false);
+    expect(outcome.placement).toBe(1);
     // Guess totals carried straight from the player.
-    expect(row.totalGuesses).toBe(7);
-    expect(row.totalCorrectGuesses).toBe(3);
+    expect(outcome.totalGuesses).toBe(7);
+    expect(outcome.correctGuesses).toBe(3);
     // Timestamp is a Date.
-    expect(row.lastPlayedAt).toBeInstanceOf(Date);
-  });
-
-  it("configures onConflictDoUpdate so existing rows are upserted", async () => {
-    await persistRaceStats(makeWinnerMatch());
-
-    expect(capturedConflict).toBeDefined();
-    const conflict = capturedConflict as Record<string, unknown>;
-    // The upsert targets the userId column and supplies an update set.
-    expect(conflict).toHaveProperty("target");
-    expect(conflict).toHaveProperty("set");
+    expect(now).toBeInstanceOf(Date);
   });
 });
 
 describe("persistRaceStats failure resilience (Req 8.8)", () => {
   beforeEach(() => {
-    capturedRow = undefined;
-    capturedConflict = undefined;
-    insertShouldThrow = false;
+    calls = [];
+    writeShouldThrow = false;
   });
 
-  it("does not throw when the DB insert fails, so cleanup completes", async () => {
-    insertShouldThrow = true;
+  it("does not throw when the stats write fails, so cleanup completes", async () => {
+    writeShouldThrow = true;
 
     // The try/catch inside persistRaceStats must swallow the error and resolve.
     await expect(persistRaceStats(makeWinnerMatch())).resolves.toBeUndefined();
 
-    // Nothing was successfully captured because insert() threw.
-    expect(capturedRow).toBeUndefined();
+    // Nothing was captured because the write threw.
+    expect(calls).toHaveLength(0);
   });
 });

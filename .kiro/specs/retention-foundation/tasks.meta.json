@@ -1,0 +1,322 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "2.1 Add scoring + mode-stats unit tests first (TDD)": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477580936
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477587787
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477708923
+      }
+    ],
+    "2.2 Implement the shared `upsertModeStats` helper": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581054
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477711598
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477898584
+      }
+    ],
+    "2.3 Dual-write Battle Royale + Race onto `player_mode_stats`": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581212
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477905643
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478201127
+      }
+    ],
+    "2.4 Add the duel completion writer": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581326
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477910491
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478203562
+      }
+    ],
+    "2.5 Pipeline tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581411
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478206582
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478604355
+      }
+    ],
+    "3.1 Implement season ranking + archival": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581495
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478609349
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478727319
+      }
+    ],
+    "3.2 Archival tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581594
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478733828
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478837637
+      }
+    ],
+    "4.1 `stats` router": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581692
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478845655
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479120699
+      }
+    ],
+    "4.2 `leaderboard` router": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581775
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478850292
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479121610
+      }
+    ],
+    "4.3 `duels.rematchDuel` mutation": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477581923
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479139642
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479230115
+      }
+    ],
+    "4.4 `duels.headToHead` + `duels.history`": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582027
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478856212
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479122628
+      }
+    ],
+    "4.5 Router tests": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582114
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479233086
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479576732
+      }
+    ],
+    "5.1 `/stats` page": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582202
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479580643
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479950981
+      }
+    ],
+    "5.2 `/leaderboard` page": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582300
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479586978
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479952321
+      }
+    ],
+    "5.3 Duel result view: Rematch + head-to-head": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582395
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479591891
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479953273
+      }
+    ],
+    "5.4 Navbar links": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582510
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479597059
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479954321
+      }
+    ],
+    "5.5 Page/UI tests + final verification": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791477582620
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479957596
+      },
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791480260593
+      }
+    ],
+    "2. Unified stats pipeline (write path)": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478604501
+      }
+    ],
+    "3. Season archival routine": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791478837781
+      }
+    ],
+    "4. tRPC routers (read + rematch)": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791479576894
+      }
+    ],
+    "5. Client pages + UI": [
+      {
+        "executionId": "0df7b22a-0cf9-47a7-a6b7-d31f7be60268",
+        "chatSessionId": "sess_8a5f461c-6a56-45d6-b1ea-a2539174c8d1",
+        "timestamp": 1791480260740
+      }
+    ]
+  }
+}

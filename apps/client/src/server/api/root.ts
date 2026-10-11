@@ -1,7 +1,9 @@
 import { billingRouter } from "@/server/api/routers/billing";
 import { friendsRouter } from "@/server/api/routers/friends";
 import { guestRouter } from "@/server/api/routers/guest";
+import { leaderboardRouter } from "@/server/api/routers/leaderboard";
 import { postRouter } from "@/server/api/routers/post";
+import { statsRouter } from "@/server/api/routers/stats";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { duelsRouter } from "./routers/duels";
 
@@ -16,6 +18,8 @@ export const appRouter = createTRPCRouter({
 	duels: duelsRouter,
 	guest: guestRouter,
 	billing: billingRouter,
+	stats: statsRouter,
+	leaderboard: leaderboardRouter,
 });
 
 // export type definition of API

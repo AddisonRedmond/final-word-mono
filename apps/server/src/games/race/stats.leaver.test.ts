@@ -10,39 +10,57 @@ import type { RaceMatch, RacePhase, RacePlayer } from "types/race.types.js";
 // nothing, and a leaver in a not-yet-started lobby persists nothing.
 //
 // `upsertPlayerStat` is not exported, so we mock the `db` module and capture
-// the full row every `.insert(raceStats).values({...})` call issues. `won` is
-// encoded on the row as `wins` (1 when won, 0 otherwise), so a loss => wins 0.
+// the LIFETIME-scope `upsertModeStats` call the leaver write issues. The
+// outcome carries `won` (false for a loss) and `placement` (the alive-count
+// snapshot). The legacy race_stats write has been retired.
 //
 // Validates: Requirements 8.6, 8.7
 
-// The upsert row encodes the leaver's placement as `bestPlacement` /
-// `averagePlacement` (both equal to the snapshot placement on a first write)
-// and `won` as `wins` (0 for a loss).
+// The captured leaver write: outcome.won (loss => false) and outcome.placement
+// (= the alive-count snapshot at the moment of leaving).
 type CapturedRow = {
   userId: string;
-  wins: number;
-  averagePlacement: number;
-  bestPlacement: number;
+  won: boolean;
+  placement: number;
 };
 
-// Every values() row the code under test writes, in order.
+// Every LIFETIME-scope leaver write the code under test issues, in order.
 const inserted: CapturedRow[] = [];
 
 vi.mock("db", () => {
-  const insert = () => ({
-    values: (row: CapturedRow) => {
-      inserted.push(row);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
-
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      {
+        userId,
+        scope,
+        outcome,
+      }: {
+        userId: string;
+        scope: string;
+        outcome: { won: boolean; placement: number };
+      },
+    ) => {
+      // Capture only the lifetime row so the "exactly one write" assertion holds
+      // (the pipeline also writes a seasonal row per player).
+      if (scope === "lifetime") {
+        inserted.push({
+          userId,
+          won: outcome.won,
+          placement: outcome.placement,
+        });
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 
@@ -140,14 +158,13 @@ describe("persistLeaverAsLoss placement reflects field size (Property 12)", () =
           await persistLeaverAsLoss(match, leaverId);
 
           if (isRealLeaver && inProgress) {
-            // Exactly one upsert, for the leaver, recorded as a loss.
+            // Exactly one lifetime upsert, for the leaver, recorded as a loss.
             expect(inserted.length).toBe(1);
             expect(inserted[0].userId).toBe(leaverId);
-            // Loss => wins increment is 0.
-            expect(inserted[0].wins).toBe(0);
+            // A leaver loss => won is false.
+            expect(inserted[0].won).toBe(false);
             // Placement === alive (!isEliminated) count, leaver included.
-            expect(inserted[0].averagePlacement).toBe(aliveNow);
-            expect(inserted[0].bestPlacement).toBe(aliveNow);
+            expect(inserted[0].placement).toBe(aliveNow);
           } else {
             // Bot leaver (Req 8.7) or lobby leaver (Req 8.7): nothing persisted.
             expect(inserted.length).toBe(0);

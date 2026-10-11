@@ -10,10 +10,12 @@ import type { Friend } from "@/components/friends/types";
 import Modal from "@/components/modal";
 import Navbar from "@/components/navigation/navbar";
 import Tile from "@/components/tile";
+import { tierLimits } from "@/db/schema";
 import {
   type DuelRealtimeEvent,
   useDuelRealtime,
 } from "@/hooks/useDuelRealtime";
+import { usePremium } from "@/hooks/usePremium";
 import { Repeat } from "lucide-react";
 import { useAuthStore } from "@/state/auth-store";
 import { useKeyboardLayoutStore } from "@/state/keyboard-layout-store";
@@ -25,6 +27,13 @@ type ActiveDuelData = RouterOutputs["duels"]["startOrResumeDuel"];
 
 const Duels = () => {
   const { data, isLoading } = api.friends.list.useQuery();
+
+  // Premium gating: free accounts invite fewer players and hold fewer active
+  // duels than premium. The server is authoritative (sendDuel enforces the
+  // caps); these limits drive the UI so a free user can't over-select and then
+  // hit a server error.
+  const { isPremium } = usePremium();
+  const limits = tierLimits(isPremium);
 
   const {
     data: duels,
@@ -167,9 +176,22 @@ const Duels = () => {
   }, [participantsByDuel, activeDuelData]);
 
   const handleSendDuel = async (invitedFriends: Friend[]) => {
-    await sendDuelMutation.mutateAsync(
-      invitedFriends.map((friend) => friend.id),
-    );
+    try {
+      await sendDuelMutation.mutateAsync(
+        invitedFriends.map((friend) => friend.id),
+      );
+    } catch (error) {
+      // Surface server-side gate messages (e.g. a free user over their invitee
+      // or active-duel cap) instead of letting the promise reject silently. The
+      // modal stays open so they can adjust and retry.
+      toast(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong sending the duel.",
+        { variant: "error" },
+      );
+      return;
+    }
 
     await refetchDuels();
     setIsModalOpen(false);
@@ -357,8 +379,6 @@ const Duels = () => {
 
   return (
     <div className="flex h-dvh flex-col items-center gap-y-2 overflow-hidden">
-      {/* TODO: add navbar to the app, not individual pages */}
-
       <Navbar />
 
       <Tile revealed={true} size="md" variant="correct" word="DUEL" />
@@ -513,6 +533,8 @@ const Duels = () => {
             <NewDuel
               friends={friends}
               isLoading={isLoading}
+              maxInvitees={limits.duelInvitees}
+              isPremium={isPremium}
               onSendDuel={handleSendDuel}
             />
           </Modal>

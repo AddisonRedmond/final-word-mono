@@ -13,27 +13,47 @@ import type { RaceMatch, RacePlayer } from "types/race.types.js";
 // Validates: Requirements 9.1, 9.2, 9.3, 9.4, 9.5
 
 // `handlers.ts` transitively imports `stats.ts` -> `db`, so mock `db` before
-// importing the code under test. We also capture every `.insert().values()`
-// row so we can assert the in-progress leaver was persisted as a loss (Req 9.3).
-const insertedRows: Array<{ userId: string; wins: number }> = [];
+// importing the code under test. The stats pipeline now writes only
+// `player_mode_stats`, so we capture every LIFETIME-scope `upsertModeStats`
+// call (one per persisted player) to assert the in-progress leaver was
+// persisted as a loss (Req 9.3).
+const insertedRows: Array<{ userId: string; won: boolean }> = [];
 
 vi.mock("db", () => {
-  const insert = () => ({
-    values: (row: { userId: string; wins: number }) => {
-      insertedRows.push(row);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
-
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      {
+        userId,
+        scope,
+        outcome,
+      }: { userId: string; scope: string; outcome: { won: boolean } },
+    ) => {
+      if (scope === "lifetime") {
+        insertedRows.push({ userId, won: outcome.won });
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
+
+// The registered-user branch of the join-time match-start gate now routes into
+// the shared realtime daily limit (free 3/UTC-day, premium unlimited). These
+// reconnect/leave/disconnect tests are not about that limit, so stub it to
+// always permit — isolating the connection-handler behaviour under test.
+vi.mock("./daily-limit.js", () => ({
+  canStartMatch: vi.fn(async () => true),
+  recordMatchStart: vi.fn(async () => undefined),
+}));
 
 // Import AFTER the mock is registered. The handlers read the module globals
 // (`matches`, `serverOnlyData`, `serverOnlyBotData`, `config`) from state.js,
@@ -301,7 +321,7 @@ describe("registerRaceHandlers connection handlers (Req 9.1–9.5)", () => {
     // In-progress leaver persisted as a loss (Req 9.3 -> Req 8.6 path).
     expect(insertedRows.length).toBe(1);
     expect(insertedRows[0].userId).toBe(userId);
-    expect(insertedRows[0].wins).toBe(0);
+    expect(insertedRows[0].won).toBe(false);
 
     // Player removed and, since the room is now empty, the whole room state is
     // torn down (Req 9.4).

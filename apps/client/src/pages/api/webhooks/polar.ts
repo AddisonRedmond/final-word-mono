@@ -21,6 +21,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { profiles } from "@/db/schema";
 import { env } from "@/env";
 import { db } from "@/server/db";
+import logger, { serializeError } from "@/server/logger";
 
 // Disable Next's body parser so `req` streams the raw, unmodified bytes.
 export const config = {
@@ -67,21 +68,35 @@ export default async function handler(
 		);
 	} catch (error) {
 		if (error instanceof WebhookVerificationError) {
+			// Signature mismatch. Polar does NOT retry a 4xx, so every event is lost
+			// until the secret is fixed — a misconfigured/rotated POLAR_WEBHOOK_SECRET
+			// silently blocks ALL premium grants. Alert on this event.
+			logger.error({
+				event: "polar.webhook.signature_invalid",
+				msg: "Polar webhook signature verification failed; event rejected (not retried by Polar)",
+				...serializeError(error),
+			});
 			return res.status(403).json({ error: "Invalid signature" });
 		}
-		if (env.NODE_ENV === "development") {
-			console.error("[polar] webhook parse error:", error);
-		}
+		logger.error({
+			event: "polar.webhook.bad_payload",
+			msg: "Polar webhook payload could not be parsed; event rejected",
+			...serializeError(error),
+		});
 		return res.status(400).json({ error: "Invalid payload" });
 	}
 
 	try {
 		await handleEvent(event);
 	} catch (error) {
-		// Return 500 so Polar retries delivery (handlers should be idempotent).
-		if (env.NODE_ENV === "development") {
-			console.error(`[polar] handler failed for ${event.type}:`, error);
-		}
+		// Return 500 so Polar retries delivery (handlers are idempotent). A
+		// persistent handler_error means retries are failing too — alert on it.
+		logger.error({
+			event: "polar.webhook.handler_error",
+			msg: "Polar webhook handler threw; returning 500 so Polar retries",
+			eventType: event.type,
+			...serializeError(error),
+		});
 		return res.status(500).json({ error: "Handler error" });
 	}
 
@@ -102,9 +117,28 @@ async function handleEvent(event: ReturnType<typeof validateEvent>) {
 		case "subscription.past_due":
 		case "subscription.revoked": {
 			const sub = event.data;
-			const userId = sub.customer?.externalId ?? null;
+
+			// Prefer the customer external id (set to our Supabase user id at
+			// checkout). Fall back to the `supabaseUserId` we stash in checkout
+			// metadata, as a belt-and-suspenders for events that don't surface the
+			// external id.
+			const metadataUserId =
+				typeof sub.metadata?.supabaseUserId === "string"
+					? sub.metadata.supabaseUserId
+					: null;
+			const userId = sub.customer?.externalId ?? metadataUserId;
+
 			if (!userId) {
-				// No external id means we can't map this to a user; nothing to do.
+				// We can't map this subscription to a user. This is a SILENT premium
+				// black hole: the event is acknowledged (200, no Polar retry) but no
+				// profile is updated — a paying customer may never get premium. Alert.
+				logger.error({
+					event: "polar.webhook.user_unmatched",
+					msg: "Polar subscription event has no resolvable user (no customer.externalId or metadata.supabaseUserId); premium NOT applied",
+					eventType: event.type,
+					polarCustomerId: sub.customerId,
+					subscriptionStatus: sub.status,
+				});
 				return;
 			}
 
@@ -113,14 +147,38 @@ async function handleEvent(event: ReturnType<typeof validateEvent>) {
 			// When not active (canceled/revoked/past_due), clear the entitlement end.
 			const premiumUntil = isActive ? sub.currentPeriodEnd : null;
 
-			await db
+			const updated = await db
 				.update(profiles)
 				.set({
 					polarCustomerId: sub.customerId,
 					premiumStatus: sub.status,
 					premiumUntil,
 				})
-				.where(eq(profiles.id, userId));
+				.where(eq(profiles.id, userId))
+				.returning({ id: profiles.id });
+
+			if (updated.length === 0) {
+				// The resolved user id matched no profile row. Another silent gap:
+				// acknowledged but nothing written. Alert so it's visible.
+				logger.error({
+					event: "polar.webhook.profile_not_found",
+					msg: "Polar subscription event resolved a user id that matched no profile row; premium NOT applied",
+					eventType: event.type,
+					userId,
+					polarCustomerId: sub.customerId,
+					subscriptionStatus: sub.status,
+				});
+				return;
+			}
+
+			logger.info({
+				event: "polar.webhook.applied",
+				msg: "Applied Polar subscription state to profile",
+				eventType: event.type,
+				userId,
+				subscriptionStatus: sub.status,
+				isActive,
+			});
 			return;
 		}
 

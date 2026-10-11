@@ -56,6 +56,20 @@ vi.mock("@/state/server-clock-store", () => ({
 
 vi.mock("@/env", () => ({ env: { NEXT_PUBLIC_WS_URL: "ws://localhost" } }));
 
+// The home screen reads `stats.champion` to decide whether to gild the hero
+// tiles. That tRPC query needs a provider this gating test doesn't mount and is
+// unrelated to the card gating under test, so stub `api` to resolve it to a
+// non-champion default (no gold, no sparkle).
+vi.mock("@/utils/api", () => ({
+	api: {
+		stats: {
+			champion: {
+				useQuery: () => ({ data: { isChampion: false } }),
+			},
+		},
+	},
+}));
+
 // The duels entry point (HeadToHeadCard) links via next/router, which has no
 // mounted router in jsdom; stub it so the registered-user render succeeds.
 vi.mock("next/router", () => ({
@@ -84,6 +98,13 @@ vi.mock("@/components/games/race", () => ({
 // focuses on the home-screen card gating only.
 vi.mock("@/components/navigation/navbar", () => ({
 	default: () => <nav data-testid="navbar" />,
+}));
+
+// The realtime-games-remaining indicator issues a tRPC query (billing.realtimeUsage)
+// which needs the tRPC/react-query provider this gating test doesn't mount. It's
+// unrelated to the card gating under test, so stub it to an inert marker.
+vi.mock("@/components/realtime-games-remaining", () => ({
+	default: () => <div data-testid="realtime-games-remaining" />,
 }));
 
 import Home from "../pages/index";

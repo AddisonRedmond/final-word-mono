@@ -53,7 +53,7 @@ export default async function handler(
 			// this back as `external_id` so we can find the right profile.
 			externalCustomerId: user.id,
 			customerEmail: user.email ?? undefined,
-			successUrl: `${baseUrl}/?checkout=success`,
+			successUrl: `${baseUrl}/profile?checkout=success`,
 			// Stash the user id in metadata too, as a belt-and-suspenders fallback for
 			// matching webhook events that don't surface the customer external id.
 			metadata: { supabaseUserId: user.id },

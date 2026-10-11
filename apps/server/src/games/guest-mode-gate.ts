@@ -2,10 +2,18 @@
  * Shared per-mode gate for guest (anonymous) players.
  *
  * A guest is allowed ONE realtime game per game mode. The gate derives that
- * limit directly from the mode's aggregate stats row (`race_stats` /
- * `battle_royale_stats`) — the single source of truth, so there is no separate
- * in-progress tracking: a leaver-loss writes `gamesPlayed >= 1`, which blocks
- * the next start in that mode.
+ * limit directly from the player's LIFETIME aggregate for the mode in the
+ * unified `player_mode_stats` table — the single source of truth, so there is
+ * no separate in-progress tracking: a leaver-loss writes `gamesPlayed >= 1` on
+ * the `(userId, mode, 'lifetime')` row, which blocks the next start in that
+ * mode.
+ *
+ * Previously this read the legacy per-mode tables (`race_stats` /
+ * `battle_royale_stats`). It now reads `player_mode_stats` filtered by
+ * `(userId, mode, scope = 'lifetime')` — the same row the dual-write pipeline
+ * maintains — so the legacy tables can be retired. The gate takes the mode as a
+ * `GameMode` string rather than a table handle; which mode's row is read is a
+ * `where mode = $mode` filter, not a table choice.
  *
  * Both mode daily-limit seams (`race/daily-limit.ts`,
  * `battle-royale/daily-limit.ts`) delegate here for guests; registered users
@@ -13,15 +21,9 @@
  * the whole feature is greppable and removable in one pass.
  */
 
-import { battleRoyaleStats, db, eq, raceStats } from "db";
+import { and, db, eq, type GameMode, LIFETIME_SCOPE, playerModeStats } from "db";
 
 import logger from "../utils/logger.js";
-
-/**
- * The per-mode aggregate stats tables the gate can read. Each exposes a
- * `userId` key and a `gamesPlayed` counter (one row per user).
- */
-export type GameModeStatsTable = typeof raceStats | typeof battleRoyaleStats;
 
 /**
  * The error reason emitted to the client when a guest is blocked by the gate.
@@ -33,7 +35,8 @@ export const GUEST_MODE_LIMIT_REASON = "guest-mode-limit";
 /**
  * Guest per-mode gate decision.
  *
- * Reads the guest's row in the given mode's stats table and returns:
+ * Reads the guest's LIFETIME `player_mode_stats` row for the given mode and
+ * returns:
  *   - `true`  (ALLOW) when no row exists or `gamesPlayed < 1`
  *   - `false` (BLOCK) when a row exists with `gamesPlayed >= 1`
  *
@@ -43,13 +46,19 @@ export const GUEST_MODE_LIMIT_REASON = "guest-mode-limit";
  */
 export const guestModeGate = async (
   userId: string,
-  table: GameModeStatsTable,
+  mode: GameMode,
 ): Promise<boolean> => {
   try {
     const rows = await db
-      .select({ gamesPlayed: table.gamesPlayed })
-      .from(table)
-      .where(eq(table.userId, userId))
+      .select({ gamesPlayed: playerModeStats.gamesPlayed })
+      .from(playerModeStats)
+      .where(
+        and(
+          eq(playerModeStats.userId, userId),
+          eq(playerModeStats.mode, mode),
+          eq(playerModeStats.scope, LIFETIME_SCOPE),
+        ),
+      )
       .limit(1);
 
     const row = rows[0];
@@ -66,6 +75,7 @@ export const guestModeGate = async (
     logger.error(
       {
         userId,
+        mode,
         err: error instanceof Error ? error.message : error,
       },
       "guestModeGate stats read failed; failing open (ALLOW)",

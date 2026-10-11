@@ -17,24 +17,75 @@ import { getRandomWord } from "./words.js";
 const getRandomInt = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-/**
- * Per-game chance that a lobby's bots are allowed to roll the top skill level
- * (level 5). Decided ONCE when a lobby is filled with bots: with this
- * probability the whole game may contain level-5 bots, otherwise bots are
- * capped at level 4. See `fillLobbyWithBots`.
- */
-export const LEVEL_5_GAME_CHANCE = 0.25;
+type BotLevel = 1 | 2 | 3 | 4 | 5;
 
 /**
- * Roll a bot skill level with a rough bell curve centered on level 3, matching
- * Battle Royale's `getRandomLevel` distribution so Race bots feel comparable.
+ * A lobby's bot-difficulty archetype. Decided ONCE when a lobby is filled with
+ * bots (see `rollLobbyArchetype`), it sets the skill-level band every bot in
+ * that game is drawn from — so some lobbies feel genuinely easy and a rare few
+ * feel brutal, instead of every game clustering on the same middle curve.
  *
- * `allowLevel5` is decided once per game (see `LEVEL_5_GAME_CHANCE`): when the
- * game is NOT level-5-enabled the curve spans levels 1–4; when it is, the top
- * of the curve can produce a level-5 bot, making that game's bots noticeably
- * faster/sharper.
+ *   - `minLevel`/`maxLevel`: the inclusive level band bots can roll in this
+ *     lobby.
+ *   - `bias`: where, within that band, the bell curve centers. 0 pins the curve
+ *     to `minLevel`, 1 to `maxLevel`, 0.5 is the middle. Higher bias = more of
+ *     the band's top levels.
+ *   - `weight`: relative selection probability among all archetypes.
  */
-const getRandomLevel = (allowLevel5: boolean): 1 | 2 | 3 | 4 | 5 => {
+type LobbyArchetype = {
+  name: "chill" | "mixed" | "sharp" | "elite";
+  minLevel: BotLevel;
+  maxLevel: BotLevel;
+  bias: number;
+  weight: number;
+};
+
+/**
+ * The lobby archetypes and how often each is chosen. Weights are relative (they
+ * need not sum to 1). Tuned so the common case is easy-to-moderate and the
+ * hardest lobbies are rare:
+ *
+ *   chill (35%): levels 1–3, low-biased  — a breezy field a new player can win.
+ *   mixed (37%): levels 1–4, mid          — the everyday race.
+ *   sharp (20%): levels 2–5, high-biased  — fast field, level 5 possible.
+ *   elite  (8%): levels 3–5, top-biased   — brutal; mostly 4s and 5s.
+ *
+ * Only `sharp` and `elite` can produce a level-5 bot, so ~28% of lobbies are
+ * level-5-capable (and fewer actually surface one).
+ */
+export const LOBBY_ARCHETYPES: readonly LobbyArchetype[] = [
+  { name: "chill", minLevel: 1, maxLevel: 3, bias: 0.3, weight: 35 },
+  { name: "mixed", minLevel: 1, maxLevel: 4, bias: 0.5, weight: 37 },
+  { name: "sharp", minLevel: 2, maxLevel: 5, bias: 0.62, weight: 20 },
+  { name: "elite", minLevel: 3, maxLevel: 5, bias: 0.72, weight: 8 },
+] as const;
+
+/**
+ * Pick one lobby archetype at random, weighted by each archetype's `weight`.
+ * Called once per filled lobby so every bot in that game shares a difficulty
+ * band.
+ */
+export const rollLobbyArchetype = (): LobbyArchetype => {
+  const totalWeight = LOBBY_ARCHETYPES.reduce((sum, a) => sum + a.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const archetype of LOBBY_ARCHETYPES) {
+    roll -= archetype.weight;
+    if (roll < 0) {
+      return archetype;
+    }
+  }
+  // Unreachable while weights are positive; fall back to the everyday field.
+  return LOBBY_ARCHETYPES[1] as LobbyArchetype;
+};
+
+/**
+ * Roll a bot skill level within the lobby archetype's band, using a rough bell
+ * curve (average of 3 uniform samples) so levels cluster toward the middle of
+ * the band and extremes are rarer. The archetype's `bias` shifts that center
+ * within `[minLevel, maxLevel]`: a low-bias (chill) lobby leans toward its
+ * floor, a high-bias (elite) lobby toward its ceiling.
+ */
+const getRandomLevel = (archetype: LobbyArchetype): BotLevel => {
   const rolls = 3;
   const average =
     Array.from({ length: rolls }, () => Math.random()).reduce(
@@ -42,9 +93,17 @@ const getRandomLevel = (allowLevel5: boolean): 1 | 2 | 3 | 4 | 5 => {
       0,
     ) / rolls;
 
-  const maxLevel = allowLevel5 ? 5 : 4;
-  const level = Math.floor(average * maxLevel) + 1;
-  return Math.min(maxLevel, Math.max(1, level)) as 1 | 2 | 3 | 4 | 5;
+  const span = archetype.maxLevel - archetype.minLevel;
+  // Blend the symmetric bell sample toward the archetype's bias: shift the
+  // [0,1) sample so its center sits at `bias` rather than 0.5, then map onto
+  // the band. Clamped to the band so rounding never escapes [minLevel,maxLevel].
+  const centered = average + (archetype.bias - 0.5);
+  const position = Math.min(1, Math.max(0, centered));
+  const level = archetype.minLevel + Math.round(position * span);
+  return Math.min(
+    archetype.maxLevel,
+    Math.max(archetype.minLevel, level),
+  ) as BotLevel;
 };
 
 /** A fresh display-side `RacePlayer` for a bot entering a lobby. */
@@ -62,15 +121,16 @@ const makeBotPlayer = (name: string): RacePlayer => ({
 });
 
 /**
- * A fresh server-only simulation record for a bot entering a lobby.
- * `allowLevel5` is the per-game flag threaded through from `fillLobbyWithBots`.
+ * A fresh server-only simulation record for a bot entering a lobby. `archetype`
+ * is the per-lobby difficulty band threaded through from `fillLobbyWithBots`;
+ * the bot's level is drawn from it.
  */
 const makeBotServerData = (
   wordLength: number,
-  allowLevel5: boolean,
+  archetype: LobbyArchetype,
 ): RaceBotServerData => ({
   word: getRandomWord(wordLength),
-  level: getRandomLevel(allowLevel5),
+  level: getRandomLevel(archetype),
   botCompletedWords: 0,
   botGuesses: 0,
 });
@@ -108,16 +168,16 @@ export const fillLobbyWithBots = (
   // per-round words on begin. `rounds` is guaranteed non-empty by the schema.
   const firstRoundLength = config.rounds[0]?.wordLength ?? 5;
 
-  // Decide ONCE for this game whether its bots may roll the top skill level
-  // (level 5). With `LEVEL_5_GAME_CHANCE` probability the whole filled lobby is
-  // level-5-enabled; otherwise every bot is capped at level 4.
-  const allowLevel5 = Math.random() < LEVEL_5_GAME_CHANCE;
+  // Decide ONCE for this game which difficulty archetype its bots are drawn
+  // from, so this lobby has a consistent feel (chill / mixed / sharp / elite)
+  // and games vary from easy to brutal rather than all clustering mid-curve.
+  const archetype = rollLobbyArchetype();
 
   const addedBotIds: string[] = [];
   for (let i = 0; i < botsToAdd; i++) {
     const botId = `bot${i}`;
     players.set(botId, makeBotPlayer(botId));
-    botData[botId] = makeBotServerData(firstRoundLength, allowLevel5);
+    botData[botId] = makeBotServerData(firstRoundLength, archetype);
     addedBotIds.push(botId);
   }
 
@@ -126,7 +186,7 @@ export const fillLobbyWithBots = (
       humansJoined: currentPlayerCount,
       botsAdded: botsToAdd,
       minLobbySize: config.minLobbySize,
-      allowLevel5,
+      archetype: archetype.name,
     },
     "Added bots to race lobby: not enough humans joined to fill the field",
   );
@@ -135,17 +195,22 @@ export const fillLobbyWithBots = (
 
 // Per-level "think time" window between simulated bot guesses, in ms — higher
 // levels act faster. Mirrors the pacing idea in Battle Royale's THINK_TIMES.
+// Tuned slower than the original pacing: bots were landing words (especially
+// the final 6-letter round) faster than a human could reasonably keep up, so
+// every level now takes a bit longer to attempt its next guess.
 const THINK_TIMES = {
-  1: [8000, 14000],
-  2: [6500, 12000],
-  3: [5000, 10000],
-  4: [3500, 7000],
-  5: [2500, 5000],
+  1: [9000, 15000],
+  2: [7500, 13000],
+  3: [6000, 11000],
+  4: [4500, 8500],
+  5: [3500, 6500],
 } as const;
 
 // Per-level chance (%) that a simulated bot guess is "correct" and completes
 // its current word. Progress makes a bot slightly more likely to land the word.
-const BASE_CORRECT_CHANCE = { 1: 6, 2: 10, 3: 16, 4: 24, 5: 34 } as const;
+// Lowered from the original curve (was 6/10/16/24/34): bots felt "too good" in
+// general, so each level now needs more guesses on average to solve a word.
+const BASE_CORRECT_CHANCE = { 1: 5, 2: 8, 3: 12, 4: 18, 5: 26 } as const;
 
 /** How often the bot ticker wakes to evaluate bot guesses, in ms. */
 const BOT_TICK_MS = 250;
@@ -153,10 +218,11 @@ const BOT_TICK_MS = 250;
 // Baseline word length the raw THINK_TIMES windows are tuned for, and the
 // exponent that makes longer words cost SUPER-linearly more thinking time. A
 // longer word is disproportionately harder, so think time scales as
-// (wordLength / BASE) ** EXP rather than linearly: with EXP ~2.2 a 5-letter
-// word takes ~1.6x and a 6-letter word ~2.4x a 4-letter word's think time.
+// (wordLength / BASE) ** EXP rather than linearly. Raised from 2.2 to 2.8 so the
+// final 6-letter round in particular slows bots more: with EXP 2.8 a 5-letter
+// word takes ~1.8x and a 6-letter word ~3.1x a 4-letter word's think time.
 const THINK_TIME_BASE_LENGTH = 4;
-const THINK_TIME_LENGTH_EXP = 2.2;
+const THINK_TIME_LENGTH_EXP = 2.8;
 
 const wordLengthThinkFactor = (wordLength: number): number =>
   (Math.max(1, wordLength) / THINK_TIME_BASE_LENGTH) ** THINK_TIME_LENGTH_EXP;
@@ -170,17 +236,35 @@ const getBotThinkTime = (
   return Math.round(getRandomInt(min, max) * factor);
 };
 
+// Per-letter-over-baseline reduction (percentage points) applied to a bot's
+// per-guess correct chance for longer words. A 4-letter word is the baseline
+// (no penalty); each extra letter makes a word proportionally harder to LAND on
+// any given guess, not just slower to attempt. At 5 letters the chance drops by
+// one step, at 6 by two — so the single-word 6-letter final round is where bots
+// are reined in the most. Clamped so the effective chance never falls below a
+// small floor (a bot must always have some path to solving).
+const CORRECT_CHANCE_LENGTH_PENALTY_PER_LETTER = 4;
+const MIN_CORRECT_CHANCE = 2;
+
 /**
  * Decide whether a bot lands its current word on this simulated guess. The
  * chance rises modestly with the number of guesses the bot has already made on
- * the round so a stalled bot eventually progresses.
+ * the round so a stalled bot eventually progresses, and falls for longer words
+ * so the 5- and 6-letter rounds are genuinely harder for bots to solve.
  */
 const rollBotCorrect = (
   level: 1 | 2 | 3 | 4 | 5,
   botGuesses: number,
+  wordLength: number,
 ): boolean => {
   const progressBonus = Math.min(botGuesses * 1.5, 15);
-  const correctChance = BASE_CORRECT_CHANCE[level] + progressBonus;
+  const lengthPenalty =
+    Math.max(0, wordLength - THINK_TIME_BASE_LENGTH) *
+    CORRECT_CHANCE_LENGTH_PENALTY_PER_LETTER;
+  const correctChance = Math.max(
+    MIN_CORRECT_CHANCE,
+    BASE_CORRECT_CHANCE[level] + progressBonus - lengthPenalty,
+  );
   return Math.random() * 100 < correctChance;
 };
 
@@ -213,7 +297,7 @@ export const tickBot = (
   }
 
   bot.botGuesses += 1;
-  const correct = rollBotCorrect(bot.level, bot.botGuesses);
+  const correct = rollBotCorrect(bot.level, bot.botGuesses, wordLength);
 
   // Schedule the next guess regardless of outcome.
   bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);

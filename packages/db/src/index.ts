@@ -2,7 +2,7 @@ import "dotenv/config";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 
-import * as schema from "./schema.js";
+import * as schema from "./schema.ts";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -17,9 +17,11 @@ const client = postgres(databaseUrl, {
 export const db = drizzle(client, { schema });
 
 export { client };
-export * from "./schema.js";
+export * from "./schema.ts";
+export * from "./stats.ts";
+export * from "./season-archival.ts";
 
 // Re-export common Drizzle query helpers so consumers (server, client) can use
 // them without taking a direct dependency on drizzle-orm — the db package is
 // the single surface for all database concerns.
-export { and, eq, sql, desc, asc, inArray } from "drizzle-orm";
+export { and, eq, sql, desc, asc, inArray, gte } from "drizzle-orm";

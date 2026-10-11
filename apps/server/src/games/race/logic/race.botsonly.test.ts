@@ -9,21 +9,31 @@ import type { RoundLifecycleDeps } from "./race.js";
 // which imports `db`. Mock `db` before importing the code under test and
 // capture every upserted row so we can assert eliminated real players are
 // recorded (and bots are not).
-const insertedRows: Array<{ userId: string; wins: number }> = [];
+const insertedRows: Array<{ userId: string; won: boolean }> = [];
 vi.mock("db", () => {
-  const insert = () => ({
-    values: (row: { userId: string; wins: number }) => {
-      insertedRows.push(row);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
   return {
-    db: { insert },
-    raceStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      {
+        userId,
+        scope,
+        outcome,
+      }: { userId: string; scope: string; outcome: { won: boolean } },
+    ) => {
+      if (scope === "lifetime") {
+        insertedRows.push({ userId, won: outcome.won });
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 
@@ -156,7 +166,7 @@ describe("Race endRound: presence-based continuation + record-at-outcome", () =>
     const recorded = insertedRows.map((r) => r.userId).sort();
     expect(recorded).toEqual([humanA, humanB].sort());
     // Recorded as losses (no win).
-    expect(insertedRows.every((r) => r.wins === 0)).toBe(true);
+    expect(insertedRows.every((r) => r.won === false)).toBe(true);
     // Their statsPersisted flag latched so a later finish won't double-write.
     expect(match.players.get(humanA)?.statsPersisted).toBe(true);
     expect(match.players.get(humanB)?.statsPersisted).toBe(true);

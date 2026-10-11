@@ -2,29 +2,53 @@ import { randomUUID } from "node:crypto";
 import type { Game, PlayerDisplay } from "types/battle-royale.types.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Record-at-outcome stats for Battle Royale. `stats.ts` imports `db`, so mock
-// it before importing the module under test and capture every upserted row.
+// Record-at-outcome stats for Battle Royale. The legacy battle_royale_stats
+// dual-write has been retired; the sole write path is the unified
+// `player_mode_stats` upsert. `stats.ts` imports `db`, so mock it before
+// importing the module under test and capture every LIFETIME-scope
+// `upsertModeStats` call (one per persisted player).
 type Row = {
   userId: string;
-  wins: number;
-  draws: number;
-  averagePlacement: number;
+  won: boolean;
+  isDraw: boolean;
+  placement: number;
 };
 const insertedRows: Row[] = [];
 vi.mock("db", () => {
-  const insert = () => ({
-    values: (row: Row) => {
-      insertedRows.push(row);
-      return { onConflictDoUpdate: () => Promise.resolve(undefined) };
-    },
-  });
   return {
-    db: { insert },
-    battleRoyaleStats: new Proxy({}, { get: (_t, key) => key }),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
-      strings,
-      values,
-    }),
+    db: {
+      // writeModeStats runs the upserts inside db.transaction; passthrough so
+      // the mocked upsertModeStats fires with a dummy tx.
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    },
+    upsertModeStats: (
+      _tx: unknown,
+      {
+        userId,
+        scope,
+        outcome,
+      }: {
+        userId: string;
+        scope: string;
+        outcome: { won: boolean; isDraw?: boolean; placement: number };
+      },
+    ) => {
+      // Capture only the lifetime row so per-player counts match the legacy
+      // assertions (the pipeline also writes a seasonal row per player).
+      if (scope === "lifetime") {
+        insertedRows.push({
+          userId,
+          won: outcome.won,
+          isDraw: outcome.isDraw ?? false,
+          placement: outcome.placement,
+        });
+      }
+      return Promise.resolve(undefined);
+    },
+    setWonLastRealtimeGame: () => Promise.resolve(undefined),
+    matchPoints: () => 0,
+    seasonKey: () => "2026-01",
+    LIFETIME_SCOPE: "lifetime",
   };
 });
 
@@ -77,10 +101,10 @@ describe("Battle Royale record-at-outcome stats", () => {
 
     // Only the human was recorded (bot excluded), as a loss.
     expect(insertedRows.map((r) => r.userId)).toEqual([humanA]);
-    expect(insertedRows[0].wins).toBe(0);
+    expect(insertedRows[0].won).toBe(false);
     // Placement = alive after sweep (humanB + bot1 = 2) + eliminated this tick
     // (2) = 4.
-    expect(insertedRows[0].averagePlacement).toBe(4);
+    expect(insertedRows[0].placement).toBe(4);
     // Flag latched so a later finish/leave won't double-write.
     expect(game.players.get(humanA)?.statsPersisted).toBe(true);
   });
@@ -121,8 +145,8 @@ describe("Battle Royale record-at-outcome stats", () => {
     await persistBattleRoyaleStats(game);
 
     expect(insertedRows.map((r) => r.userId)).toEqual([winner]);
-    expect(insertedRows[0].wins).toBe(1);
-    expect(insertedRows[0].averagePlacement).toBe(1); // winner is placement 1
+    expect(insertedRows[0].won).toBe(true);
+    expect(insertedRows[0].placement).toBe(1); // winner is placement 1
   });
 
   it("excludes bots from a finish persist", async () => {
