@@ -1,3 +1,4 @@
+import { ChartColumn, Home, Trophy, Users } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -79,7 +80,7 @@ const Navbar = () => {
     : "?";
 
   return (
-    <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-10 bg-white/50">
+    <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-30 bg-white/50">
       {/* Logo */}
       <div className="flex gap-x-1">
         <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
@@ -94,24 +95,26 @@ const Navbar = () => {
       <div className="hidden items-center gap-x-3 sm:flex">
         <Link
           href="/"
-          className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
             router.pathname === "/"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
           }`}
         >
+          <Home aria-hidden="true" size={16} />
           Home
         </Link>
         {/* Guest gating (R7.4): Friends link hidden for guests. */}
         {!isGuest && (
           <Link
             href="/friends"
-            className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
               router.pathname === "/friends"
                 ? "border-green-400 bg-green-50 text-green-700"
                 : "border-gray-200 hover:bg-gray-100 text-gray-700"
             }`}
           >
+            <Users aria-hidden="true" size={16} />
             Friends
           </Link>
         )}
@@ -119,24 +122,26 @@ const Navbar = () => {
         {!isGuest && (
           <Link
             href="/stats"
-            className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
               router.pathname === "/stats"
                 ? "border-green-400 bg-green-50 text-green-700"
                 : "border-gray-200 hover:bg-gray-100 text-gray-700"
             }`}
           >
+            <ChartColumn aria-hidden="true" size={16} />
             Stats
           </Link>
         )}
         {/* Leaderboard link visible to everyone (including guests). */}
         <Link
           href="/leaderboard"
-          className={`text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
             router.pathname === "/leaderboard"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
           }`}
         >
+          <Trophy aria-hidden="true" size={16} />
           Leaderboard
         </Link>
 
@@ -173,6 +178,17 @@ const Navbar = () => {
 
                 {/* Actions */}
                 <div className="py-1">
+                  {/* Roadmap — public "what's coming" page, available to
+                      everyone (including guests). Lives in this dropdown on
+                      desktop (mirrored in the mobile burger menu) to keep it
+                      off the main nav bar row. */}
+                  <Link
+                    href="/roadmap"
+                    onClick={() => setMenuOpen(false)}
+                    className="block w-full px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                  >
+                    Roadmap
+                  </Link>
                   {/* Profile / manage subscription. Hidden for guests (billing
                       and profile management are registered-only). */}
                   {!isGuest && (
@@ -305,6 +321,24 @@ const Navbar = () => {
                     L
                   </span>
                   Leaderboard
+                </Link>
+
+                {/* Roadmap tile visible to everyone (including guests) — the
+                    public "what's coming" page. Kept in the burger menu for
+                    now to avoid crowding the desktop nav bar. */}
+                <Link
+                  href="/roadmap"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/roadmap"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                    R
+                  </span>
+                  Roadmap
                 </Link>
 
                 {/* Profile / manage subscription. Hidden for guests. */}

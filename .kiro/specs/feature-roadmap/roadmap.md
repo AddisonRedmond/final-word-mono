@@ -148,6 +148,61 @@ New RN app in the monorepo for native phone/tablet distribution, reusing shared 
 
 ---
 
+## Feature 6 — Champion's privilege: season winner/loser taunt messages
+
+**Problem / concept:** Give the seasonal leaderboard a social, retention-driving payoff. At the end of each season (one UTC calendar month), the **#1 player per scored mode** earns the right to write two short messages for the NEXT season of that mode: a **winner message** (shown to / celebrating the new season's leader) and a **loser message** (a good-natured taunt shown to the bottom of the board). It's a crown with a voice — a reason to fight for #1 beyond the ranking number, and a bit of personality carried mode-to-mode, month-to-month.
+
+**Why it fits cleanly:** the hard part — deciding who won and who lost — is already solved. `archiveSeason` (packages/db/src/season-archival.ts) snapshots final standings into `season_placements` per `(userId, mode, season)`, with `placement = 1` for the winner and the max placement for the bottom. This feature reads those existing placements; it does not need any new ranking logic.
+
+**Scope (spitball, tunable):**
+- **Who earns the privilege:** `placement = 1` in `season_placements` for a given `(mode, season)` once that season is archived. Per mode — Battle Royale's champion and Race's champion each pick their own mode's messages. Duel is excluded (not a scored/leaderboarded mode, R2A.8).
+- **What they set:** two short text messages (winner + loser), length-capped, for the UPCOMING season of that mode. A one-time authoring window after a season closes (e.g. the first N days of the new month, or until first set).
+- **Where they show:** the winner message on the current season's leaderboard header / new leader's row; the loser message on the bottom-ranked row (or a "wooden spoon" callout). Exact placement TBD with the leaderboard UI.
+- **Defaults & gaps:** if last season had no qualifying champion (empty board, or a mode with no games), fall back to a neutral default message so the UI always has copy.
+
+**Hard requirements (safety — this is user-authored text shown to others):**
+- **Moderation.** These strings are displayed to other players, so they need profanity/abuse filtering and likely a report + takedown path. This is the main risk of the feature and should be designed in from the start, not bolted on. Consider a server-side filter + a manual override/clear for admins.
+- **Length + format limits.** Hard character cap, plain text only (no markup/links/HTML), server-validated — never trust the client length.
+- **Server-authored ownership check.** Only the archived `placement = 1` user for that `(mode, prevSeason)` may set the next season's messages; enforced in a tRPC mutation scoped to `ctx.user.id`, not the client.
+
+**Rough approach:**
+- New table (Drizzle) for season messages, e.g. `season_messages(mode, season, winnerMessage, loserMessage, authorUserId, createdAt)`, keyed by `(mode, season)` — the season the messages are shown IN.
+- tRPC: a mutation to set them (gated: caller must be the prior season's `placement = 1` for that mode, within the authoring window; moderated + length-validated); a query the leaderboard reads to render current-season messages.
+- Reuse `season_placements` to resolve "who may author" and "who is the current loser to show the taunt against."
+- Decide the authoring-window + archival trigger alongside Feature 4-adjacent season rollover (archival is currently trigger-agnostic — scheduled job or lazy-on-first-read).
+
+**Open questions:** authoring window length and what happens if the champion never sets a message (default vs carry-over vs skip); whether messages are public to everyone or only shown to the relevant top/bottom players; moderation stack (automated filter vs. manual review vs. both) and the report/takedown flow; whether a premium tier interacts (e.g. longer messages / styling for premium); how ties for #1 resolve authoring rights (the ranking comparator already breaks ties deterministically down to `userId`, so there is always exactly one #1 — reuse that).
+
+---
+
+## Feature 7 — In-match items / power-ups
+
+**Problem / concept:** Add a layer of in-match **items** players can deploy during a live game to change the flow — a new gameplay system across the realtime modes (Battle Royale, Race, and potentially Duels). The intent is a fun, tactical layer on top of raw guessing speed/accuracy: offensive items a player throws at opponents, defensive/utility items a player uses on themselves. Direction is a spitball and tunable.
+
+**Concept (tunable):**
+- **Utility (self):** a hint (reveal a letter / mark a known-absent letter), a short time extension, an extra guess, or a "peek" at the board.
+- **Offensive (opponents):** obscure/scramble an opponent's keyboard briefly, inject a decoy/attack word, slow their input (reuses the Race "sluggish input" penalty mechanic as a weapon), or blur their tiles for a beat.
+- **Acquisition:** how items are earned/held is the big open question — earned through play (streaks, round wins), granted per-match from a shared pool, or tied to Premium. Avoid pay-to-win: lean toward earned-through-play with Premium affecting cosmetics/convenience, not raw power.
+
+**Why it's non-trivial (server-authoritative):** items mutate live match state and affect *other* players, so acquisition, inventory, and every item effect MUST be validated and applied **server-side** on the realtime server (`apps/server/src/games`), never trusted from the client. This mirrors how the games already own match state server-side (`matches` / `serverOnlyData` keyed by room id). An item use is a new client→server event; the server validates the player owns/can afford it, applies the effect to the authoritative room state, and the result flows out through the normal broadcast path.
+
+**Feature interactions:**
+- **Feature 4 (delta broadcasts):** item effects are per-player state changes, so they ride the same per-room delta model — another reason item state should live in the authoritative room snapshot, not a side channel. Worth landing deltas first so item-driven state churn doesn't re-bloat full-snapshot broadcasts.
+- **Feature 1 (Premium):** decide early whether items touch the paywall at all. Strong recommendation: items are NOT a Premium power lever (pay-to-win risk); any Premium tie-in is cosmetic (item skins) or convenience only.
+- **Feature 3 (Race) + Battle Royale:** the offensive "sluggish input" item is literally Race's existing anti-spam debounce repurposed as a targeted weapon — reuse that mechanic rather than inventing a new one.
+- **Stats:** consider whether item usage/outcomes feed the per-mode stats aggregates (parallel to `battleRoyaleStats` / Race stats) or stay out of ranking entirely.
+
+**Rough approach:**
+- Define an item catalog as **config/schema** (id, kind: offensive/utility, effect params, cost/rarity) — same config-driven spirit as the Race rules, so items can be tuned without code changes.
+- Server-authoritative item engine in `apps/server`: validate ownership/affordability, apply effect to the room's authoritative state, enforce cooldowns/targeting rules. New `item:use` socket event in; effects surface through the existing update/broadcast tick.
+- Client UI for an item tray/inventory, targeting (pick an opponent for offensive items), and clear feedback when an item hits you (so a scrambled keyboard reads as an attack, not a bug).
+- Persistence only if items are earned/held across matches — new Drizzle table for per-user inventory; purely per-match pools need no schema.
+- Anti-abuse: rate-limit item use, validate targets are live players in the same room, and make every effect time-bounded so a disconnect can't leave a player permanently debuffed.
+
+**Open questions:** acquisition model (earned vs per-match pool vs Premium) and the pay-to-win line; which modes get items (all realtime modes, or Battle Royale/Race only, Duels excluded like it is for scoring?); do items persist across matches or reset each game; targeting rules (random opponent vs chosen vs AoE) and whether bots can hold/use items; cooldowns and max inventory size; whether item outcomes count toward stats/leaderboard; accessibility of disruptive effects (reduced-motion / don't make an effect indistinguishable from a real malfunction).
+
+---
+
 ## Cross-cutting — Beta messaging
 
 **What:** A persistent chyron/crawl fixed to the bottom of the app indicating the product is in beta, currently unlimited and free, with a premium tier planned. Serves as expectation-setting during the pre-premium period.
