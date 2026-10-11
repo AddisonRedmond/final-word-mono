@@ -19,9 +19,6 @@ export const MAX_BONUS_GUESS_TIER = 8;
 // undefined for out-of-range guess counts
 export const MIN_GUESS_BONUS_MS = lifeMap[MAX_BONUS_GUESS_TIER];
 
-// flat bonus (ms) awarded for correctly guessing an incoming attack word
-export const ATTACK_WORD_BONUS_MS = 10 * 1000;
-
 // hard cap (ms) on how long a match can run before a winner is picked by score
 export const MATCH_TIME_LIMIT_MS = 10 * 60 * 1000;
 

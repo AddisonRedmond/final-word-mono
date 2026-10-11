@@ -296,9 +296,7 @@ const BattleRoyale = ({
         {!lobby?.players[userId]?.isEliminated && (
           <BonusPreview
             currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
-            hasQueuedAttack={
-              (lobby?.players[userId]?.display_queue?.length ?? 0) > 0
-            }
+            currentWordIsAttack={lobby?.players[userId]?.currentWordIsAttack}
           />
         )}
 

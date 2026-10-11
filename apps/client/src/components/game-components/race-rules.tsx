@@ -7,6 +7,7 @@ import {
 } from "react";
 import Modal from "@/components/modal";
 import Tile from "@/components/tile";
+import { ScoreBreakdown } from "./score-breakdown";
 
 type RuleSlide = {
   title: string;
@@ -108,6 +109,11 @@ const SLIDES: RuleSlide[] = [
       />
     ),
   },
+  {
+    title: "How points work",
+    body: "Every match adds to your seasonal score \u2014 and finishing higher multiplies the combat points your solves are worth.",
+    visual: <ScoreBreakdown />,
+  },
 ];
 
 const RaceRulesContent: React.FC = () => {
@@ -135,26 +141,31 @@ const RaceRulesContent: React.FC = () => {
         </h2>
       </div>
 
-      <div className="relative h-80 overflow-hidden">
+      <div className="relative h-80">
         <AnimatePresence custom={direction} initial={false} mode="wait">
           <motion.div
             animate={{ opacity: 1, x: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-4 text-center"
+            className="absolute inset-0 overflow-y-auto"
             custom={direction}
             exit={{ opacity: 0, x: direction >= 0 ? -40 : 40 }}
             initial={{ opacity: 0, x: direction >= 0 ? 40 : -40 }}
             key={index}
             transition={{ duration: 0.25, ease: "easeInOut" }}
           >
-            <div className="flex min-h-[48px] items-center justify-center">
-              {slide.visual}
+            {/* min-h-full + my-auto centers short slides vertically, while tall
+                slides (e.g. the scoring breakdown) grow past the panel and scroll
+                from the top instead of being clipped by flex centering. */}
+            <div className="flex min-h-full flex-col items-center justify-center gap-5 px-4 py-3 text-center">
+              <div className="flex min-h-12 shrink-0 items-center justify-center">
+                {slide.visual}
+              </div>
+              <h3 className="font-semibold text-lg text-stone-800 uppercase tracking-wide">
+                {slide.title}
+              </h3>
+              <p className="max-w-md text-[13px] text-gray-500 leading-relaxed">
+                {slide.body}
+              </p>
             </div>
-            <h3 className="font-semibold text-lg text-stone-800 uppercase tracking-wide">
-              {slide.title}
-            </h3>
-            <p className="max-w-md text-[13px] text-gray-500 leading-relaxed">
-              {slide.body}
-            </p>
           </motion.div>
         </AnimatePresence>
       </div>

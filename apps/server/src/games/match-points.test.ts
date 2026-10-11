@@ -1,7 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import { SCORING_CONFIG, matchPoints, type ScoringConfig } from "db/schema";
+import {
+  SCORING_CONFIG,
+  matchPoints,
+  placementMultiplier,
+  type ScoringConfig,
+} from "db/schema";
 
 // Feature: retention-foundation, Task 2.1 — Match_Points scoring properties.
 //
@@ -65,9 +70,11 @@ describe("matchPoints scoring (Task 2.1)", () => {
     );
   });
 
-  // R2A.4: combatPoints = min(max(0, combatInput) * perGuess, cap). The combat
-  // contribution never exceeds combatPointsCap no matter how large the input.
-  it("caps the combat contribution at combatPointsCap", () => {
+  // R2A.4: the BASE combat = min(max(0, combatInput) * perGuess, cap) is bounded
+  // by combatPointsCap before the placement multiplier amplifies it. So the
+  // combat contribution = round(cappedBase * placementMultiplier) and never
+  // exceeds round(cap * multiplier) no matter how large the input.
+  it("caps the base combat at combatPointsCap, then applies the placement multiplier", () => {
     const { combatPointsCap, combatPointsPerGuess } = SCORING_CONFIG;
     fc.assert(
       fc.property(
@@ -81,9 +88,17 @@ describe("matchPoints scoring (Task 2.1)", () => {
             (placement === 1 ? SCORING_CONFIG.winBonus : 0);
           const combatPart = matchPoints(placement, combatInput) - placementAndWin;
 
-          const uncapped = combatInput * combatPointsPerGuess;
-          expect(combatPart).toBe(Math.min(uncapped, combatPointsCap));
-          expect(combatPart).toBeLessThanOrEqual(combatPointsCap);
+          const mult = placementMultiplier(placement);
+          const cappedBase = Math.min(
+            combatInput * combatPointsPerGuess,
+            combatPointsCap,
+          );
+          expect(combatPart).toBe(Math.round(cappedBase * mult));
+          // Hard ceiling: combat can never exceed the capped base scaled by the
+          // best (highest) multiplier tier.
+          expect(combatPart).toBeLessThanOrEqual(
+            Math.round(combatPointsCap * mult),
+          );
         },
       ),
       { numRuns: 200 },
@@ -99,9 +114,11 @@ describe("matchPoints scoring (Task 2.1)", () => {
         fc.integer({ min: 1, max: 100 }),
         fc.integer({ min: 0, max: 50 }),
         (placement, combatInput) => {
-          const combatPart = Math.min(
-            combatInput * SCORING_CONFIG.combatPointsPerGuess,
-            SCORING_CONFIG.combatPointsCap,
+          const combatPart = Math.round(
+            Math.min(
+              combatInput * SCORING_CONFIG.combatPointsPerGuess,
+              SCORING_CONFIG.combatPointsCap,
+            ) * placementMultiplier(placement),
           );
           const withoutBonus =
             expectedPlacementPoints(placement) + combatPart;
@@ -182,11 +199,50 @@ describe("matchPoints scoring (Task 2.1)", () => {
       expect(matchPoints(100, 0)).toBe(0);
     });
 
-    it("adds capped combat points on top of placement points", () => {
-      // placement 5 (4 pts) + 3 correct guesses (3 pts) = 7.
-      expect(matchPoints(5, 3)).toBe(7);
-      // placement 5 (4 pts) + combat capped at 15 = 19.
-      expect(matchPoints(5, 1000)).toBe(4 + SCORING_CONFIG.combatPointsCap);
+    it("adds combat points scaled by the placement multiplier", () => {
+      // placement 5 → multiplier ×1.5. base combat 3 → round(3 × 1.5) = 5.
+      // 4 (placement) + 5 (combat) = 9.
+      expect(matchPoints(5, 3)).toBe(9);
+      // placement 5 → base combat capped at 15, ×1.5 = 22.5 → round 23.
+      // 4 (placement) + 23 = 27.
+      expect(matchPoints(5, 1000)).toBe(
+        4 + Math.round(SCORING_CONFIG.combatPointsCap * 1.5),
+      );
+    });
+  });
+
+  // Apex-style placement multiplier: combat points are scaled by the finishing
+  // placement so the SAME combat input is worth more the higher you place.
+  describe("placement multiplier on combat (examples)", () => {
+    it("resolves the configured multiplier tiers (best-tier-first, ×1 past the last tier)", () => {
+      expect(placementMultiplier(1)).toBe(2); // winner
+      expect(placementMultiplier(2)).toBe(1.75); // top 3
+      expect(placementMultiplier(3)).toBe(1.75);
+      expect(placementMultiplier(5)).toBe(1.5); // top 5
+      expect(placementMultiplier(10)).toBe(1.25); // top 10
+      expect(placementMultiplier(11)).toBe(1); // past every tier → unchanged
+      expect(placementMultiplier(100)).toBe(1);
+    });
+
+    it("the same combat input is worth more the higher you place", () => {
+      // 8 base combat at four placements. placement/win points differ too, so
+      // isolate the compounding effect via the full score:
+      //   1st:  10 + 12 + round(8 × 2)    = 10 + 12 + 16 = 38
+      //   3rd:  6  + 0  + round(8 × 1.75) = 6 + 14      = 20
+      //   7th:  2  + 0  + round(8 × 1.25) = 2 + 10      = 12
+      //   20th: 0  + 0  + round(8 × 1)    = 8
+      expect(matchPoints(1, 8)).toBe(38);
+      expect(matchPoints(3, 8)).toBe(20);
+      expect(matchPoints(7, 8)).toBe(12);
+      expect(matchPoints(20, 8)).toBe(8);
+    });
+
+    it("the win-points-only cases are unaffected (zero combat → no multiplier effect)", () => {
+      // With zero combat the multiplier scales nothing, so these match the
+      // placement-tier examples above.
+      expect(matchPoints(1, 0)).toBe(22);
+      expect(matchPoints(5, 0)).toBe(4);
+      expect(matchPoints(11, 0)).toBe(0);
     });
   });
 });

@@ -541,16 +541,52 @@ export const SCORING_CONFIG = {
   ],
   /** Flat bonus added only when the player's placement is 1. */
   winBonus: 12,
-  /** combatPoints = min(combatInput * perGuess, cap). */
+  /** combatPoints = min(combatInput * perGuess, cap) BEFORE the placement
+   *  multiplier. The cap bounds the base combat contribution; the multiplier
+   *  then amplifies it (see `placementMultiplierTiers`). */
   combatPointsPerGuess: 1,
   combatPointsCap: 15,
+  /**
+   * Apex-style placement MULTIPLIER applied to the (capped) combat points, by
+   * finishing-placement tier. Evaluated best-tier-first; a player's combat
+   * points are scaled by the best tier their placement satisfies. This is what
+   * makes combat performance worth more the better you place — the same number
+   * of solves/eliminations is worth ×2 for the winner but only ×1 down the
+   * field. Every tier is ≥ 1 so the multiplier never REDUCES combat points, and
+   * the implicit floor for any placement past the last tier is ×1 (unchanged).
+   */
+  placementMultiplierTiers: [
+    { maxPlacement: 1, multiplier: 2 },
+    { maxPlacement: 3, multiplier: 1.75 },
+    { maxPlacement: 5, multiplier: 1.5 },
+    { maxPlacement: 10, multiplier: 1.25 },
+  ],
 } as const;
 
 export type ScoringConfig = typeof SCORING_CONFIG;
 
 /**
+ * The placement multiplier for a finishing placement: the best tier the
+ * placement satisfies, or ×1 if it is past every tier. Pulled out so both
+ * `matchPoints` and the UI (info modals) can show the same number.
+ */
+export const placementMultiplier = (
+  placement: number,
+  config: ScoringConfig = SCORING_CONFIG,
+): number =>
+  config.placementMultiplierTiers.find((t) => placement <= t.maxPlacement)
+    ?.multiplier ?? 1;
+
+/**
  * Pure Match_Points function: points one player earns for one completed scored
- * match = placementPoints + winBonus + combatPoints.
+ * match =
+ *     placementPoints + winBonus + round(combatPoints × placementMultiplier).
+ *
+ * The placement multiplier (Apex-style) scales ONLY the combat component, so
+ * placing well and performing well compound: the same combat input is worth
+ * more the higher you finish. The combat base is capped FIRST, then multiplied,
+ * so the cap bounds raw combat and the multiplier is a clean amplifier. The
+ * multiplied combat is rounded to a whole number so points stay integers.
  *
  * `combatInput` is the swappable combat proxy. Phase 1 passes the player's
  * `correctGuesses`; when a real "eliminations/kills" stat exists later, pass
@@ -567,9 +603,12 @@ export const matchPoints = (
   );
   const placementPoints = tier?.points ?? 0;
   const winBonus = placement === 1 ? config.winBonus : 0;
-  const combatPoints = Math.min(
+  const baseCombat = Math.min(
     Math.max(0, combatInput) * config.combatPointsPerGuess,
     config.combatPointsCap,
+  );
+  const combatPoints = Math.round(
+    baseCombat * placementMultiplier(placement, config),
   );
   return placementPoints + winBonus + combatPoints;
 };
