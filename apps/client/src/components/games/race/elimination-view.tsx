@@ -82,6 +82,16 @@ const EliminationView: React.FC<EliminationViewProps> = ({
 									</span>
 								</p>
 							)}
+							{player?.revealedWord && (
+								<div className="mt-4">
+									<p className="font-semibold text-[0.65rem] text-zinc-400 uppercase tracking-[0.16em]">
+										The word was
+									</p>
+									<p className="mt-1 font-black text-2xl text-emerald-300 uppercase tracking-[0.25em]">
+										{player.revealedWord}
+									</p>
+								</div>
+							)}
 							<div className="mt-7 grid grid-cols-2 divide-x divide-white/15 border-white/15 border-y py-4">
 								<div className="px-2">
 									<p className="font-bold text-xl tabular-nums">

@@ -345,14 +345,38 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       player.lastFeedback = result.feedback;
       serverData.word = result.word;
 
-      logger.info(serverData.word);
+      const isFinalRound = roundIndex === config.rounds.length - 1;
+
+      // Final-round tie-break bookkeeping: track the DISTINCT positions this
+      // player revealed by their OWN guessing (letters graded `correct`), so a
+      // timer-expiry resolution can rank by who got closest. Letters the game
+      // helper reveals are stored separately (`hintPositions`) and never added
+      // here, so a free assist never inflates the tie-break. Only meaningful on
+      // the final round; skipped once a correct guess reassigns a fresh word.
+      if (isFinalRound && result.word === guessedWord && result.feedback) {
+        const found = new Set(serverData.foundPositions ?? []);
+        for (const entry of result.feedback) {
+          if (entry.state === "correct") {
+            found.add(entry.index);
+          }
+        }
+        serverData.foundPositions = [...found];
+        // Mirror the count onto the display player so `resolveFinalRound` ranks
+        // over a pure RacePlayer (helper reveals excluded by construction).
+        player.correctPositionsFound = serverData.foundPositions.length;
+      }
 
       // A correct guess draws a fresh word (word changed): reset the accumulated
-      // keyboard hints so the next word starts with a clean keyboard.
+      // keyboard hints AND the per-word helper/found bookkeeping so the next
+      // word starts clean.
       if (result.word !== guessedWord) {
         serverData.revealedLetters = {};
         serverData.partialMatches = [];
         serverData.noMatch = [];
+        serverData.foundPositions = [];
+        serverData.hintPositions = [];
+        player.correctPositionsFound = 0;
+        player.hintRevealed = undefined;
       }
 
       // Acknowledge with per-letter feedback (Req 10.6) plus the accumulated
@@ -370,7 +394,6 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       // the LAST configured round declares this guesser the winner and finishes
       // the match immediately. `finishMatch` is idempotent, so a later correct
       // guess after the first is a no-op.
-      const isFinalRound = roundIndex === config.rounds.length - 1;
       if (isFinalRound && result.isMatch) {
         handleFinalRoundWin(match, nsp, config, uid, lifecycleDeps);
         return;

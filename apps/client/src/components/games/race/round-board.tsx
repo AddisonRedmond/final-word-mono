@@ -1,4 +1,4 @@
-import { useAnimate } from "motion/react";
+import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GuessAck } from "@/hooks/useRaceSocket";
 import { eliminationCount, RACE_CONFIG } from "@/shared/race";
@@ -235,22 +235,39 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [handleBackspace, handleLetter, handleSubmit]);
 
+	// Letters the game helper has revealed for THIS player's current word
+	// (final-round assist). They arrive on the broadcast player snapshot (not the
+	// guess ack), so merge them into the correct-letter set below — they colour
+	// their tiles/keys green exactly like a found letter, but the server never
+	// counts them toward the tie-break.
+	const hintRevealed = player?.hintRevealed;
+
 	// Keyboard colouring + corner hints come straight from the server-accumulated
-	// hints for the current word (duplicate-letter rule already applied):
-	//   - fullMatch: Record<index, letter> of every position revealed `correct`.
-	//     The Keyboard checks `Object.values(fullMatch).includes(letter)`, so
-	//     this colours those keys green; it also drives the per-tile corner hint.
+	// hints for the current word (duplicate-letter rule already applied), MERGED
+	// with any game-helper reveals:
+	//   - fullMatch: Record<index, letter> of every position the player revealed
+	//     `correct` PLUS every position the helper revealed. The Keyboard checks
+	//     `Object.values(fullMatch).includes(letter)`, so this colours those keys
+	//     green; it also drives the per-tile corner hint.
 	//   - partialMatch: letters present but with an occurrence still unfound (so
 	//     a duplicate like the second P in APPLE stays yellow, not green).
 	//   - noMatch: letters absent from the word.
 	const { fullMatch, partialMatch, noMatch } = useMemo(
 		() => ({
-			fullMatch: matches.revealedLetters,
+			fullMatch: { ...matches.revealedLetters, ...(hintRevealed ?? {}) },
 			partialMatch: matches.partialMatches,
 			noMatch: matches.noMatch,
 		}),
-		[matches],
+		[matches, hintRevealed],
 	);
+
+	// The game helper is "active" for this round when the round configures hints
+	// and the player currently has at least one helper-revealed letter. Drives
+	// the on-board "Hints active" indicator so players know the assist is live.
+	const helperActive =
+		Boolean(roundConfig?.hints) &&
+		hintRevealed !== undefined &&
+		Object.keys(hintRevealed).length > 0;
 
 	// Build the active guess row exactly like Battle Royale's `GuessContainer`:
 	// the in-progress guess renders on green tiles, and each known correct letter
@@ -275,6 +292,24 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 				expiryTimestamp={match.room.roundEndsAt}
 				label="Round Ends In"
 			/>
+
+			<AnimatePresence>
+				{helperActive && (
+					<motion.div
+						animate={{ opacity: 1, y: 0, scale: 1 }}
+						className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 font-semibold text-[11px] text-amber-700 uppercase tracking-wider"
+						exit={{ opacity: 0, y: -6, scale: 0.9 }}
+						initial={{ opacity: 0, y: -8, scale: 0.85 }}
+						transition={{ type: "spring", stiffness: 400, damping: 22 }}
+					>
+						<span
+							aria-hidden="true"
+							className="inline-block size-1.5 animate-pulse rounded-full bg-amber-500"
+						/>
+						Hints active — revealing letters
+					</motion.div>
+				)}
+			</AnimatePresence>
 
 			<div className="flex flex-col items-center gap-2">
 				<ProgressBars

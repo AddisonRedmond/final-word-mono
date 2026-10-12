@@ -1,4 +1,4 @@
-import { type RaceConfig, eliminationCount } from "shared/race.js";
+import { eliminationCount, type RaceConfig } from "shared/race.js";
 import type { LetterFeedback, RacePlayer } from "types/race.types.js";
 import { getRandomWord } from "./words.js";
 
@@ -23,14 +23,14 @@ export const assignWord = (length: number): string => getRandomWord(length);
  * _Requirements: 4.6_
  */
 export const isCorrectLength = (guess: string, length: number): boolean =>
-  guess.length === length;
+	guess.length === length;
 
 /** Result of grading a single guess against a survivor's assigned word. */
 export type GradeResult = {
-  /** True iff the guess exactly equals the target. */
-  isMatch: boolean;
-  /** Per-letter Wordle-style feedback, one entry per guess position. */
-  perLetter: LetterFeedback[];
+	/** True iff the guess exactly equals the target. */
+	isMatch: boolean;
+	/** Per-letter Wordle-style feedback, one entry per guess position. */
+	perLetter: LetterFeedback[];
 };
 
 /**
@@ -49,41 +49,41 @@ export type GradeResult = {
  * _Requirements: 4.3_
  */
 export const gradeGuess = (guess: string, target: string): GradeResult => {
-  const perLetter: LetterFeedback[] = new Array(guess.length);
+	const perLetter: LetterFeedback[] = new Array(guess.length);
 
-  // Count the remaining occurrences of each target letter.
-  const remaining: Record<string, number> = {};
-  for (const letter of target) {
-    remaining[letter] = (remaining[letter] ?? 0) + 1;
-  }
+	// Count the remaining occurrences of each target letter.
+	const remaining: Record<string, number> = {};
+	for (const letter of target) {
+		remaining[letter] = (remaining[letter] ?? 0) + 1;
+	}
 
-  // Pass 1 — exact-position ("correct") matches.
-  for (let i = 0; i < guess.length; i++) {
-    const letter = guess[i] ?? "";
+	// Pass 1 — exact-position ("correct") matches.
+	for (let i = 0; i < guess.length; i++) {
+		const letter = guess[i] ?? "";
 
-    if (letter.length > 0 && letter === target[i]) {
-      perLetter[i] = { index: i, letter, state: "correct" };
-      remaining[letter] = (remaining[letter] ?? 0) - 1;
-    }
-  }
+		if (letter.length > 0 && letter === target[i]) {
+			perLetter[i] = { index: i, letter, state: "correct" };
+			remaining[letter] = (remaining[letter] ?? 0) - 1;
+		}
+	}
 
-  // Pass 2 — "present" / "absent" for the remaining positions.
-  for (let i = 0; i < guess.length; i++) {
-    if (perLetter[i] !== undefined) {
-      continue;
-    }
+	// Pass 2 — "present" / "absent" for the remaining positions.
+	for (let i = 0; i < guess.length; i++) {
+		if (perLetter[i] !== undefined) {
+			continue;
+		}
 
-    const letter = guess[i] ?? "";
+		const letter = guess[i] ?? "";
 
-    if (letter.length > 0 && (remaining[letter] ?? 0) > 0) {
-      perLetter[i] = { index: i, letter, state: "present" };
-      remaining[letter] = (remaining[letter] ?? 0) - 1;
-    } else {
-      perLetter[i] = { index: i, letter, state: "absent" };
-    }
-  }
+		if (letter.length > 0 && (remaining[letter] ?? 0) > 0) {
+			perLetter[i] = { index: i, letter, state: "present" };
+			remaining[letter] = (remaining[letter] ?? 0) - 1;
+		} else {
+			perLetter[i] = { index: i, letter, state: "absent" };
+		}
+	}
 
-  return { isMatch: guess === target, perLetter };
+	return { isMatch: guess === target, perLetter };
 };
 
 /**
@@ -98,9 +98,9 @@ export const gradeGuess = (guess: string, target: string): GradeResult => {
  *   - `noMatch`: letters known to be absent from the word entirely.
  */
 export type KeyboardMatches = {
-  revealedLetters: Record<number, string>;
-  partialMatches: string[];
-  noMatch: string[];
+	revealedLetters: Record<number, string>;
+	partialMatches: string[];
+	noMatch: string[];
 };
 
 /**
@@ -115,71 +115,96 @@ export type KeyboardMatches = {
  * so the two modes grade duplicate letters identically.
  */
 export const hasUnrevealedOccurrence = (
-  word: string,
-  letter: string,
-  revealedLetters: Record<number, string>,
+	word: string,
+	letter: string,
+	revealedLetters: Record<number, string>,
 ): boolean => {
-  const normalizedWord = word.trim().toUpperCase();
-  const normalizedLetter = letter.toUpperCase();
+	const normalizedWord = word.trim().toUpperCase();
+	const normalizedLetter = letter.toUpperCase();
 
-  const totalOccurrences = [...normalizedWord].filter(
-    (wordLetter) => wordLetter === normalizedLetter,
-  ).length;
+	const totalOccurrences = [...normalizedWord].filter(
+		(wordLetter) => wordLetter === normalizedLetter,
+	).length;
 
-  const revealedOccurrences = Object.entries(revealedLetters).filter(
-    ([index, revealedLetter]) =>
-      normalizedWord[Number(index)] === normalizedLetter &&
-      revealedLetter.toUpperCase() === normalizedLetter,
-  ).length;
+	const revealedOccurrences = Object.entries(revealedLetters).filter(
+		([index, revealedLetter]) =>
+			normalizedWord[Number(index)] === normalizedLetter &&
+			revealedLetter.toUpperCase() === normalizedLetter,
+	).length;
 
-  return revealedOccurrences < totalOccurrences;
+	return revealedOccurrences < totalOccurrences;
 };
 
 /**
  * Compute the single-guess keyboard match sets for `guess` against `target`,
- * iterating over the TARGET positions exactly like Battle Royale's
- * `calculateMatchObj`:
- *   - a position where the guessed letter equals the target letter is a full
- *     (green) match at that index;
- *   - otherwise, if the guess contains the target's letter anywhere, that
- *     target letter is a partial (yellow) hint;
- *   - otherwise the guessed letter at that position is absent.
+ * classifying each GUESSED letter (iterating the guess, not the target):
+ *   - a position where the guessed letter equals the target letter at that
+ *     index is a full (green) match at that index;
+ *   - otherwise, if the guessed letter appears ANYWHERE in the target, it is a
+ *     partial (yellow) hint;
+ *   - otherwise the guessed letter is absent (grey).
+ *
+ * Iterating the GUESS is essential: the keyboard needs a verdict for every key
+ * the player actually pressed. The previous implementation iterated the TARGET
+ * and pushed the guessed letter at that index into `noMatch` only when the
+ * target's letter at the same index was absent from the guess — so a guessed
+ * letter that is genuinely absent from the target (e.g. the `A` in FRAME when
+ * the word doesn't contain `A`) could fall through every branch and never get
+ * coloured, because its position was spent evaluating an unrelated target
+ * letter. Classifying per guessed letter fixes that: every pressed key is
+ * always bucketed. This also matches the two-pass `gradeGuess` above.
  *
  * This is the per-guess raw result. The caller merges it into the player's
  * accumulated {@link KeyboardMatches} and re-applies {@link hasUnrevealedOccurrence}
  * so a letter only stays yellow while an unfound occurrence remains.
  */
 export const calculateKeyboardMatches = (
-  target: string,
-  guess: string,
+	target: string,
+	guess: string,
 ): KeyboardMatches => {
-  const normalizedTarget = target.trim().toUpperCase();
-  const normalizedGuess = guess.trim().toUpperCase();
+	const normalizedTarget = target.trim().toUpperCase();
+	const normalizedGuess = guess.trim().toUpperCase();
 
-  const revealedLetters: Record<number, string> = {};
-  const partialMatches: string[] = [];
-  const noMatch: string[] = [];
+	const revealedLetters: Record<number, string> = {};
+	const partialMatches: string[] = [];
+	const noMatch: string[] = [];
 
-  normalizedTarget.split("").forEach((letter, index) => {
-    const guessedLetter = normalizedGuess[index];
-    if (!guessedLetter) {
-      return;
-    }
+	// Greens + yellows, iterating the TARGET: a position where the guessed letter
+	// equals the target letter is a green match at that index; otherwise, if the
+	// TARGET letter at that position also appears somewhere in the guess, surface
+	// it as a yellow hint ("this letter is in the word, not yet placed here" —
+	// the merge step later demotes it via `hasUnrevealedOccurrence` once every
+	// occurrence has been placed, which is what keeps the second P in APPLE
+	// yellow while a copy is unfound).
+	normalizedTarget.split("").forEach((targetLetter, index) => {
+		const guessedLetter = normalizedGuess[index];
+		if (!guessedLetter) {
+			return;
+		}
+		if (targetLetter === guessedLetter) {
+			revealedLetters[index] = targetLetter;
+			return;
+		}
+		if (normalizedGuess.includes(targetLetter)) {
+			partialMatches.push(targetLetter);
+		}
+	});
 
-    if (letter === guessedLetter) {
-      revealedLetters[index] = letter;
-      return;
-    }
+	// Greys, iterating the GUESS independently: a guessed letter that does NOT
+	// appear anywhere in the target is absent. This MUST be computed per guessed
+	// letter rather than folded into the target loop above — the previous
+	// implementation pushed a guessed letter to `noMatch` only when the target
+	// letter sharing its index was absent from the guess, so a guessed letter
+	// genuinely absent from the target (e.g. the `A` in FRAME when the word has
+	// no `A`) could fall through every branch and never be coloured. Checking
+	// each guessed letter against the whole target fixes that.
+	normalizedGuess.split("").forEach((guessedLetter) => {
+		if (guessedLetter && !normalizedTarget.includes(guessedLetter)) {
+			noMatch.push(guessedLetter);
+		}
+	});
 
-    if (normalizedGuess.includes(letter)) {
-      partialMatches.push(letter);
-      return;
-    }
-
-    noMatch.push(guessedLetter);
-  });
-
-  return { revealedLetters, partialMatches, noMatch };
+	return { revealedLetters, partialMatches, noMatch };
 };
 
 /**
@@ -197,24 +222,26 @@ export const calculateKeyboardMatches = (
  * returned.
  */
 export const mergeKeyboardMatches = (
-  target: string,
-  accumulated: KeyboardMatches,
-  guessResult: KeyboardMatches,
+	target: string,
+	accumulated: KeyboardMatches,
+	guessResult: KeyboardMatches,
 ): KeyboardMatches => {
-  const revealedLetters = {
-    ...accumulated.revealedLetters,
-    ...guessResult.revealedLetters,
-  };
+	const revealedLetters = {
+		...accumulated.revealedLetters,
+		...guessResult.revealedLetters,
+	};
 
-  const partialMatches = [
-    ...new Set([...accumulated.partialMatches, ...guessResult.partialMatches]),
-  ].filter((letter) => hasUnrevealedOccurrence(target, letter, revealedLetters));
+	const partialMatches = [
+		...new Set([...accumulated.partialMatches, ...guessResult.partialMatches]),
+	].filter((letter) =>
+		hasUnrevealedOccurrence(target, letter, revealedLetters),
+	);
 
-  const noMatch = [
-    ...new Set([...accumulated.noMatch, ...guessResult.noMatch]),
-  ].filter((letter) => !partialMatches.includes(letter));
+	const noMatch = [
+		...new Set([...accumulated.noMatch, ...guessResult.noMatch]),
+	].filter((letter) => !partialMatches.includes(letter));
 
-  return { revealedLetters, partialMatches, noMatch };
+	return { revealedLetters, partialMatches, noMatch };
 };
 
 /**
@@ -224,18 +251,18 @@ export const mergeKeyboardMatches = (
  * straight in.
  */
 export type GuessApplicationInput = Pick<
-  RacePlayer,
-  | "completedWords"
-  | "qualified"
-  | "qualifiedAt"
-  | "roundGuesses"
-  | "totalGuesses"
-  | "correctGuesses"
-  | "correctLetters"
-  | "isEliminated"
+	RacePlayer,
+	| "completedWords"
+	| "qualified"
+	| "qualifiedAt"
+	| "roundGuesses"
+	| "totalGuesses"
+	| "correctGuesses"
+	| "correctLetters"
+	| "isEliminated"
 > & {
-  /** The survivor's currently assigned target word (server-only). */
-  word: string;
+	/** The survivor's currently assigned target word (server-only). */
+	word: string;
 };
 
 /**
@@ -244,20 +271,20 @@ export type GuessApplicationInput = Pick<
  * place. `word` is the (possibly new) assigned word after application.
  */
 export type GuessApplicationResult = {
-  completedWords: number;
-  qualified: boolean;
-  qualifiedAt?: number;
-  roundGuesses: number;
-  totalGuesses: number;
-  correctGuesses: number;
-  correctLetters: number;
-  word: string;
-  /** True iff the guess was graded (correct length + not eliminated). */
-  accepted: boolean;
-  /** True iff this guess exactly matched the assigned word. */
-  isMatch: boolean;
-  /** Per-letter feedback when the guess was graded, otherwise undefined. */
-  feedback?: LetterFeedback[];
+	completedWords: number;
+	qualified: boolean;
+	qualifiedAt?: number;
+	roundGuesses: number;
+	totalGuesses: number;
+	correctGuesses: number;
+	correctLetters: number;
+	word: string;
+	/** True iff the guess was graded (correct length + not eliminated). */
+	accepted: boolean;
+	/** True iff this guess exactly matched the assigned word. */
+	isMatch: boolean;
+	/** Per-letter feedback when the guess was graded, otherwise undefined. */
+	feedback?: LetterFeedback[];
 };
 
 /**
@@ -281,84 +308,84 @@ export type GuessApplicationResult = {
  * _Requirements: 4.4, 4.5, 4.6, 4.8_
  */
 export const applyGuess = (
-  player: GuessApplicationInput,
-  guess: string,
-  qualifyingCount: number,
-  wordLength: number,
-  now: number,
+	player: GuessApplicationInput,
+	guess: string,
+	qualifyingCount: number,
+	wordLength: number,
+	now: number,
 ): GuessApplicationResult => {
-  const unchanged: GuessApplicationResult = {
-    completedWords: player.completedWords,
-    qualified: player.qualified,
-    qualifiedAt: player.qualifiedAt,
-    roundGuesses: player.roundGuesses,
-    totalGuesses: player.totalGuesses,
-    correctGuesses: player.correctGuesses,
-    correctLetters: player.correctLetters,
-    word: player.word,
-    accepted: false,
-    isMatch: false,
-  };
+	const unchanged: GuessApplicationResult = {
+		completedWords: player.completedWords,
+		qualified: player.qualified,
+		qualifiedAt: player.qualifiedAt,
+		roundGuesses: player.roundGuesses,
+		totalGuesses: player.totalGuesses,
+		correctGuesses: player.correctGuesses,
+		correctLetters: player.correctLetters,
+		word: player.word,
+		accepted: false,
+		isMatch: false,
+	};
 
-  // Reject eliminated players and wrong-length guesses without side effects.
-  if (player.isEliminated || !isCorrectLength(guess, wordLength)) {
-    return unchanged;
-  }
+	// Reject eliminated players and wrong-length guesses without side effects.
+	if (player.isEliminated || !isCorrectLength(guess, wordLength)) {
+		return unchanged;
+	}
 
-  const { isMatch, perLetter } = gradeGuess(guess, player.word);
+	const { isMatch, perLetter } = gradeGuess(guess, player.word);
 
-  // Every graded guess counts toward the guess totals, and every letter graded
-  // `correct` on this guess accumulates toward the player's correct-letter tally
-  // (a secondary elimination-placement key).
-  const roundGuesses = player.roundGuesses + 1;
-  const totalGuesses = player.totalGuesses + 1;
-  const correctLettersThisGuess = perLetter.filter(
-    (entry) => entry.state === "correct",
-  ).length;
-  const correctLetters = player.correctLetters + correctLettersThisGuess;
+	// Every graded guess counts toward the guess totals, and every letter graded
+	// `correct` on this guess accumulates toward the player's correct-letter tally
+	// (a secondary elimination-placement key).
+	const roundGuesses = player.roundGuesses + 1;
+	const totalGuesses = player.totalGuesses + 1;
+	const correctLettersThisGuess = perLetter.filter(
+		(entry) => entry.state === "correct",
+	).length;
+	const correctLetters = player.correctLetters + correctLettersThisGuess;
 
-  // A non-match, or a match once already at/over the qualifying count, does not
-  // progress qualification or draw a new word.
-  if (!isMatch || player.completedWords >= qualifyingCount) {
-    return {
-      ...unchanged,
-      roundGuesses,
-      totalGuesses,
-      correctLetters,
-      accepted: true,
-      isMatch,
-      feedback: perLetter,
-    };
-  }
+	// A non-match, or a match once already at/over the qualifying count, does not
+	// progress qualification or draw a new word.
+	if (!isMatch || player.completedWords >= qualifyingCount) {
+		return {
+			...unchanged,
+			roundGuesses,
+			totalGuesses,
+			correctLetters,
+			accepted: true,
+			isMatch,
+			feedback: perLetter,
+		};
+	}
 
-  // Correct guess below the qualifying count: progress by one and draw a word.
-  const completedWords = player.completedWords + 1;
-  const correctGuesses = player.correctGuesses + 1;
-  const word = assignWord(wordLength);
+	// Correct guess below the qualifying count: progress by one and draw a word.
+	const completedWords = player.completedWords + 1;
+	const correctGuesses = player.correctGuesses + 1;
+	const word = assignWord(wordLength);
 
-  // Latch qualification exactly once when the count is first reached. An
-  // already-qualified survivor keeps their original qualifiedAt.
-  const reachedNow = !player.qualified && completedWords >= qualifyingCount;
-  const qualified = player.qualified || completedWords >= qualifyingCount;
-  const qualifiedAt = player.qualified
-    ? player.qualifiedAt
-    : reachedNow
-      ? now
-      : player.qualifiedAt;
+	// Latch qualification exactly once when the count is first reached. An
+	// already-qualified survivor keeps their original qualifiedAt.
+	const reachedNow = !player.qualified && completedWords >= qualifyingCount;
+	const qualified = player.qualified || completedWords >= qualifyingCount;
+	const qualifiedAt = player.qualified
+		? player.qualifiedAt
+		: reachedNow
+			? now
+			: player.qualifiedAt;
 
-  return {
-    completedWords,
-    qualified,
-    qualifiedAt,
-    roundGuesses,
-    totalGuesses,
-    correctGuesses,
-    correctLetters,
-    word,
-    accepted: true,
-    isMatch: true,
-    feedback: perLetter,
-  };
+	return {
+		completedWords,
+		qualified,
+		qualifiedAt,
+		roundGuesses,
+		totalGuesses,
+		correctGuesses,
+		correctLetters,
+		word,
+		accepted: true,
+		isMatch: true,
+		feedback: perLetter,
+	};
 };
 
 /**
@@ -390,34 +417,34 @@ export type RankedSurvivor = readonly [string, RacePlayer];
  * _Requirements: 5.1, 5.2, 5.3_
  */
 export const rankSurvivors = (
-  survivors: readonly RankedSurvivor[],
+	survivors: readonly RankedSurvivor[],
 ): RankedSurvivor[] => {
-  // `qualifiedAt` may be undefined even when qualified; treat that as "latest
-  // possible" so a genuine timestamp always ranks ahead of a missing one.
-  const qualifiedAtOf = (p: RacePlayer): number =>
-    p.qualifiedAt ?? Number.POSITIVE_INFINITY;
+	// `qualifiedAt` may be undefined even when qualified; treat that as "latest
+	// possible" so a genuine timestamp always ranks ahead of a missing one.
+	const qualifiedAtOf = (p: RacePlayer): number =>
+		p.qualifiedAt ?? Number.POSITIVE_INFINITY;
 
-  // Array.prototype.sort is stable per spec, so equal comparisons preserve the
-  // input order — this gives the "stable for exact ties" guarantee for free.
-  return [...survivors].sort(([, a], [, b]) => {
-    // 1. Qualified before non-qualified.
-    if (a.qualified !== b.qualified) {
-      return a.qualified ? -1 : 1;
-    }
+	// Array.prototype.sort is stable per spec, so equal comparisons preserve the
+	// input order — this gives the "stable for exact ties" guarantee for free.
+	return [...survivors].sort(([, a], [, b]) => {
+		// 1. Qualified before non-qualified.
+		if (a.qualified !== b.qualified) {
+			return a.qualified ? -1 : 1;
+		}
 
-    if (a.qualified) {
-      // 2. Among qualified: earliest qualifiedAt first.
-      return qualifiedAtOf(a) - qualifiedAtOf(b);
-    }
+		if (a.qualified) {
+			// 2. Among qualified: earliest qualifiedAt first.
+			return qualifiedAtOf(a) - qualifiedAtOf(b);
+		}
 
-    // 3. Among non-qualified: highest completedWords first, ...
-    if (a.completedWords !== b.completedWords) {
-      return b.completedWords - a.completedWords;
-    }
+		// 3. Among non-qualified: highest completedWords first, ...
+		if (a.completedWords !== b.completedWords) {
+			return b.completedWords - a.completedWords;
+		}
 
-    // ... then fewest roundGuesses first.
-    return a.roundGuesses - b.roundGuesses;
-  });
+		// ... then fewest roundGuesses first.
+		return a.roundGuesses - b.roundGuesses;
+	});
 };
 
 /**
@@ -435,44 +462,55 @@ export const rankSurvivors = (
  * _Requirements: 5.4_
  */
 export const selectEliminated = (
-  ranked: readonly RankedSurvivor[],
-  pct: number,
-  _config?: RaceConfig,
+	ranked: readonly RankedSurvivor[],
+	pct: number,
+	_config?: RaceConfig,
 ): string[] => {
-  const count = eliminationCount(ranked.length, pct);
-  if (count === 0) {
-    return [];
-  }
+	const count = eliminationCount(ranked.length, pct);
+	if (count === 0) {
+		return [];
+	}
 
-  // The lowest-ranked `count` survivors are the suffix of the best-first list.
-  return ranked.slice(ranked.length - count).map(([id]) => id);
+	// The lowest-ranked `count` survivors are the suffix of the best-first list.
+	return ranked.slice(ranked.length - count).map(([id]) => id);
 };
 
 /** The outcome of resolving a Final_Round when its timer expires. */
 export type FinalRoundResolution = {
-  /**
-   * The winner's id when a leader is distinguished, otherwise undefined for a
-   * draw.
-   */
-  winnerId?: string;
-  /** All survivor ids in resolved best-first order. */
-  ranking: string[];
+	/**
+	 * The winner's id when a leader is distinguished, otherwise undefined for a
+	 * draw.
+	 */
+	winnerId?: string;
+	/** All survivor ids in resolved best-first order. */
+	ranking: string[];
 };
+
+/** Distinct final-round positions a survivor found themselves (0 when unset). */
+const positionsFoundOf = (p: RacePlayer): number =>
+	p.correctPositionsFound ?? 0;
 
 /**
  * Resolve the Final_Round on timer expiry with no correct guess (Property 9).
  *
- * Survivors are ranked best-first by highest `completedWords`, broken by fewest
- * `totalGuesses`; exact ties preserve input order (stable sort). The winner is
- * the top-ranked survivor unless no progress distinguishes a leader, in which
- * case the match is a draw with no winner (Req 6.4, 6.5).
+ * Nobody solved the 6-letter word, so the winner is whoever got CLOSEST —
+ * measured by the number of distinct positions of their own word they revealed
+ * by guessing (`correctPositionsFound`). Letters the game helper revealed never
+ * count toward this, by construction (they are not added to `foundPositions`).
+ *
+ * Survivors are ranked best-first by:
+ *   1. most distinct correct positions found (closer to solving is better),
+ *   2. fewest `totalGuesses` (got as close in fewer tries),
+ * with exact ties preserving input order (stable sort). The winner is the
+ * top-ranked survivor unless no progress distinguishes a leader, in which case
+ * the match is a draw with no winner (Req 6.4, 6.5).
  *
  * "No progress distinguishes a leader" is precisely:
  *   - there are no survivors, or
- *   - the top-ranked survivor has zero `completedWords` (no meaningful
- *     progress toward the Qualifying_Count), or
- *   - the top two survivors are exactly tied on `(completedWords,
- *     totalGuesses)`, so the tie-break policy cannot separate a leader.
+ *   - the top-ranked survivor found zero positions (nobody made any headway on
+ *     their word), or
+ *   - the top two survivors are exactly tied on `(correctPositionsFound,
+ *     totalGuesses)`, so the tie-break policy cannot separate a leader → draw.
  *
  * When a winner exists, `ranking[0]` is the winner and every other survivor
  * appears after them (placement > 1 in ranking order). The `ranking` is always
@@ -482,46 +520,46 @@ export type FinalRoundResolution = {
  * _Requirements: 6.3, 6.4, 6.5_
  */
 export const resolveFinalRound = (
-  survivors: readonly RankedSurvivor[],
+	survivors: readonly RankedSurvivor[],
 ): FinalRoundResolution => {
-  // Best-first by highest completedWords, then fewest totalGuesses. Stable for
-  // exact ties (Array.prototype.sort preserves input order per spec).
-  const sorted = [...survivors].sort(([, a], [, b]) => {
-    if (a.completedWords !== b.completedWords) {
-      return b.completedWords - a.completedWords;
-    }
-    return a.totalGuesses - b.totalGuesses;
-  });
+	// Best-first by most distinct found positions, then fewest totalGuesses.
+	// Stable for exact ties (Array.prototype.sort preserves input order per spec).
+	const sorted = [...survivors].sort(([, a], [, b]) => {
+		if (positionsFoundOf(a) !== positionsFoundOf(b)) {
+			return positionsFoundOf(b) - positionsFoundOf(a);
+		}
+		return a.totalGuesses - b.totalGuesses;
+	});
 
-  const ranking = sorted.map(([id]) => id);
+	const ranking = sorted.map(([id]) => id);
 
-  const leader = sorted[0];
-  const runnerUp = sorted[1];
+	const leader = sorted[0];
+	const runnerUp = sorted[1];
 
-  // No survivors → nothing to resolve, a draw.
-  if (leader === undefined) {
-    return { ranking };
-  }
+	// No survivors → nothing to resolve, a draw.
+	if (leader === undefined) {
+		return { ranking };
+	}
 
-  const [, leaderPlayer] = leader;
+	const [, leaderPlayer] = leader;
 
-  // No meaningful progress: the best survivor never completed a word, so there
-  // is nothing to distinguish a leader.
-  if (leaderPlayer.completedWords === 0) {
-    return { ranking };
-  }
+	// No meaningful progress: the best survivor found no letters of their word,
+	// so there is nothing to distinguish a leader.
+	if (positionsFoundOf(leaderPlayer) === 0) {
+		return { ranking };
+	}
 
-  // Top two exactly tied on the full tie-break policy → cannot separate a
-  // leader, so declare a draw.
-  if (runnerUp !== undefined) {
-    const [, runnerUpPlayer] = runnerUp;
-    if (
-      runnerUpPlayer.completedWords === leaderPlayer.completedWords &&
-      runnerUpPlayer.totalGuesses === leaderPlayer.totalGuesses
-    ) {
-      return { ranking };
-    }
-  }
+	// Top two exactly tied on the full tie-break policy → cannot separate a
+	// leader, so declare a draw (your call: a true tie stays a draw).
+	if (runnerUp !== undefined) {
+		const [, runnerUpPlayer] = runnerUp;
+		if (
+			positionsFoundOf(runnerUpPlayer) === positionsFoundOf(leaderPlayer) &&
+			runnerUpPlayer.totalGuesses === leaderPlayer.totalGuesses
+		) {
+			return { ranking };
+		}
+	}
 
-  return { winnerId: leader[0], ranking };
+	return { winnerId: leader[0], ranking };
 };

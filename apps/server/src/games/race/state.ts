@@ -18,6 +18,12 @@ export type RaceRoomTimers = {
   botTicker?: NodeJS.Timeout;
   /** Coalesced state-broadcast scheduler (Req 4.7, 10.1). */
   updateTicker?: NodeJS.Timeout;
+  /**
+   * One-shot timers for the final-round game helper's progressive letter
+   * reveals (one per scheduled reveal). Cleared on round end / finish / cleanup
+   * so a reveal never fires on a resolved or torn-down room.
+   */
+  hintTimers?: NodeJS.Timeout[];
 };
 
 /**

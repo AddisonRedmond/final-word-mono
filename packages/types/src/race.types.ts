@@ -27,9 +27,27 @@ export type RacePlayer = {
   // key (after total correct WORDS, before total guesses), so a player who was
   // "closer" on their words places ahead of one who wasn't.
   correctLetters: number;
+  // Number of DISTINCT positions of the current (final-round) word this player
+  // has revealed by their OWN correct guesses — the "most letters found"
+  // tie-break for resolving the Final_Round when nobody solves it. Mirrors the
+  // server-only `foundPositions` set so ranking stays a pure function of the
+  // display player. Excludes any letter the game helper revealed. Reset per
+  // word; only meaningful on the final round.
+  correctPositionsFound?: number;
   // finishing outcome
   placement?: number; // final placement (Req 5.5)
   eliminatedAt?: number; // time of elimination (Req 5.5)
+  // The word this player was trying to guess, revealed to THEM once they are
+  // eliminated so the elimination card can show "the word was …" (mirrors
+  // Battle Royale revealing the eliminated player's word). Set only at the
+  // moment of elimination; undefined while still racing. Display-safe because an
+  // eliminated player is out of the match and can no longer act on it.
+  revealedWord?: string;
+  // Letters of this player's CURRENT word that the game helper has revealed to
+  // them (index -> letter), shown on their board/keyboard like found letters.
+  // Reset when a new word is assigned. These are server-provided assists and
+  // deliberately do NOT count toward the final-round "most letters" tie-break.
+  hintRevealed?: Record<number, string>;
   // latest grading feedback for the client
   lastFeedback?: LetterFeedback[];
   // Server-side bookkeeping: set once this player's aggregate stats have been
@@ -83,4 +101,15 @@ export type RacePlayerServerData = {
   revealedLetters?: Record<number, string>;
   partialMatches?: string[];
   noMatch?: string[];
+  // Final-round game-helper bookkeeping (server-only), reset when a new word is
+  // assigned:
+  //   - `foundPositions`: positions of the current word this player revealed by
+  //     their OWN correct guesses (a letter graded `correct` at that index).
+  //     This is the "distinct correct positions found" count used as the
+  //     final-round tie-break — helper reveals are excluded by construction.
+  //   - `hintPositions`: positions the helper has revealed for this player, so
+  //     the next reveal never repeats one and tie-break counting can exclude
+  //     them.
+  foundPositions?: number[];
+  hintPositions?: number[];
 };

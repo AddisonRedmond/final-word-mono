@@ -1,28 +1,28 @@
 import { randomUUID } from "node:crypto";
-import type { Namespace } from "socket.io";
 import { eliminationCount, type RaceConfig } from "shared/race.js";
+import type { Namespace } from "socket.io";
 import type { RaceMatch, RacePlayer } from "types/race.types.js";
 import logger from "../../../utils/logger.js";
-import {
-  matches as globalMatches,
-  serverOnlyBotData as globalServerOnlyBotData,
-  serverOnlyData as globalServerOnlyData,
-  shareCodes,
-} from "../state.js";
-import type {
-  RaceBotServerData,
-  RaceServerBotData,
-  RaceRoomServerData,
-} from "../state.js";
 import { emitRaceUpdate } from "../lobby.js";
+import type {
+	RaceBotServerData,
+	RaceRoomServerData,
+	RaceServerBotData,
+} from "../state.js";
+import {
+	matches as globalMatches,
+	serverOnlyBotData as globalServerOnlyBotData,
+	serverOnlyData as globalServerOnlyData,
+	shareCodes,
+} from "../state.js";
 import { persistEliminatedAsLoss, persistRaceStats } from "../stats.js";
 import { fillLobbyWithBots, startBotTicker } from "./bots.js";
 import {
-  assignWord,
-  type RankedSurvivor,
-  rankSurvivors,
-  resolveFinalRound,
-  selectEliminated,
+	assignWord,
+	type RankedSurvivor,
+	rankSurvivors,
+	resolveFinalRound,
+	selectEliminated,
 } from "./round.js";
 
 // Impure Race_Mode match lifecycle. This file owns lobby selection/creation and
@@ -61,15 +61,15 @@ const SHARE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const SHARE_CODE_LENGTH = 6;
 
 const randomShareCode = (): string => {
-  let code = "";
-  for (let i = 0; i < SHARE_CODE_LENGTH; i++) {
-    const idx = Math.floor(Math.random() * SHARE_CODE_ALPHABET.length);
-    code += SHARE_CODE_ALPHABET[idx];
-    if (i === 2) {
-      code += "-";
-    }
-  }
-  return code;
+	let code = "";
+	for (let i = 0; i < SHARE_CODE_LENGTH; i++) {
+		const idx = Math.floor(Math.random() * SHARE_CODE_ALPHABET.length);
+		code += SHARE_CODE_ALPHABET[idx];
+		if (i === 2) {
+			code += "-";
+		}
+	}
+	return code;
 };
 
 /**
@@ -78,18 +78,18 @@ const randomShareCode = (): string => {
  * of retries, so a code is never silently reused for two matches.
  */
 export const generateShareCode = (matchId: string): string | undefined => {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const code = randomShareCode();
-    if (!shareCodes.has(code)) {
-      shareCodes.set(code, matchId);
-      return code;
-    }
-  }
-  logger.warn(
-    { matchId },
-    "Could not generate a unique race share code after retries",
-  );
-  return undefined;
+	for (let attempt = 0; attempt < 10; attempt++) {
+		const code = randomShareCode();
+		if (!shareCodes.has(code)) {
+			shareCodes.set(code, matchId);
+			return code;
+		}
+	}
+	logger.warn(
+		{ matchId },
+		"Could not generate a unique race share code after retries",
+	);
+	return undefined;
 };
 
 /**
@@ -99,51 +99,55 @@ export const generateShareCode = (matchId: string): string | undefined => {
  * has capacity).
  */
 export const resolveShareCode = (
-  matches: Map<string, RaceMatch>,
-  code: string,
+	matches: Map<string, RaceMatch>,
+	code: string,
 ): RaceMatch | undefined => {
-  const normalized = code.trim().toUpperCase();
-  const matchId = shareCodes.get(normalized);
-  if (!matchId) {
-    return undefined;
-  }
-  return matches.get(matchId);
+	const normalized = code.trim().toUpperCase();
+	const matchId = shareCodes.get(normalized);
+	if (!matchId) {
+		return undefined;
+	}
+	return matches.get(matchId);
 };
 
 export const getOrCreateLobby = (
-  matches: Map<string, RaceMatch>,
-  config: RaceConfig,
+	matches: Map<string, RaceMatch>,
+	config: RaceConfig,
 ): RaceMatch => {
-  for (const match of matches.values()) {
-    if (
-      match.room.phase === "lobby" &&
-      match.players.size < config.maxLobbySize
-    ) {
-      return match;
-    }
-  }
+	for (const match of matches.values()) {
+		if (
+			match.room.phase === "lobby" &&
+			match.players.size < config.maxLobbySize
+		) {
+			return match;
+		}
+	}
 
-  const matchId = randomUUID();
-  const now = Date.now();
-  const match: RaceMatch = {
-    room: {
-      matchId,
-      shareCode: generateShareCode(matchId),
-      phase: "lobby",
-      createdAt: now,
-      lobbyDeadline: now + config.lobbyCountdownMs,
-      currentRoundIndex: 0,
-      isDraw: false,
-    },
-    players: new Map(),
-  };
+	const matchId = randomUUID();
+	const now = Date.now();
+	const match: RaceMatch = {
+		room: {
+			matchId,
+			shareCode: generateShareCode(matchId),
+			phase: "lobby",
+			createdAt: now,
+			lobbyDeadline: now + config.lobbyCountdownMs,
+			currentRoundIndex: 0,
+			isDraw: false,
+		},
+		players: new Map(),
+	};
 
-  matches.set(matchId, match);
-  logger.info(
-    { matchId, shareCode: match.room.shareCode, lobbyDeadline: match.room.lobbyDeadline },
-    "Created race lobby",
-  );
-  return match;
+	matches.set(matchId, match);
+	logger.info(
+		{
+			matchId,
+			shareCode: match.room.shareCode,
+			lobbyDeadline: match.room.lobbyDeadline,
+		},
+		"Created race lobby",
+	);
+	return match;
 };
 
 /**
@@ -154,10 +158,10 @@ export const getOrCreateLobby = (
  * Mirrors `findGameForUser` in `battle-royale/logic/battle-royale.ts`.
  */
 export const findMatchForUser = (
-  matches: Map<string, RaceMatch>,
-  userId: string,
+	matches: Map<string, RaceMatch>,
+	userId: string,
 ): RaceMatch | undefined =>
-  Array.from(matches.values()).find((match) => match.players.has(userId));
+	Array.from(matches.values()).find((match) => match.players.has(userId));
 
 // Re-export the bot-fill helper so lifecycle callers can bring a short lobby up
 // to the minimum from a single lifecycle import surface, matching how Battle
@@ -170,7 +174,7 @@ export { fillLobbyWithBots } from "./bots.js";
 // detection `stats.ts` uses to exclude bots from persistence (Req 8.4). Only
 // real players count against the Daily_Game_Counter (Req 11.1).
 const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const isRealPlayer = (playerId: string): boolean => UUID_RE.test(playerId);
 
@@ -194,15 +198,15 @@ const isRealPlayer = (playerId: string): boolean => UUID_RE.test(playerId);
  *   bot-fill so callers normally pass only the daily-limit + `beginRound` seam.
  */
 export type StartMatchDeps = {
-  canStartMatch: (userId: string) => Promise<boolean>;
-  recordMatchStart: (userId: string) => Promise<void>;
-  beginRound?: (
-    match: RaceMatch,
-    nsp: Namespace,
-    config: RaceConfig,
-    roundIndex: number,
-  ) => void;
-  fillLobbyWithBots?: typeof fillLobbyWithBots;
+	canStartMatch: (userId: string) => Promise<boolean>;
+	recordMatchStart: (userId: string) => Promise<void>;
+	beginRound?: (
+		match: RaceMatch,
+		nsp: Namespace,
+		config: RaceConfig,
+		roundIndex: number,
+	) => void;
+	fillLobbyWithBots?: typeof fillLobbyWithBots;
 };
 
 /** Per-room bot simulation record, keyed `bot0`/`bot1`/… → server-only state. */
@@ -248,58 +252,58 @@ type RoomBotData = { [botId: string]: RaceBotServerData };
  * _Requirements: 3.3, 3.4, 3.5, 11.1_
  */
 export const startMatch = async (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  deps: StartMatchDeps,
-  roomServerOnlyData?: RaceRoomServerData,
-  botData: RoomBotData = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	deps: StartMatchDeps,
+	roomServerOnlyData?: RaceRoomServerData,
+	botData: RoomBotData = {},
 ): Promise<void> => {
-  if (match.room.phase !== "lobby") {
-    logger.warn(
-      { matchId: match.room.matchId, phase: match.room.phase },
-      "Match start ignored: match already started",
-    );
-    return;
-  }
+	if (match.room.phase !== "lobby") {
+		logger.warn(
+			{ matchId: match.room.matchId, phase: match.room.phase },
+			"Match start ignored: match already started",
+		);
+		return;
+	}
 
-  // Clear the lobby countdown so a scheduled countdown can't fire a second
-  // start after the max-size path has already begun (Req 3.3 vs 3.4/3.5).
-  if (roomServerOnlyData?.timers.lobbyCountdown) {
-    clearTimeout(roomServerOnlyData.timers.lobbyCountdown);
-    roomServerOnlyData.timers.lobbyCountdown = undefined;
-  }
+	// Clear the lobby countdown so a scheduled countdown can't fire a second
+	// start after the max-size path has already begun (Req 3.3 vs 3.4/3.5).
+	if (roomServerOnlyData?.timers.lobbyCountdown) {
+		clearTimeout(roomServerOnlyData.timers.lobbyCountdown);
+		roomServerOnlyData.timers.lobbyCountdown = undefined;
+	}
 
-  // Defensive bot-fill: the countdown-zero-below-minimum path (Req 3.5) fills
-  // before calling here, but if we were reached with a short field, top up so a
-  // Match never starts under `minLobbySize`. No-op when already at/above it.
-  if (match.players.size < config.minLobbySize) {
-    const fill = deps.fillLobbyWithBots ?? fillLobbyWithBots;
-    fill(match.players, botData, config);
-  }
+	// Defensive bot-fill: the countdown-zero-below-minimum path (Req 3.5) fills
+	// before calling here, but if we were reached with a short field, top up so a
+	// Match never starts under `minLobbySize`. No-op when already at/above it.
+	if (match.players.size < config.minLobbySize) {
+		const fill = deps.fillLobbyWithBots ?? fillLobbyWithBots;
+		fill(match.players, botData, config);
+	}
 
-  // Snapshot the real players present at start, then run the daily-limit seam
-  // for each one (Req 11.1). We record every real player; `canStartMatch` is
-  // consulted through the same seam so enforcement can later block without a
-  // Match/Round change (Req 11.3, 11.4). Beta impls always permit / no-op.
-  const realPlayerIds = Array.from(match.players.keys()).filter(isRealPlayer);
-  for (const userId of realPlayerIds) {
-    await deps.canStartMatch(userId);
-    await deps.recordMatchStart(userId);
-  }
+	// Snapshot the real players present at start, then run the daily-limit seam
+	// for each one (Req 11.1). We record every real player; `canStartMatch` is
+	// consulted through the same seam so enforcement can later block without a
+	// Match/Round change (Req 11.3, 11.4). Beta impls always permit / no-op.
+	const realPlayerIds = Array.from(match.players.keys()).filter(isRealPlayer);
+	for (const userId of realPlayerIds) {
+		await deps.canStartMatch(userId);
+		await deps.recordMatchStart(userId);
+	}
 
-  logger.info(
-    { matchId: match.room.matchId, playerCount: match.players.size },
-    "Starting race match",
-  );
+	logger.info(
+		{ matchId: match.room.matchId, playerCount: match.players.size },
+		"Starting race match",
+	);
 
-  // Hand off to the round loop. `beginRound` owns setting `phase = "round"`,
-  // assigning words, and arming the round timer for round 0. It is injected
-  // through `deps` so start-conditions tests can stub it; when omitted the real
-  // `beginRound` runs, wiring the room's server-only data for word assignment
-  // and the round timer.
-  const begin = deps.beginRound ?? beginRound;
-  begin(match, nsp, config, 0);
+	// Hand off to the round loop. `beginRound` owns setting `phase = "round"`,
+	// assigning words, and arming the round timer for round 0. It is injected
+	// through `deps` so start-conditions tests can stub it; when omitted the real
+	// `beginRound` runs, wiring the room's server-only data for word assignment
+	// and the round timer.
+	const begin = deps.beginRound ?? beginRound;
+	begin(match, nsp, config, 0);
 };
 
 /**
@@ -322,38 +326,38 @@ export const startMatch = async (
  * _Requirements: 3.4, 3.5_
  */
 export const scheduleLobbyStart = (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  deps: StartMatchDeps,
-  roomServerOnlyData: RaceRoomServerData,
-  botData: RoomBotData = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	deps: StartMatchDeps,
+	roomServerOnlyData: RaceRoomServerData,
+	botData: RoomBotData = {},
 ): void => {
-  if (match.room.phase !== "lobby") {
-    return;
-  }
-  if (roomServerOnlyData.timers.lobbyCountdown) {
-    return;
-  }
+	if (match.room.phase !== "lobby") {
+		return;
+	}
+	if (roomServerOnlyData.timers.lobbyCountdown) {
+		return;
+	}
 
-  const delay = Math.max(0, match.room.lobbyDeadline - Date.now());
+	const delay = Math.max(0, match.room.lobbyDeadline - Date.now());
 
-  roomServerOnlyData.timers.lobbyCountdown = setTimeout(() => {
-    roomServerOnlyData.timers.lobbyCountdown = undefined;
+	roomServerOnlyData.timers.lobbyCountdown = setTimeout(() => {
+		roomServerOnlyData.timers.lobbyCountdown = undefined;
 
-    // Re-check the phase inside the callback: a max-size start (Req 3.3) may
-    // have started the Match before the countdown fired.
-    if (match.room.phase !== "lobby") {
-      return;
-    }
+		// Re-check the phase inside the callback: a max-size start (Req 3.3) may
+		// have started the Match before the countdown fired.
+		if (match.room.phase !== "lobby") {
+			return;
+		}
 
-    if (match.players.size < config.minLobbySize) {
-      const fill = deps.fillLobbyWithBots ?? fillLobbyWithBots;
-      fill(match.players, botData, config);
-    }
+		if (match.players.size < config.minLobbySize) {
+			const fill = deps.fillLobbyWithBots ?? fillLobbyWithBots;
+			fill(match.players, botData, config);
+		}
 
-    void startMatch(match, nsp, config, deps, roomServerOnlyData, botData);
-  }, delay);
+		void startMatch(match, nsp, config, deps, roomServerOnlyData, botData);
+	}, delay);
 };
 
 // ---------------------------------------------------------------------------
@@ -388,36 +392,36 @@ export const scheduleLobbyStart = (
  *   defaults to the pure `assignWord` from `round.ts`.
  */
 export type RoundLifecycleDeps = {
-  serverOnlyData?: Map<string, RaceRoomServerData>;
-  botData?: { [botId: string]: RaceBotServerData };
-  finishMatch?: (
-    match: RaceMatch,
-    nsp: Namespace,
-    config: RaceConfig,
-    winnerId: string | undefined,
-  ) => void;
-  now?: () => number;
-  assignWord?: (length: number) => string;
-  /**
-   * Stats persistence hand-off used by the real `finishMatch` (fire-and-forget,
-   * Req 6.6/8.8). Defaults to the module's `persistRaceStats`; injectable so a
-   * finish test can assert it was called without touching the DB.
-   */
-  persistRaceStats?: (match: RaceMatch) => Promise<void>;
-  /**
-   * Match teardown hand-off invoked by `finishMatch` after broadcasting the
-   * result (clears timers + deletes room state). It is implemented in task 7.10
-   * (`cleanupMatch`) and injected here so finishing does not depend on 7.10; when
-   * omitted, `finishMatch` finishes/broadcasts/persists and leaves teardown to
-   * the caller (the wiring task 7.10/13.x supplies the real cleanup). It receives
-   * the match id so it can look up and clear the room's timers and state.
-   */
-  cleanupMatch?: (matchId: string) => void;
+	serverOnlyData?: Map<string, RaceRoomServerData>;
+	botData?: { [botId: string]: RaceBotServerData };
+	finishMatch?: (
+		match: RaceMatch,
+		nsp: Namespace,
+		config: RaceConfig,
+		winnerId: string | undefined,
+	) => void;
+	now?: () => number;
+	assignWord?: (length: number) => string;
+	/**
+	 * Stats persistence hand-off used by the real `finishMatch` (fire-and-forget,
+	 * Req 6.6/8.8). Defaults to the module's `persistRaceStats`; injectable so a
+	 * finish test can assert it was called without touching the DB.
+	 */
+	persistRaceStats?: (match: RaceMatch) => Promise<void>;
+	/**
+	 * Match teardown hand-off invoked by `finishMatch` after broadcasting the
+	 * result (clears timers + deletes room state). It is implemented in task 7.10
+	 * (`cleanupMatch`) and injected here so finishing does not depend on 7.10; when
+	 * omitted, `finishMatch` finishes/broadcasts/persists and leaves teardown to
+	 * the caller (the wiring task 7.10/13.x supplies the real cleanup). It receives
+	 * the match id so it can look up and clear the room's timers and state.
+	 */
+	cleanupMatch?: (matchId: string) => void;
 };
 
 /** Whether `roundIndex` selects the Match's Final_Round (the last config round). */
 const isFinalRound = (config: RaceConfig, roundIndex: number): boolean =>
-  roundIndex >= config.rounds.length - 1;
+	roundIndex >= config.rounds.length - 1;
 
 /**
  * Begin a Round: assign every Survivor a fresh word of the Round's configured
@@ -441,147 +445,294 @@ const isFinalRound = (config: RaceConfig, roundIndex: number): boolean =>
  * _Requirements: 4.1, 4.2, 5.1_
  */
 export const beginRound = (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  roundIndex: number,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	roundIndex: number,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  const round = config.rounds[roundIndex];
-  if (!round) {
-    logger.error(
-      { matchId: match.room.matchId, roundIndex, rounds: config.rounds.length },
-      "beginRound ignored: round index out of range",
-    );
-    return;
-  }
+	const round = config.rounds[roundIndex];
+	if (!round) {
+		logger.error(
+			{ matchId: match.room.matchId, roundIndex, rounds: config.rounds.length },
+			"beginRound ignored: round index out of range",
+		);
+		return;
+	}
 
-  const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
-  const now = (deps.now ?? Date.now)();
-  const draw = deps.assignWord ?? assignWord;
-  const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
-  // The room's bot simulation record. Prefer an explicitly injected record
-  // (tests), otherwise the live per-room record from the global map — this is
-  // where fillLobbyWithBots stored the bots, so at runtime the ticker below
-  // actually has bots to drive (Req 3.5).
-  const botData =
-    deps.botData ?? globalServerOnlyBotData.get(match.room.matchId) ?? {};
+	const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
+	const now = (deps.now ?? Date.now)();
+	const draw = deps.assignWord ?? assignWord;
+	const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
+	// The room's bot simulation record. Prefer an explicitly injected record
+	// (tests), otherwise the live per-room record from the global map — this is
+	// where fillLobbyWithBots stored the bots, so at runtime the ticker below
+	// actually has bots to drive (Req 3.5).
+	const botData =
+		deps.botData ?? globalServerOnlyBotData.get(match.room.matchId) ?? {};
 
-  match.room.currentRoundIndex = roundIndex;
-  match.room.phase = "round";
-  match.room.roundEndsAt = now + round.timerMs;
-  // Clear the intermission's next-round timestamp now that the round has begun.
-  match.room.nextRoundStartsAt = undefined;
+	match.room.currentRoundIndex = roundIndex;
+	match.room.phase = "round";
+	match.room.roundEndsAt = now + round.timerMs;
+	// Clear the intermission's next-round timestamp now that the round has begun.
+	match.room.nextRoundStartsAt = undefined;
 
-  // Reset per-round state and assign a fresh word to every survivor. Eliminated
-  // players are skipped — they take no further part in the match.
-  for (const [playerId, player] of match.players) {
-    if (player.isEliminated) {
-      continue;
-    }
+	// Reset per-round state and assign a fresh word to every survivor. Eliminated
+	// players are skipped — they take no further part in the match.
+	for (const [playerId, player] of match.players) {
+		if (player.isEliminated) {
+			continue;
+		}
 
-    player.completedWords = 0;
-    player.qualified = false;
-    player.qualifiedAt = undefined;
-    player.roundGuesses = 0;
-    player.lastFeedback = undefined;
+		player.completedWords = 0;
+		player.qualified = false;
+		player.qualifiedAt = undefined;
+		player.roundGuesses = 0;
+		player.lastFeedback = undefined;
+		// Clear per-word final-round helper/tie-break state so a new round (or a
+		// new word) starts with no revealed hints and a zeroed found-position count.
+		player.correctPositionsFound = 0;
+		player.hintRevealed = undefined;
 
-    const word = draw(round.wordLength);
+		const word = draw(round.wordLength);
 
-    // Store the assigned word in the player's server-only record, or the bot's
-    // simulation record — bots don't have a server-only player entry.
-    if (roomServerOnlyData?.players[playerId]) {
-      roomServerOnlyData.players[playerId].word = word;
-      // Fresh word for the new round: clear the accumulated keyboard hints so
-      // the board/keyboard start clean (no stale green/yellow carried over).
-      roomServerOnlyData.players[playerId].revealedLetters = {};
-      roomServerOnlyData.players[playerId].partialMatches = [];
-      roomServerOnlyData.players[playerId].noMatch = [];
-    } else if (botData[playerId]) {
-      botData[playerId].word = word;
-      botData[playerId].botCompletedWords = 0;
-      botData[playerId].botGuesses = 0;
-      botData[playerId].guessTimeStamp = undefined;
-    }
-  }
+		// Store the assigned word in the player's server-only record, or the bot's
+		// simulation record — bots don't have a server-only player entry.
+		if (roomServerOnlyData?.players[playerId]) {
+			roomServerOnlyData.players[playerId].word = word;
+			// Fresh word for the new round: clear the accumulated keyboard hints so
+			// the board/keyboard start clean (no stale green/yellow carried over).
+			roomServerOnlyData.players[playerId].revealedLetters = {};
+			roomServerOnlyData.players[playerId].partialMatches = [];
+			roomServerOnlyData.players[playerId].noMatch = [];
+			// Reset final-round helper bookkeeping for the new word.
+			roomServerOnlyData.players[playerId].foundPositions = [];
+			roomServerOnlyData.players[playerId].hintPositions = [];
+		} else if (botData[playerId]) {
+			botData[playerId].word = word;
+			botData[playerId].botCompletedWords = 0;
+			botData[playerId].botGuesses = 0;
+			botData[playerId].guessTimeStamp = undefined;
+		}
+	}
 
-  // Arm the round timer so endRound fires when the round's time expires, and
-  // (re)start the bot ticker so bots race their own words for this round.
-  if (roomServerOnlyData) {
-    if (roomServerOnlyData.timers.roundTimer) {
-      clearTimeout(roomServerOnlyData.timers.roundTimer);
-    }
-    roomServerOnlyData.timers.roundTimer = setTimeout(() => {
-      roomServerOnlyData.timers.roundTimer = undefined;
-      endRound(match, nsp, config, deps);
-    }, round.timerMs);
+	// Arm the round timer so endRound fires when the round's time expires, and
+	// (re)start the bot ticker so bots race their own words for this round.
+	if (roomServerOnlyData) {
+		if (roomServerOnlyData.timers.roundTimer) {
+			clearTimeout(roomServerOnlyData.timers.roundTimer);
+		}
+		roomServerOnlyData.timers.roundTimer = setTimeout(() => {
+			roomServerOnlyData.timers.roundTimer = undefined;
+			endRound(match, nsp, config, deps);
+		}, round.timerMs);
 
-    // Drive bot guessing for this round. Any ticker from a previous round is
-    // cleared first so bots always race the CURRENT round's word length. When
-    // a bot completes a word, mirror that progress onto its display player
-    // (completedWords/roundGuesses + qualification latch) exactly like a real
-    // guess does via applyGuess, then coalesce a broadcast so the field's
-    // progress bars advance. Skipping the ticker entirely when the room has no
-    // bots keeps a purely-human match free of an idle interval.
-    if (roomServerOnlyData.timers.botTicker) {
-      clearInterval(roomServerOnlyData.timers.botTicker);
-      roomServerOnlyData.timers.botTicker = undefined;
-    }
-    if (Object.keys(botData).length > 0) {
-      roomServerOnlyData.timers.botTicker = startBotTicker(
-        botData,
-        () => config.rounds[match.room.currentRoundIndex]?.wordLength ?? 5,
-        (botId) => {
-          // Ignore progress from an ELIMINATED bot. Eliminated bots are never
-          // removed from `botData` and their per-round pacing is not reset on a
-          // new round (the reset loop above skips eliminated players), so a
-          // stale `guessTimeStamp` would otherwise let an eliminated bot "guess"
-          // on the first tick of a later round — on the FINAL round that falsely
-          // declared an already-eliminated bot the winner the instant the round
-          // began. An eliminated bot takes no further part in the match.
-          const botPlayer = match.players.get(botId);
-          if (!botPlayer || botPlayer.isEliminated) {
-            return;
-          }
+		// Drive bot guessing for this round. Any ticker from a previous round is
+		// cleared first so bots always race the CURRENT round's word length. When
+		// a bot completes a word, mirror that progress onto its display player
+		// (completedWords/roundGuesses + qualification latch) exactly like a real
+		// guess does via applyGuess, then coalesce a broadcast so the field's
+		// progress bars advance. Skipping the ticker entirely when the room has no
+		// bots keeps a purely-human match free of an idle interval.
+		if (roomServerOnlyData.timers.botTicker) {
+			clearInterval(roomServerOnlyData.timers.botTicker);
+			roomServerOnlyData.timers.botTicker = undefined;
+		}
+		if (Object.keys(botData).length > 0) {
+			roomServerOnlyData.timers.botTicker = startBotTicker(
+				botData,
+				() => config.rounds[match.room.currentRoundIndex]?.wordLength ?? 5,
+				(botId) => {
+					// Ignore progress from an ELIMINATED bot. Eliminated bots are never
+					// removed from `botData` and their per-round pacing is not reset on a
+					// new round (the reset loop above skips eliminated players), so a
+					// stale `guessTimeStamp` would otherwise let an eliminated bot "guess"
+					// on the first tick of a later round — on the FINAL round that falsely
+					// declared an already-eliminated bot the winner the instant the round
+					// began. An eliminated bot takes no further part in the match.
+					const botPlayer = match.players.get(botId);
+					if (!botPlayer || botPlayer.isEliminated) {
+						return;
+					}
 
-          // On the FINAL round the first completed word wins outright (Req 6.1,
-          // 6.2) — a bot that finishes its word wins immediately, exactly like a
-          // human's first-correct-guess win. `finishMatch` is idempotent, so a
-          // later completion is a no-op.
-          if (isFinalRound(config, match.room.currentRoundIndex)) {
-            handleFinalRoundWin(match, nsp, config, botId, deps);
-            return;
-          }
+					// On the FINAL round the first completed word wins outright (Req 6.1,
+					// 6.2) — a bot that finishes its word wins immediately, exactly like a
+					// human's first-correct-guess win. `finishMatch` is idempotent, so a
+					// later completion is a no-op.
+					if (isFinalRound(config, match.room.currentRoundIndex)) {
+						handleFinalRoundWin(match, nsp, config, botId, deps);
+						return;
+					}
 
-          mirrorBotProgress(
-            match,
-            botId,
-            round.qualifyingCount,
-            round.wordLength,
-            nsp,
-          );
-          // A bot qualifying may fill the last advancing spot — end early if so.
-          checkEarlyRoundEnd(match, nsp, config, deps);
-        },
-        deps.now,
-      );
-    }
-  }
+					mirrorBotProgress(
+						match,
+						botId,
+						round.qualifyingCount,
+						round.wordLength,
+						nsp,
+					);
+					// A bot qualifying may fill the last advancing spot — end early if so.
+					checkEarlyRoundEnd(match, nsp, config, deps);
+				},
+				deps.now,
+			);
+		}
+	}
 
-  logger.info(
-    {
-      matchId: match.room.matchId,
-      roundIndex,
-      wordLength: round.wordLength,
-      qualifyingCount: round.qualifyingCount,
-      survivors: Array.from(match.players.values()).filter(
-        (p) => !p.isEliminated,
-      ).length,
-    },
-    "Race round begun",
-  );
+	// Game helper (optional, per-round config): progressively reveal letters of
+	// each surviving player's OWN word so a hard round is winnable before the
+	// timer. Only armed when the round defines `hints` and the room has a
+	// server-only record to read/write per-player words. Reveals are per-player
+	// because every player races a different word.
+	if (round.hints && roomServerOnlyData) {
+		scheduleHintReveals(match, nsp, round, roomServerOnlyData, deps);
+	}
 
-  emitRaceUpdate(nsp, match);
+	logger.info(
+		{
+			matchId: match.room.matchId,
+			roundIndex,
+			wordLength: round.wordLength,
+			qualifyingCount: round.qualifyingCount,
+			hints: round.hints ? "on" : "off",
+			survivors: Array.from(match.players.values()).filter(
+				(p) => !p.isEliminated,
+			).length,
+		},
+		"Race round begun",
+	);
+
+	emitRaceUpdate(nsp, match);
+};
+
+/**
+ * Arm the per-player progressive letter-reveal "game helper" for a round that
+ * configures `hints`. The first reveal fires at `hints.startMs` and each
+ * subsequent one every `hints.intervalMs`, up to `hints.maxReveals` reveals —
+ * but never more than `wordLength - 1`, so the helper can never hand a player
+ * their entire word.
+ *
+ * Each reveal, for every still-racing player (in `round` phase, not eliminated,
+ * not already qualified), picks a RANDOM position of that player's current word
+ * that the player has not already found by guessing (`foundPositions`) and that
+ * the helper has not already revealed (`hintPositions`), then adds it to the
+ * player's `hintRevealed` display map and records it in `hintPositions`.
+ * Helper-revealed positions are deliberately NOT added to `foundPositions`, so
+ * they never count toward the final-round "most letters found" tie-break.
+ *
+ * The reveal timers are stored on the room's `hintTimers` so finish/cleanup can
+ * clear them; they stop firing the moment the match finishes (the room leaves
+ * the `round` phase and the finished check below short-circuits).
+ */
+const scheduleHintReveals = (
+	match: RaceMatch,
+	nsp: Namespace,
+	round: RaceConfig["rounds"][number],
+	roomServerOnlyData: RaceRoomServerData,
+	deps: RoundLifecycleDeps,
+): void => {
+	const hints = round.hints;
+	if (!hints) {
+		return;
+	}
+
+	// The helper may reveal at most wordLength - 1 letters so a player always has
+	// to find the final letter themselves.
+	const maxReveals = Math.min(hints.maxReveals, round.wordLength - 1);
+	if (maxReveals <= 0) {
+		return;
+	}
+
+	// Clear any helper timers left from a prior round before arming fresh ones.
+	if (roomServerOnlyData.timers.hintTimers) {
+		for (const timer of roomServerOnlyData.timers.hintTimers) {
+			clearTimeout(timer);
+		}
+	}
+	roomServerOnlyData.timers.hintTimers = [];
+
+	for (let reveal = 0; reveal < maxReveals; reveal++) {
+		const delay = hints.startMs + reveal * hints.intervalMs;
+		const timer = setTimeout(() => {
+			// Stop entirely once the match is no longer actively in this round (e.g.
+			// someone won and the match finished, or the round ended).
+			if (match.room.phase !== "round") {
+				return;
+			}
+			revealOneHintPerPlayer(match, roomServerOnlyData);
+			emitRaceUpdate(nsp, match);
+		}, delay);
+		roomServerOnlyData.timers.hintTimers.push(timer);
+	}
+};
+
+/**
+ * Reveal one additional letter of their OWN word to every still-racing player.
+ * Pure-ish helper split out of the timer callback: for each eligible player it
+ * chooses a uniformly-random eligible position (not yet found by the player and
+ * not yet revealed by the helper), records it in the server-only
+ * `hintPositions`, and mirrors the letter onto the display player's
+ * `hintRevealed` map so the client board/keyboard can show it.
+ */
+const revealOneHintPerPlayer = (
+	match: RaceMatch,
+	roomServerOnlyData: RaceRoomServerData,
+): void => {
+	for (const [playerId, player] of match.players) {
+		// Only players still actively racing get help; skip eliminated, qualified,
+		// and bots (bots have no server-only word record).
+		if (player.isEliminated || player.qualified) {
+			continue;
+		}
+		const serverPlayer = roomServerOnlyData.players[playerId];
+		if (!serverPlayer?.word) {
+			continue;
+		}
+
+		const word = serverPlayer.word;
+		const found = new Set(serverPlayer.foundPositions ?? []);
+		const hinted = new Set(serverPlayer.hintPositions ?? []);
+
+		// Candidate positions: not already found by the player, not already hinted.
+		const candidates: number[] = [];
+		for (let i = 0; i < word.length; i++) {
+			if (!found.has(i) && !hinted.has(i)) {
+				candidates.push(i);
+			}
+		}
+		if (candidates.length === 0) {
+			continue;
+		}
+
+		const pick = candidates[Math.floor(Math.random() * candidates.length)];
+		if (pick === undefined) {
+			continue;
+		}
+
+		hinted.add(pick);
+		serverPlayer.hintPositions = [...hinted];
+
+		const revealed = { ...(player.hintRevealed ?? {}) };
+		revealed[pick] = word[pick] as string;
+		player.hintRevealed = revealed;
+	}
+};
+
+/**
+ * Clear every pending game-helper reveal timer for a room (no-op when none were
+ * armed). Called on round end, finish, and cleanup so a reveal can never fire
+ * on a resolved or torn-down room.
+ */
+const clearHintTimers = (
+	roomServerOnlyData: RaceRoomServerData | undefined,
+): void => {
+	if (!roomServerOnlyData?.timers.hintTimers) {
+		return;
+	}
+	for (const timer of roomServerOnlyData.timers.hintTimers) {
+		clearTimeout(timer);
+	}
+	roomServerOnlyData.timers.hintTimers = undefined;
 };
 
 /**
@@ -600,29 +751,29 @@ export const beginRound = (
  * scheduled so the field's progress bars advance without a broadcast per bot.
  */
 const mirrorBotProgress = (
-  match: RaceMatch,
-  botId: string,
-  qualifyingCount: number,
-  wordLength: number,
-  nsp: Namespace,
+	match: RaceMatch,
+	botId: string,
+	qualifyingCount: number,
+	wordLength: number,
+	nsp: Namespace,
 ): void => {
-  const bot = match.players.get(botId);
-  if (!bot || bot.isEliminated || bot.completedWords >= qualifyingCount) {
-    return;
-  }
+	const bot = match.players.get(botId);
+	if (!bot || bot.isEliminated || bot.completedWords >= qualifyingCount) {
+		return;
+	}
 
-  bot.completedWords += 1;
-  bot.roundGuesses += 1;
-  bot.totalGuesses += 1;
-  bot.correctGuesses += 1;
-  bot.correctLetters += wordLength;
+	bot.completedWords += 1;
+	bot.roundGuesses += 1;
+	bot.totalGuesses += 1;
+	bot.correctGuesses += 1;
+	bot.correctLetters += wordLength;
 
-  if (!bot.qualified && bot.completedWords >= qualifyingCount) {
-    bot.qualified = true;
-    bot.qualifiedAt = Date.now();
-  }
+	if (!bot.qualified && bot.completedWords >= qualifyingCount) {
+		bot.qualified = true;
+		bot.qualifiedAt = Date.now();
+	}
 
-  emitRaceUpdate(nsp, match);
+	emitRaceUpdate(nsp, match);
 };
 
 /**
@@ -641,55 +792,55 @@ const mirrorBotProgress = (
  * caller invokes this after applying qualification (human guess or bot tick).
  */
 export const checkEarlyRoundEnd = (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  if (match.room.phase !== "round") {
-    return;
-  }
+	if (match.room.phase !== "round") {
+		return;
+	}
 
-  const roundIndex = match.room.currentRoundIndex;
-  if (isFinalRound(config, roundIndex)) {
-    return;
-  }
+	const roundIndex = match.room.currentRoundIndex;
+	if (isFinalRound(config, roundIndex)) {
+		return;
+	}
 
-  const round = config.rounds[roundIndex];
-  if (!round) {
-    return;
-  }
+	const round = config.rounds[roundIndex];
+	if (!round) {
+		return;
+	}
 
-  const survivors = Array.from(match.players.values()).filter(
-    (p) => !p.isEliminated,
-  );
-  const alive = survivors.length;
-  const advancingSpots = alive - eliminationCount(alive, round.eliminationPct);
-  const qualifiedSurvivors = survivors.filter((p) => p.qualified).length;
+	const survivors = Array.from(match.players.values()).filter(
+		(p) => !p.isEliminated,
+	);
+	const alive = survivors.length;
+	const advancingSpots = alive - eliminationCount(alive, round.eliminationPct);
+	const qualifiedSurvivors = survivors.filter((p) => p.qualified).length;
 
-  if (qualifiedSurvivors < advancingSpots) {
-    return;
-  }
+	if (qualifiedSurvivors < advancingSpots) {
+		return;
+	}
 
-  logger.info(
-    {
-      matchId: match.room.matchId,
-      roundIndex,
-      qualifiedSurvivors,
-      advancingSpots,
-    },
-    "Race round ended early: advancing spots filled",
-  );
+	logger.info(
+		{
+			matchId: match.room.matchId,
+			roundIndex,
+			qualifiedSurvivors,
+			advancingSpots,
+		},
+		"Race round ended early: advancing spots filled",
+	);
 
-  // Clear the round timer so it can't also fire endRound after this early end.
-  const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
-  const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
-  if (roomServerOnlyData?.timers.roundTimer) {
-    clearTimeout(roomServerOnlyData.timers.roundTimer);
-    roomServerOnlyData.timers.roundTimer = undefined;
-  }
+	// Clear the round timer so it can't also fire endRound after this early end.
+	const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
+	const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
+	if (roomServerOnlyData?.timers.roundTimer) {
+		clearTimeout(roomServerOnlyData.timers.roundTimer);
+		roomServerOnlyData.timers.roundTimer = undefined;
+	}
 
-  endRound(match, nsp, config, deps);
+	endRound(match, nsp, config, deps);
 };
 
 /**
@@ -720,186 +871,195 @@ export const checkEarlyRoundEnd = (
  * _Requirements: 5.1, 5.4, 5.5, 5.6, 5.7, 5.8_
  */
 export const endRound = (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  const roundIndex = match.room.currentRoundIndex;
-  const round = config.rounds[roundIndex];
-  if (!round) {
-    logger.error(
-      { matchId: match.room.matchId, roundIndex },
-      "endRound ignored: round index out of range",
-    );
-    return;
-  }
+	const roundIndex = match.room.currentRoundIndex;
+	const round = config.rounds[roundIndex];
+	if (!round) {
+		logger.error(
+			{ matchId: match.room.matchId, roundIndex },
+			"endRound ignored: round index out of range",
+		);
+		return;
+	}
 
-  const now = (deps.now ?? Date.now)();
-  const finish = deps.finishMatch;
+	const now = (deps.now ?? Date.now)();
+	const finish = deps.finishMatch;
 
-  // Clear the round timer if endRound was invoked directly (e.g. a final-round
-  // early win) rather than by the timer firing.
-  const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
-  const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
-  if (roomServerOnlyData?.timers.roundTimer) {
-    clearTimeout(roomServerOnlyData.timers.roundTimer);
-    roomServerOnlyData.timers.roundTimer = undefined;
-  }
-  // Stop bot guessing while the round is resolved / during intermission. The
-  // next `beginRound` restarts the ticker for the new round; `cleanupMatch`
-  // clears it on teardown. Without this, bots would keep guessing the previous
-  // round's word during the intermission gap.
-  if (roomServerOnlyData?.timers.botTicker) {
-    clearInterval(roomServerOnlyData.timers.botTicker);
-    roomServerOnlyData.timers.botTicker = undefined;
-  }
+	// Clear the round timer if endRound was invoked directly (e.g. a final-round
+	// early win) rather than by the timer firing.
+	const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
+	const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
+	if (roomServerOnlyData?.timers.roundTimer) {
+		clearTimeout(roomServerOnlyData.timers.roundTimer);
+		roomServerOnlyData.timers.roundTimer = undefined;
+	}
+	// Stop bot guessing while the round is resolved / during intermission. The
+	// next `beginRound` restarts the ticker for the new round; `cleanupMatch`
+	// clears it on teardown. Without this, bots would keep guessing the previous
+	// round's word during the intermission gap.
+	if (roomServerOnlyData?.timers.botTicker) {
+		clearInterval(roomServerOnlyData.timers.botTicker);
+		roomServerOnlyData.timers.botTicker = undefined;
+	}
+	// Stop any pending game-helper letter reveals for the round that just ended.
+	clearHintTimers(roomServerOnlyData);
 
-  // Rank the round's survivors (best-first) over the non-eliminated field.
-  const survivorEntries: RankedSurvivor[] = Array.from(
-    match.players.entries(),
-  ).filter(([, player]) => !player.isEliminated);
-  const ranked = rankSurvivors(survivorEntries);
+	// Rank the round's survivors (best-first) over the non-eliminated field.
+	const survivorEntries: RankedSurvivor[] = Array.from(
+		match.players.entries(),
+	).filter(([, player]) => !player.isEliminated);
+	const ranked = rankSurvivors(survivorEntries);
 
-  const final = isFinalRound(config, roundIndex);
+	const final = isFinalRound(config, roundIndex);
 
-  let eliminatedIds: string[] = [];
-  if (!final) {
-    eliminatedIds = selectEliminated(ranked, round.eliminationPct, config);
+	let eliminatedIds: string[] = [];
+	if (!final) {
+		eliminatedIds = selectEliminated(ranked, round.eliminationPct, config);
 
-    // Assign DISTINCT placements to the players eliminated this tick, ordered by
-    // performance rather than giving everyone the field size. The eliminated
-    // occupy the tail of the placement range: with `fieldSize` alive and
-    // `E = eliminatedIds.length` cut, survivors take 1..(fieldSize-E) and the
-    // eliminated take (fieldSize-E+1)..fieldSize. Within that tail the BEST
-    // performer gets the lowest (best) number, ordered by:
-    //   1. total correct guesses (words) — more is better,
-    //   2. total correct letters — more is better,
-    //   3. total guesses — fewer is better (tie-break).
-    // `eliminatedAt` is stamped so the cross-round survival order is still
-    // recoverable; advancing players get no `eliminatedAt` (Property 7).
-    const fieldSize = ranked.length;
-    const firstEliminatedPlacement = fieldSize - eliminatedIds.length + 1;
+		// Assign DISTINCT placements to the players eliminated this tick, ordered by
+		// performance rather than giving everyone the field size. The eliminated
+		// occupy the tail of the placement range: with `fieldSize` alive and
+		// `E = eliminatedIds.length` cut, survivors take 1..(fieldSize-E) and the
+		// eliminated take (fieldSize-E+1)..fieldSize. Within that tail the BEST
+		// performer gets the lowest (best) number, ordered by:
+		//   1. total correct guesses (words) — more is better,
+		//   2. total correct letters — more is better,
+		//   3. total guesses — fewer is better (tie-break).
+		// `eliminatedAt` is stamped so the cross-round survival order is still
+		// recoverable; advancing players get no `eliminatedAt` (Property 7).
+		const fieldSize = ranked.length;
+		const firstEliminatedPlacement = fieldSize - eliminatedIds.length + 1;
 
-    const orderedEliminated = [...eliminatedIds].sort((a, b) => {
-      const pa = match.players.get(a);
-      const pb = match.players.get(b);
-      if (!pa || !pb) {
-        return 0;
-      }
-      if (pa.correctGuesses !== pb.correctGuesses) {
-        return pb.correctGuesses - pa.correctGuesses;
-      }
-      if (pa.correctLetters !== pb.correctLetters) {
-        return pb.correctLetters - pa.correctLetters;
-      }
-      return pa.totalGuesses - pb.totalGuesses;
-    });
+		const orderedEliminated = [...eliminatedIds].sort((a, b) => {
+			const pa = match.players.get(a);
+			const pb = match.players.get(b);
+			if (!pa || !pb) {
+				return 0;
+			}
+			if (pa.correctGuesses !== pb.correctGuesses) {
+				return pb.correctGuesses - pa.correctGuesses;
+			}
+			if (pa.correctLetters !== pb.correctLetters) {
+				return pb.correctLetters - pa.correctLetters;
+			}
+			return pa.totalGuesses - pb.totalGuesses;
+		});
 
-    orderedEliminated.forEach((id, index) => {
-      const player = match.players.get(id);
-      if (player) {
-        player.isEliminated = true;
-        player.eliminatedAt = now;
-        player.placement = firstEliminatedPlacement + index;
-      }
-    });
+		orderedEliminated.forEach((id, index) => {
+			const player = match.players.get(id);
+			if (player) {
+				player.isEliminated = true;
+				player.eliminatedAt = now;
+				player.placement = firstEliminatedPlacement + index;
+				// Reveal the word they were trying to guess so the elimination card can
+				// show it (mirrors Battle Royale). Read from the player's server-only
+				// record; bots have no server-only entry (and never render this card).
+				const serverWord = roomServerOnlyData?.players[id]?.word;
+				if (serverWord) {
+					player.revealedWord = serverWord;
+				}
+			}
+		});
 
-    // Record each real eliminated player's loss NOW, at the moment their
-    // outcome is decided (Option 1: record-at-outcome), rather than deferring
-    // to match finish/cleanup. This is what lets a bots-only room simply be
-    // torn down when its last human leaves: every human's result was already
-    // written when they were eliminated (or when they forfeited by leaving).
-    // Bots and already-recorded players are skipped inside the helper.
-    persistEliminatedAsLoss(match, eliminatedIds);
-  }
+		// Record each real eliminated player's loss NOW, at the moment their
+		// outcome is decided (Option 1: record-at-outcome), rather than deferring
+		// to match finish/cleanup. This is what lets a bots-only room simply be
+		// torn down when its last human leaves: every human's result was already
+		// written when they were eliminated (or when they forfeited by leaving).
+		// Bots and already-recorded players are skipped inside the helper.
+		persistEliminatedAsLoss(match, eliminatedIds);
+	}
 
-  const eliminatedSet = new Set(eliminatedIds);
-  const advancedIds = ranked
-    .map(([id]) => id)
-    .filter((id) => !eliminatedSet.has(id));
+	const eliminatedSet = new Set(eliminatedIds);
+	const advancedIds = ranked
+		.map(([id]) => id)
+		.filter((id) => !eliminatedSet.has(id));
 
-  // Broadcast the round-end summary and each eliminated player's placement.
-  nsp.to(match.room.matchId).emit("round:transition", {
-    roundIndex,
-    advanced: advancedIds,
-    eliminated: eliminatedIds,
-  });
-  for (const id of eliminatedIds) {
-    const player = match.players.get(id);
-    nsp.to(match.room.matchId).emit("eliminated", {
-      playerId: id,
-      placement: player?.placement,
-    });
-  }
+	// Broadcast the round-end summary and each eliminated player's placement.
+	nsp.to(match.room.matchId).emit("round:transition", {
+		roundIndex,
+		advanced: advancedIds,
+		eliminated: eliminatedIds,
+	});
+	for (const id of eliminatedIds) {
+		const player = match.players.get(id);
+		nsp.to(match.room.matchId).emit("eliminated", {
+			playerId: id,
+			placement: player?.placement,
+		});
+	}
 
-  logger.info(
-    {
-      matchId: match.room.matchId,
-      roundIndex,
-      final,
-      eliminated: eliminatedIds.length,
-      advanced: advancedIds.length,
-    },
-    "Race round ended",
-  );
+	logger.info(
+		{
+			matchId: match.room.matchId,
+			roundIndex,
+			final,
+			eliminated: eliminatedIds.length,
+			advanced: advancedIds.length,
+		},
+		"Race round ended",
+	);
 
-  const doFinish = (winnerId: string | undefined) => {
-    if (finish) {
-      finish(match, nsp, config, winnerId);
-    } else {
-      // No injected finish hand-off: run the real finishMatch so the result is
-      // recorded, broadcast, and persisted. Tests that want to observe endRound
-      // in isolation can inject a stub through `deps.finishMatch`.
-      finishMatch(match, nsp, config, winnerId, deps);
-    }
-  };
+	const doFinish = (winnerId: string | undefined) => {
+		if (finish) {
+			finish(match, nsp, config, winnerId);
+		} else {
+			// No injected finish hand-off: run the real finishMatch so the result is
+			// recorded, broadcast, and persisted. Tests that want to observe endRound
+			// in isolation can inject a stub through `deps.finishMatch`.
+			finishMatch(match, nsp, config, winnerId, deps);
+		}
+	};
 
-  // Final round timer expiry with no correct guess (Req 6.4, 6.5): resolve the
-  // leader (highest completedWords, fewest totalGuesses) or a draw from the
-  // ranked survivor field, then finish with that winner (or undefined → draw).
-  // A first-correct-guess final-round win never reaches here — it short-circuits
-  // through `handleFinalRoundWin`/`finishMatch` from the guess handler.
-  if (final) {
-    const { winnerId } = resolveFinalRound(ranked);
-    doFinish(winnerId);
-    return;
-  }
+	// Final round timer expiry with no correct guess (Req 6.4, 6.5): resolve the
+	// leader (highest completedWords, fewest totalGuesses) or a draw from the
+	// ranked survivor field, then finish with that winner (or undefined → draw).
+	// A first-correct-guess final-round win never reaches here — it short-circuits
+	// through `handleFinalRoundWin`/`finishMatch` from the guess handler.
+	if (final) {
+		const { winnerId } = resolveFinalRound(ranked);
+		doFinish(winnerId);
+		return;
+	}
 
-  // Continuation for a non-final round (Req 5.6–5.8).
-  if (advancedIds.length >= 2) {
-    // More than one survivor and more rounds remain: transition to the next
-    // round through a brief intermission, then begin it. Stamp the absolute
-    // next-round start time so the client can count down to it during the
-    // intermission (clock-skew corrected on the client).
-    match.room.phase = "intermission";
-    match.room.nextRoundStartsAt = now + INTERMISSION_MS;
-    emitRaceUpdate(nsp, match);
+	// Continuation for a non-final round (Req 5.6–5.8).
+	if (advancedIds.length >= 2) {
+		// More than one survivor and more rounds remain: transition to the next
+		// round through a brief intermission, then begin it. Stamp the absolute
+		// next-round start time so the client can count down to it during the
+		// intermission (clock-skew corrected on the client).
+		match.room.phase = "intermission";
+		match.room.nextRoundStartsAt = now + INTERMISSION_MS;
+		emitRaceUpdate(nsp, match);
 
-    const nextRoundIndex = roundIndex + 1;
-    if (roomServerOnlyData) {
-      if (roomServerOnlyData.timers.intermissionTimer) {
-        clearTimeout(roomServerOnlyData.timers.intermissionTimer);
-      }
-      roomServerOnlyData.timers.intermissionTimer = setTimeout(() => {
-        roomServerOnlyData.timers.intermissionTimer = undefined;
-        beginRound(match, nsp, config, nextRoundIndex, deps);
-      }, INTERMISSION_MS);
-    } else {
-      // No server-only record (e.g. a direct unit test): begin immediately.
-      beginRound(match, nsp, config, nextRoundIndex, deps);
-    }
-    return;
-  }
+		const nextRoundIndex = roundIndex + 1;
+		if (roomServerOnlyData) {
+			if (roomServerOnlyData.timers.intermissionTimer) {
+				clearTimeout(roomServerOnlyData.timers.intermissionTimer);
+			}
+			roomServerOnlyData.timers.intermissionTimer = setTimeout(() => {
+				roomServerOnlyData.timers.intermissionTimer = undefined;
+				beginRound(match, nsp, config, nextRoundIndex, deps);
+			}, INTERMISSION_MS);
+		} else {
+			// No server-only record (e.g. a direct unit test): begin immediately.
+			beginRound(match, nsp, config, nextRoundIndex, deps);
+		}
+		return;
+	}
 
-  if (advancedIds.length === 1) {
-    // Exactly one survivor: declare the winner and finish (Req 5.7).
-    doFinish(advancedIds[0]);
-    return;
-  }
+	if (advancedIds.length === 1) {
+		// Exactly one survivor: declare the winner and finish (Req 5.7).
+		doFinish(advancedIds[0]);
+		return;
+	}
 
-  // No survivors remain: finish as a draw (Req 5.8).
-  doFinish(undefined);
+	// No survivors remain: finish as a draw (Req 5.8).
+	doFinish(undefined);
 };
 
 /** Brief transition window between rounds (the `intermission` phase). */
@@ -934,64 +1094,64 @@ type ResultPlacement = { playerId: string; placement: number };
  * ordering is returned for the `match:result` broadcast.
  */
 const recordPlacements = (
-  match: RaceMatch,
-  winnerId: string | undefined,
+	match: RaceMatch,
+	winnerId: string | undefined,
 ): ResultPlacement[] => {
-  const entries = Array.from(match.players.entries());
+	const entries = Array.from(match.players.entries());
 
-  // Draw: everyone shares placement 1 (consistent with stats.ts rankPlayers).
-  if (!winnerId) {
-    const placements: ResultPlacement[] = [];
-    for (const [playerId, player] of entries) {
-      player.placement = 1;
-      placements.push({ playerId, placement: 1 });
-    }
-    return placements;
-  }
+	// Draw: everyone shares placement 1 (consistent with stats.ts rankPlayers).
+	if (!winnerId) {
+		const placements: ResultPlacement[] = [];
+		for (const [playerId, player] of entries) {
+			player.placement = 1;
+			placements.push({ playerId, placement: 1 });
+		}
+		return placements;
+	}
 
-  // A player still in the round (no eliminatedAt) outlasted anyone eliminated,
-  // so treat a missing eliminatedAt as "latest" for survival ordering.
-  const survivalKey = (p: RacePlayer): number =>
-    p.eliminatedAt ?? Number.POSITIVE_INFINITY;
+	// A player still in the round (no eliminatedAt) outlasted anyone eliminated,
+	// so treat a missing eliminatedAt as "latest" for survival ordering.
+	const survivalKey = (p: RacePlayer): number =>
+		p.eliminatedAt ?? Number.POSITIVE_INFINITY;
 
-  const ordered = [...entries].sort(([idA, a], [idB, b]) => {
-    // The declared winner is always first.
-    if (idA === winnerId) {
-      return -1;
-    }
-    if (idB === winnerId) {
-      return 1;
-    }
+	const ordered = [...entries].sort(([idA, a], [idB, b]) => {
+		// The declared winner is always first.
+		if (idA === winnerId) {
+			return -1;
+		}
+		if (idB === winnerId) {
+			return 1;
+		}
 
-    // Later survival ranks higher (better placement).
-    const survA = survivalKey(a);
-    const survB = survivalKey(b);
-    if (survA !== survB) {
-      return survB - survA;
-    }
+		// Later survival ranks higher (better placement).
+		const survA = survivalKey(a);
+		const survB = survivalKey(b);
+		if (survA !== survB) {
+			return survB - survA;
+		}
 
-    // Same survival tick: break by overall performance — more correct guesses
-    // (words), then more correct letters, then fewer total guesses (matches the
-    // elimination-placement ordering in endRound and rankPlayers in stats.ts).
-    if (a.correctGuesses !== b.correctGuesses) {
-      return b.correctGuesses - a.correctGuesses;
-    }
-    if (a.correctLetters !== b.correctLetters) {
-      return b.correctLetters - a.correctLetters;
-    }
-    return a.totalGuesses - b.totalGuesses;
-  });
+		// Same survival tick: break by overall performance — more correct guesses
+		// (words), then more correct letters, then fewer total guesses (matches the
+		// elimination-placement ordering in endRound and rankPlayers in stats.ts).
+		if (a.correctGuesses !== b.correctGuesses) {
+			return b.correctGuesses - a.correctGuesses;
+		}
+		if (a.correctLetters !== b.correctLetters) {
+			return b.correctLetters - a.correctLetters;
+		}
+		return a.totalGuesses - b.totalGuesses;
+	});
 
-  // Assign 1..N across the full field and stamp each player. Every player gets
-  // a placement, so no survivor is left without one (Req 6.3).
-  const placements: ResultPlacement[] = [];
-  ordered.forEach(([playerId, player], index) => {
-    const placement = index + 1;
-    player.placement = placement;
-    placements.push({ playerId, placement });
-  });
+	// Assign 1..N across the full field and stamp each player. Every player gets
+	// a placement, so no survivor is left without one (Req 6.3).
+	const placements: ResultPlacement[] = [];
+	ordered.forEach(([playerId, player], index) => {
+		const placement = index + 1;
+		player.placement = placement;
+		placements.push({ playerId, placement });
+	});
 
-  return placements;
+	return placements;
 };
 
 /**
@@ -1010,25 +1170,25 @@ const recordPlacements = (
  * omitted the real `cleanupMatch` runs, bound to the module's global state maps.
  */
 export const abandonMatch = (
-  match: RaceMatch,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  if (match.room.phase === "finished") {
-    return;
-  }
+	if (match.room.phase === "finished") {
+		return;
+	}
 
-  match.room.phase = "finished";
+	match.room.phase = "finished";
 
-  const cleanup =
-    deps.cleanupMatch ??
-    ((matchId: string) =>
-      cleanupMatch(
-        matchId,
-        globalMatches,
-        globalServerOnlyData,
-        globalServerOnlyBotData,
-      ));
-  cleanup(match.room.matchId);
+	const cleanup =
+		deps.cleanupMatch ??
+		((matchId: string) =>
+			cleanupMatch(
+				matchId,
+				globalMatches,
+				globalServerOnlyData,
+				globalServerOnlyBotData,
+			));
+	cleanup(match.room.matchId);
 };
 
 /**
@@ -1060,90 +1220,109 @@ export const abandonMatch = (
  * _Requirements: 6.1, 6.2, 6.3, 6.6_
  */
 export const finishMatch = (
-  match: RaceMatch,
-  nsp: Namespace,
-  _config: RaceConfig,
-  winnerId?: string,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	_config: RaceConfig,
+	winnerId?: string,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  // Idempotent: a Match already finished is left untouched so a late timer or a
-  // duplicate final-round win can't re-broadcast or double-persist.
-  if (match.room.phase === "finished") {
-    logger.warn(
-      { matchId: match.room.matchId },
-      "finishMatch ignored: match already finished",
-    );
-    return;
-  }
+	// Idempotent: a Match already finished is left untouched so a late timer or a
+	// duplicate final-round win can't re-broadcast or double-persist.
+	if (match.room.phase === "finished") {
+		logger.warn(
+			{ matchId: match.room.matchId },
+			"finishMatch ignored: match already finished",
+		);
+		return;
+	}
 
-  match.room.phase = "finished";
-  if (winnerId) {
-    match.room.winnerId = winnerId;
-    match.room.isDraw = false;
-  } else {
-    match.room.winnerId = undefined;
-    match.room.isDraw = true;
-  }
+	match.room.phase = "finished";
+	if (winnerId) {
+		match.room.winnerId = winnerId;
+		match.room.isDraw = false;
+	} else {
+		match.room.winnerId = undefined;
+		match.room.isDraw = true;
+	}
 
-  // Place every player (winner 1, others ranked behind — Req 6.3).
-  const placements = recordPlacements(match, winnerId);
+	// Place every player (winner 1, others ranked behind — Req 6.3).
+	const placements = recordPlacements(match, winnerId);
 
-  // Clear any live round/intermission timers so nothing fires on the finished
-  // room. (cleanupMatch, task 7.10, clears the full timer set on teardown; this
-  // guards the window before teardown when finish is triggered mid-round.)
-  const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
-  const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
-  if (roomServerOnlyData) {
-    if (roomServerOnlyData.timers.roundTimer) {
-      clearTimeout(roomServerOnlyData.timers.roundTimer);
-      roomServerOnlyData.timers.roundTimer = undefined;
-    }
-    if (roomServerOnlyData.timers.intermissionTimer) {
-      clearTimeout(roomServerOnlyData.timers.intermissionTimer);
-      roomServerOnlyData.timers.intermissionTimer = undefined;
-    }
-    if (roomServerOnlyData.timers.botTicker) {
-      clearInterval(roomServerOnlyData.timers.botTicker);
-      roomServerOnlyData.timers.botTicker = undefined;
-    }
-  }
+	// Clear any live round/intermission timers so nothing fires on the finished
+	// room. (cleanupMatch, task 7.10, clears the full timer set on teardown; this
+	// guards the window before teardown when finish is triggered mid-round.)
+	const serverOnlyData = deps.serverOnlyData ?? globalServerOnlyData;
+	const roomServerOnlyData = serverOnlyData.get(match.room.matchId);
+	if (roomServerOnlyData) {
+		if (roomServerOnlyData.timers.roundTimer) {
+			clearTimeout(roomServerOnlyData.timers.roundTimer);
+			roomServerOnlyData.timers.roundTimer = undefined;
+		}
+		if (roomServerOnlyData.timers.intermissionTimer) {
+			clearTimeout(roomServerOnlyData.timers.intermissionTimer);
+			roomServerOnlyData.timers.intermissionTimer = undefined;
+		}
+		if (roomServerOnlyData.timers.botTicker) {
+			clearInterval(roomServerOnlyData.timers.botTicker);
+			roomServerOnlyData.timers.botTicker = undefined;
+		}
+		clearHintTimers(roomServerOnlyData);
+	}
 
-  logger.info(
-    {
-      matchId: match.room.matchId,
-      winnerId,
-      isDraw: match.room.isDraw,
-      players: placements.length,
-    },
-    "Race match finished",
-  );
+	// Reveal the word each player was last working on so the result screen can
+	// show it on EVERY outcome — including the winner, whose Victory screen shows
+	// the word they just solved. This covers the final round, where players reach
+	// the result view without ever being marked eliminated (so `endRound`'s
+	// elimination-time reveal never ran for them). Players eliminated in an
+	// earlier round already have their `revealedWord` set, so only fill it when
+	// missing. Read from the player's server-only word; bots have no server-only
+	// entry and never render this view.
+	if (roomServerOnlyData) {
+		for (const [playerId, player] of match.players) {
+			if (player.revealedWord) {
+				continue;
+			}
+			const serverWord = roomServerOnlyData.players[playerId]?.word;
+			if (serverWord) {
+				player.revealedWord = serverWord;
+			}
+		}
+	}
 
-  // Broadcast the final result (Req 6.6) and a final room snapshot.
-  nsp
-    .to(match.room.matchId)
-    .emit("match:result", { winnerId, placements });
-  emitRaceUpdate(nsp, match);
+	logger.info(
+		{
+			matchId: match.room.matchId,
+			winnerId,
+			isDraw: match.room.isDraw,
+			players: placements.length,
+		},
+		"Race match finished",
+	);
 
-  // Persist stats fire-and-forget: persistRaceStats owns its try/catch and
-  // swallows failures so a DB error never breaks the game loop (Req 8.8).
-  const persist = deps.persistRaceStats ?? persistRaceStats;
-  void persist(match);
+	// Broadcast the final result (Req 6.6) and a final room snapshot.
+	nsp.to(match.room.matchId).emit("match:result", { winnerId, placements });
+	emitRaceUpdate(nsp, match);
 
-  // Tear down the room (task 7.10): clear every room timer and delete the
-  // match, its server-only record, and its bots. `deps.cleanupMatch` is the
-  // injectable seam (tests stub it to observe teardown); when omitted the real
-  // `cleanupMatch` runs, bound to the module's global state maps so it can look
-  // up and clear the room from just the match id.
-  const cleanup =
-    deps.cleanupMatch ??
-    ((matchId: string) =>
-      cleanupMatch(
-        matchId,
-        globalMatches,
-        globalServerOnlyData,
-        globalServerOnlyBotData,
-      ));
-  cleanup(match.room.matchId);
+	// Persist stats fire-and-forget: persistRaceStats owns its try/catch and
+	// swallows failures so a DB error never breaks the game loop (Req 8.8).
+	const persist = deps.persistRaceStats ?? persistRaceStats;
+	void persist(match);
+
+	// Tear down the room (task 7.10): clear every room timer and delete the
+	// match, its server-only record, and its bots. `deps.cleanupMatch` is the
+	// injectable seam (tests stub it to observe teardown); when omitted the real
+	// `cleanupMatch` runs, bound to the module's global state maps so it can look
+	// up and clear the room from just the match id.
+	const cleanup =
+		deps.cleanupMatch ??
+		((matchId: string) =>
+			cleanupMatch(
+				matchId,
+				globalMatches,
+				globalServerOnlyData,
+				globalServerOnlyBotData,
+			));
+	cleanup(match.room.matchId);
 };
 
 /**
@@ -1161,13 +1340,13 @@ export const finishMatch = (
  * _Requirements: 6.1, 6.2, 6.3, 6.6_
  */
 export const handleFinalRoundWin = (
-  match: RaceMatch,
-  nsp: Namespace,
-  config: RaceConfig,
-  winnerId: string,
-  deps: RoundLifecycleDeps = {},
+	match: RaceMatch,
+	nsp: Namespace,
+	config: RaceConfig,
+	winnerId: string,
+	deps: RoundLifecycleDeps = {},
 ): void => {
-  finishMatch(match, nsp, config, winnerId, deps);
+	finishMatch(match, nsp, config, winnerId, deps);
 };
 
 // ---------------------------------------------------------------------------
@@ -1199,67 +1378,78 @@ export const handleFinalRoundWin = (
  * _Requirements: 9.4_
  */
 export const cleanupMatch = (
-  matchId: string,
-  matches: Map<string, RaceMatch>,
-  serverOnlyData: Map<string, RaceRoomServerData>,
-  botData: RaceServerBotData,
+	matchId: string,
+	matches: Map<string, RaceMatch>,
+	serverOnlyData: Map<string, RaceRoomServerData>,
+	botData: RaceServerBotData,
 ): void => {
-  const roomServerOnlyData = serverOnlyData.get(matchId);
+	const roomServerOnlyData = serverOnlyData.get(matchId);
 
-  logger.info(
-    {
-      matchId,
-      playerCount: matches.get(matchId)?.players.size ?? 0,
-      hasServerData: Boolean(roomServerOnlyData),
-    },
-    "Cleaning up race match",
-  );
+	logger.info(
+		{
+			matchId,
+			playerCount: matches.get(matchId)?.players.size ?? 0,
+			hasServerData: Boolean(roomServerOnlyData),
+		},
+		"Cleaning up race match",
+	);
 
-  if (roomServerOnlyData) {
-    const { lobbyCountdown, roundTimer, intermissionTimer, botTicker, updateTicker } =
-      roomServerOnlyData.timers;
+	if (roomServerOnlyData) {
+		const {
+			lobbyCountdown,
+			roundTimer,
+			intermissionTimer,
+			botTicker,
+			updateTicker,
+			hintTimers,
+		} = roomServerOnlyData.timers;
 
-    // Track which timers were actually armed so the log reflects real teardown.
-    const clearedTimers: string[] = [];
+		// Track which timers were actually armed so the log reflects real teardown.
+		const clearedTimers: string[] = [];
 
-    // One-shot setTimeout timers.
-    if (lobbyCountdown) {
-      clearTimeout(lobbyCountdown);
-      clearedTimers.push("lobbyCountdown");
-    }
-    if (roundTimer) {
-      clearTimeout(roundTimer);
-      clearedTimers.push("roundTimer");
-    }
-    if (intermissionTimer) {
-      clearTimeout(intermissionTimer);
-      clearedTimers.push("intermissionTimer");
-    }
+		// One-shot setTimeout timers.
+		if (lobbyCountdown) {
+			clearTimeout(lobbyCountdown);
+			clearedTimers.push("lobbyCountdown");
+		}
+		if (roundTimer) {
+			clearTimeout(roundTimer);
+			clearedTimers.push("roundTimer");
+		}
+		if (intermissionTimer) {
+			clearTimeout(intermissionTimer);
+			clearedTimers.push("intermissionTimer");
+		}
 
-    // setInterval-based tickers.
-    if (botTicker) {
-      clearInterval(botTicker);
-      clearedTimers.push("botTicker");
-    }
-    if (updateTicker) {
-      clearInterval(updateTicker);
-      clearedTimers.push("updateTicker");
-    }
+		// setInterval-based tickers.
+		if (botTicker) {
+			clearInterval(botTicker);
+			clearedTimers.push("botTicker");
+		}
+		if (updateTicker) {
+			clearInterval(updateTicker);
+			clearedTimers.push("updateTicker");
+		}
 
-    logger.info(
-      { matchId, clearedTimers },
-      "Cleared race room timers",
-    );
-  }
+		// Final-round game-helper reveal timers (array of one-shot setTimeouts).
+		if (hintTimers && hintTimers.length > 0) {
+			for (const timer of hintTimers) {
+				clearTimeout(timer);
+			}
+			clearedTimers.push("hintTimers");
+		}
 
-  // Drop this match's share code so it can't resolve to a dead match. Read it
-  // off the room before the match is deleted below.
-  const shareCode = matches.get(matchId)?.room.shareCode;
-  if (shareCode) {
-    shareCodes.delete(shareCode);
-  }
+		logger.info({ matchId, clearedTimers }, "Cleared race room timers");
+	}
 
-  matches.delete(matchId);
-  serverOnlyData.delete(matchId);
-  botData.delete(matchId);
+	// Drop this match's share code so it can't resolve to a dead match. Read it
+	// off the room before the match is deleted below.
+	const shareCode = matches.get(matchId)?.room.shareCode;
+	if (shareCode) {
+		shareCodes.delete(shareCode);
+	}
+
+	matches.delete(matchId);
+	serverOnlyData.delete(matchId);
+	botData.delete(matchId);
 };

@@ -1,7 +1,8 @@
 import type { RaceConfig } from "shared/race.js";
 import type { RacePlayer } from "types/race.types.js";
-import type { RaceBotServerData } from "../state.js";
 import logger from "../../../utils/logger.js";
+import { generateBotNames } from "../../battle-royale/logic/bot-names.js";
+import type { RaceBotServerData } from "../state.js";
 import { getRandomWord } from "./words.js";
 
 // Race_Mode bot support: lobby bot-fill and the bot guess-simulation ticker.
@@ -15,7 +16,7 @@ import { getRandomWord } from "./words.js";
 // ticker here advances a bot's `botCompletedWords` over time as a scaffold.
 
 const getRandomInt = (min: number, max: number): number =>
-  Math.floor(Math.random() * (max - min + 1)) + min;
+	Math.floor(Math.random() * (max - min + 1)) + min;
 
 type BotLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -33,11 +34,11 @@ type BotLevel = 1 | 2 | 3 | 4 | 5;
  *   - `weight`: relative selection probability among all archetypes.
  */
 type LobbyArchetype = {
-  name: "chill" | "mixed" | "sharp" | "elite";
-  minLevel: BotLevel;
-  maxLevel: BotLevel;
-  bias: number;
-  weight: number;
+	name: "chill" | "mixed" | "sharp" | "elite";
+	minLevel: BotLevel;
+	maxLevel: BotLevel;
+	bias: number;
+	weight: number;
 };
 
 /**
@@ -54,10 +55,10 @@ type LobbyArchetype = {
  * level-5-capable (and fewer actually surface one).
  */
 export const LOBBY_ARCHETYPES: readonly LobbyArchetype[] = [
-  { name: "chill", minLevel: 1, maxLevel: 3, bias: 0.3, weight: 35 },
-  { name: "mixed", minLevel: 1, maxLevel: 4, bias: 0.5, weight: 37 },
-  { name: "sharp", minLevel: 2, maxLevel: 5, bias: 0.62, weight: 20 },
-  { name: "elite", minLevel: 3, maxLevel: 5, bias: 0.72, weight: 8 },
+	{ name: "chill", minLevel: 1, maxLevel: 3, bias: 0.3, weight: 35 },
+	{ name: "mixed", minLevel: 1, maxLevel: 4, bias: 0.5, weight: 37 },
+	{ name: "sharp", minLevel: 2, maxLevel: 5, bias: 0.62, weight: 20 },
+	{ name: "elite", minLevel: 3, maxLevel: 5, bias: 0.72, weight: 8 },
 ] as const;
 
 /**
@@ -66,16 +67,16 @@ export const LOBBY_ARCHETYPES: readonly LobbyArchetype[] = [
  * band.
  */
 export const rollLobbyArchetype = (): LobbyArchetype => {
-  const totalWeight = LOBBY_ARCHETYPES.reduce((sum, a) => sum + a.weight, 0);
-  let roll = Math.random() * totalWeight;
-  for (const archetype of LOBBY_ARCHETYPES) {
-    roll -= archetype.weight;
-    if (roll < 0) {
-      return archetype;
-    }
-  }
-  // Unreachable while weights are positive; fall back to the everyday field.
-  return LOBBY_ARCHETYPES[1] as LobbyArchetype;
+	const totalWeight = LOBBY_ARCHETYPES.reduce((sum, a) => sum + a.weight, 0);
+	let roll = Math.random() * totalWeight;
+	for (const archetype of LOBBY_ARCHETYPES) {
+		roll -= archetype.weight;
+		if (roll < 0) {
+			return archetype;
+		}
+	}
+	// Unreachable while weights are positive; fall back to the everyday field.
+	return LOBBY_ARCHETYPES[1] as LobbyArchetype;
 };
 
 /**
@@ -86,38 +87,38 @@ export const rollLobbyArchetype = (): LobbyArchetype => {
  * floor, a high-bias (elite) lobby toward its ceiling.
  */
 const getRandomLevel = (archetype: LobbyArchetype): BotLevel => {
-  const rolls = 3;
-  const average =
-    Array.from({ length: rolls }, () => Math.random()).reduce(
-      (sum, value) => sum + value,
-      0,
-    ) / rolls;
+	const rolls = 3;
+	const average =
+		Array.from({ length: rolls }, () => Math.random()).reduce(
+			(sum, value) => sum + value,
+			0,
+		) / rolls;
 
-  const span = archetype.maxLevel - archetype.minLevel;
-  // Blend the symmetric bell sample toward the archetype's bias: shift the
-  // [0,1) sample so its center sits at `bias` rather than 0.5, then map onto
-  // the band. Clamped to the band so rounding never escapes [minLevel,maxLevel].
-  const centered = average + (archetype.bias - 0.5);
-  const position = Math.min(1, Math.max(0, centered));
-  const level = archetype.minLevel + Math.round(position * span);
-  return Math.min(
-    archetype.maxLevel,
-    Math.max(archetype.minLevel, level),
-  ) as BotLevel;
+	const span = archetype.maxLevel - archetype.minLevel;
+	// Blend the symmetric bell sample toward the archetype's bias: shift the
+	// [0,1) sample so its center sits at `bias` rather than 0.5, then map onto
+	// the band. Clamped to the band so rounding never escapes [minLevel,maxLevel].
+	const centered = average + (archetype.bias - 0.5);
+	const position = Math.min(1, Math.max(0, centered));
+	const level = archetype.minLevel + Math.round(position * span);
+	return Math.min(
+		archetype.maxLevel,
+		Math.max(archetype.minLevel, level),
+	) as BotLevel;
 };
 
 /** A fresh display-side `RacePlayer` for a bot entering a lobby. */
 const makeBotPlayer = (name: string): RacePlayer => ({
-  name,
-  isBot: true,
-  isEliminated: false,
-  isAnonymous: false, // bots are never guest accounts
-  completedWords: 0,
-  qualified: false,
-  roundGuesses: 0,
-  totalGuesses: 0,
-  correctGuesses: 0,
-  correctLetters: 0,
+	name,
+	isBot: true,
+	isEliminated: false,
+	isAnonymous: false, // bots are never guest accounts
+	completedWords: 0,
+	qualified: false,
+	roundGuesses: 0,
+	totalGuesses: 0,
+	correctGuesses: 0,
+	correctLetters: 0,
 });
 
 /**
@@ -126,13 +127,13 @@ const makeBotPlayer = (name: string): RacePlayer => ({
  * the bot's level is drawn from it.
  */
 const makeBotServerData = (
-  wordLength: number,
-  archetype: LobbyArchetype,
+	wordLength: number,
+	archetype: LobbyArchetype,
 ): RaceBotServerData => ({
-  word: getRandomWord(wordLength),
-  level: getRandomLevel(archetype),
-  botCompletedWords: 0,
-  botGuesses: 0,
+	word: getRandomWord(wordLength),
+	level: getRandomLevel(archetype),
+	botCompletedWords: 0,
+	botGuesses: 0,
 });
 
 /**
@@ -154,43 +155,73 @@ const makeBotServerData = (
  * _Requirements: 3.5_
  */
 export const fillLobbyWithBots = (
-  players: Map<string, RacePlayer>,
-  botData: { [botId: string]: RaceBotServerData },
-  config: RaceConfig,
+	players: Map<string, RacePlayer>,
+	botData: { [botId: string]: RaceBotServerData },
+	config: RaceConfig,
 ): string[] => {
-  const currentPlayerCount = players.size;
-  const botsToAdd = Math.max(0, config.minLobbySize - currentPlayerCount);
-  if (botsToAdd === 0) {
-    return [];
-  }
+	const currentPlayerCount = players.size;
+	const botsToAdd = Math.max(0, config.minLobbySize - currentPlayerCount);
+	if (botsToAdd === 0) {
+		return [];
+	}
 
-  // Seed bot words at the first round's length; the round lifecycle reassigns
-  // per-round words on begin. `rounds` is guaranteed non-empty by the schema.
-  const firstRoundLength = config.rounds[0]?.wordLength ?? 5;
+	// Seed bot words at the first round's length; the round lifecycle reassigns
+	// per-round words on begin. `rounds` is guaranteed non-empty by the schema.
+	const firstRoundLength = config.rounds[0]?.wordLength ?? 5;
 
-  // Decide ONCE for this game which difficulty archetype its bots are drawn
-  // from, so this lobby has a consistent feel (chill / mixed / sharp / elite)
-  // and games vary from easy to brutal rather than all clustering mid-curve.
-  const archetype = rollLobbyArchetype();
+	// Decide ONCE for this game which difficulty archetype its bots are drawn
+	// from, so this lobby has a consistent feel (chill / mixed / sharp / elite)
+	// and games vary from easy to brutal rather than all clustering mid-curve.
+	const archetype = rollLobbyArchetype();
 
-  const addedBotIds: string[] = [];
-  for (let i = 0; i < botsToAdd; i++) {
-    const botId = `bot${i}`;
-    players.set(botId, makeBotPlayer(botId));
-    botData[botId] = makeBotServerData(firstRoundLength, archetype);
-    addedBotIds.push(botId);
-  }
+	// Human-looking DISPLAY names, unique within this lobby, so the field reads
+	// like real people instead of "bot0", "bot1", … Reuses Battle Royale's name
+	// generator so the two modes behave identically. IMPORTANT: these are display
+	// names only — each bot is still KEYED `bot${i}` so the UUID-based bot
+	// detection in handlers/stats keeps distinguishing bots from real players.
+	const displayNames = generateBotNames(botsToAdd);
 
-  logger.info(
-    {
-      humansJoined: currentPlayerCount,
-      botsAdded: botsToAdd,
-      minLobbySize: config.minLobbySize,
-      archetype: archetype.name,
-    },
-    "Added bots to race lobby: not enough humans joined to fill the field",
-  );
-  return addedBotIds;
+	const addedBotIds: string[] = [];
+	const botLevels: number[] = [];
+	for (let i = 0; i < botsToAdd; i++) {
+		const botId = `bot${i}`;
+		players.set(botId, makeBotPlayer(displayNames[i] ?? botId));
+		const serverData = makeBotServerData(firstRoundLength, archetype);
+		botData[botId] = serverData;
+		botLevels.push(serverData.level);
+		addedBotIds.push(botId);
+	}
+
+	// Log the chosen lobby difficulty prominently so it's easy to grep per match.
+	// Includes the archetype's full definition (band + bias) and the actual
+	// distribution of bot levels rolled from it, so the realized difficulty — not
+	// just the archetype name — is visible.
+	logger.info(
+		{
+			matchDifficulty: archetype.name,
+			levelBand: `${archetype.minLevel}-${archetype.maxLevel}`,
+			bias: archetype.bias,
+			botLevelCounts: countLevels(botLevels),
+			humansJoined: currentPlayerCount,
+			botsAdded: botsToAdd,
+			minLobbySize: config.minLobbySize,
+		},
+		"Race lobby difficulty chosen",
+	);
+	return addedBotIds;
+};
+
+/**
+ * Tally a list of bot levels into a `{ level: count }` map for logging, so the
+ * realized spread of difficulty within a lobby is visible at a glance (e.g.
+ * `{ "2": 40, "3": 50, "4": 9 }`). Levels with no bots are omitted.
+ */
+const countLevels = (levels: number[]): Record<number, number> => {
+	const counts: Record<number, number> = {};
+	for (const level of levels) {
+		counts[level] = (counts[level] ?? 0) + 1;
+	}
+	return counts;
 };
 
 // Per-level "think time" window between simulated bot guesses, in ms — higher
@@ -199,11 +230,11 @@ export const fillLobbyWithBots = (
 // the final 6-letter round) faster than a human could reasonably keep up, so
 // every level now takes a bit longer to attempt its next guess.
 const THINK_TIMES = {
-  1: [9000, 15000],
-  2: [7500, 13000],
-  3: [6000, 11000],
-  4: [4500, 8500],
-  5: [3500, 6500],
+	1: [9000, 15000],
+	2: [7500, 13000],
+	3: [6000, 11000],
+	4: [4500, 8500],
+	5: [3500, 6500],
 } as const;
 
 // Per-level chance (%) that a simulated bot guess is "correct" and completes
@@ -225,15 +256,15 @@ const THINK_TIME_BASE_LENGTH = 4;
 const THINK_TIME_LENGTH_EXP = 2.8;
 
 const wordLengthThinkFactor = (wordLength: number): number =>
-  (Math.max(1, wordLength) / THINK_TIME_BASE_LENGTH) ** THINK_TIME_LENGTH_EXP;
+	(Math.max(1, wordLength) / THINK_TIME_BASE_LENGTH) ** THINK_TIME_LENGTH_EXP;
 
 const getBotThinkTime = (
-  level: 1 | 2 | 3 | 4 | 5,
-  wordLength: number,
+	level: 1 | 2 | 3 | 4 | 5,
+	wordLength: number,
 ): number => {
-  const [min, max] = THINK_TIMES[level];
-  const factor = wordLengthThinkFactor(wordLength);
-  return Math.round(getRandomInt(min, max) * factor);
+	const [min, max] = THINK_TIMES[level];
+	const factor = wordLengthThinkFactor(wordLength);
+	return Math.round(getRandomInt(min, max) * factor);
 };
 
 // Per-letter-over-baseline reduction (percentage points) applied to a bot's
@@ -253,19 +284,19 @@ const MIN_CORRECT_CHANCE = 2;
  * so the 5- and 6-letter rounds are genuinely harder for bots to solve.
  */
 const rollBotCorrect = (
-  level: 1 | 2 | 3 | 4 | 5,
-  botGuesses: number,
-  wordLength: number,
+	level: 1 | 2 | 3 | 4 | 5,
+	botGuesses: number,
+	wordLength: number,
 ): boolean => {
-  const progressBonus = Math.min(botGuesses * 1.5, 15);
-  const lengthPenalty =
-    Math.max(0, wordLength - THINK_TIME_BASE_LENGTH) *
-    CORRECT_CHANCE_LENGTH_PENALTY_PER_LETTER;
-  const correctChance = Math.max(
-    MIN_CORRECT_CHANCE,
-    BASE_CORRECT_CHANCE[level] + progressBonus - lengthPenalty,
-  );
-  return Math.random() * 100 < correctChance;
+	const progressBonus = Math.min(botGuesses * 1.5, 15);
+	const lengthPenalty =
+		Math.max(0, wordLength - THINK_TIME_BASE_LENGTH) *
+		CORRECT_CHANCE_LENGTH_PENALTY_PER_LETTER;
+	const correctChance = Math.max(
+		MIN_CORRECT_CHANCE,
+		BASE_CORRECT_CHANCE[level] + progressBonus - lengthPenalty,
+	);
+	return Math.random() * 100 < correctChance;
 };
 
 /**
@@ -280,38 +311,38 @@ const rollBotCorrect = (
  * `false`.
  */
 export const tickBot = (
-  bot: RaceBotServerData,
-  now: number,
-  wordLength: number,
+	bot: RaceBotServerData,
+	now: number,
+	wordLength: number,
 ): boolean => {
-  // First tick since the bot started: begin thinking rather than guessing
-  // immediately (guessTimeStamp is unset until the first guess is scheduled).
-  if (bot.guessTimeStamp === undefined) {
-    bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);
-    return false;
-  }
+	// First tick since the bot started: begin thinking rather than guessing
+	// immediately (guessTimeStamp is unset until the first guess is scheduled).
+	if (bot.guessTimeStamp === undefined) {
+		bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);
+		return false;
+	}
 
-  // Still thinking.
-  if (now < bot.guessTimeStamp) {
-    return false;
-  }
+	// Still thinking.
+	if (now < bot.guessTimeStamp) {
+		return false;
+	}
 
-  bot.botGuesses += 1;
-  const correct = rollBotCorrect(bot.level, bot.botGuesses, wordLength);
+	bot.botGuesses += 1;
+	const correct = rollBotCorrect(bot.level, bot.botGuesses, wordLength);
 
-  // Schedule the next guess regardless of outcome.
-  bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);
+	// Schedule the next guess regardless of outcome.
+	bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);
 
-  if (!correct) {
-    return false;
-  }
+	if (!correct) {
+		return false;
+	}
 
-  // Completed the current word: progress and draw a fresh word of the round's
-  // configured length. The lifecycle owns the qualification latch on the
-  // display player; this ticker only advances the bot's own progress.
-  bot.botCompletedWords += 1;
-  bot.word = getRandomWord(wordLength);
-  return true;
+	// Completed the current word: progress and draw a fresh word of the round's
+	// configured length. The lifecycle owns the qualification latch on the
+	// display player; this ticker only advances the bot's own progress.
+	bot.botCompletedWords += 1;
+	bot.word = getRandomWord(wordLength);
+	return true;
 };
 
 /**
@@ -329,30 +360,30 @@ export const tickBot = (
  * _Requirements: 3.5_
  */
 export const startBotTicker = (
-  botData: { [botId: string]: RaceBotServerData },
-  getWordLength: () => number,
-  onBotProgress: (botId: string) => void,
-  now: () => number = Date.now,
+	botData: { [botId: string]: RaceBotServerData },
+	getWordLength: () => number,
+	onBotProgress: (botId: string) => void,
+	now: () => number = Date.now,
 ): NodeJS.Timeout => {
-  logger.info(
-    { botCount: Object.keys(botData).length },
-    "Starting race bot ticker",
-  );
+	logger.info(
+		{ botCount: Object.keys(botData).length },
+		"Starting race bot ticker",
+	);
 
-  return setInterval(() => {
-    const currentTime = now();
-    const wordLength = getWordLength();
+	return setInterval(() => {
+		const currentTime = now();
+		const wordLength = getWordLength();
 
-    for (const botId in botData) {
-      const bot = botData[botId];
-      if (!bot) {
-        continue;
-      }
+		for (const botId in botData) {
+			const bot = botData[botId];
+			if (!bot) {
+				continue;
+			}
 
-      const completed = tickBot(bot, currentTime, wordLength);
-      if (completed) {
-        onBotProgress(botId);
-      }
-    }
-  }, BOT_TICK_MS);
+			const completed = tickBot(bot, currentTime, wordLength);
+			if (completed) {
+				onBotProgress(botId);
+			}
+		}
+	}, BOT_TICK_MS);
 };

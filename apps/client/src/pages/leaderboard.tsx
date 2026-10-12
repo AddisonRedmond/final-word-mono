@@ -235,7 +235,7 @@ const Leaderboard: React.FC = () => {
 															Avg Place
 														</th>
 														<th className="px-4 py-2.5 text-right font-semibold">
-															Best Match
+															Best Match PTS
 														</th>
 													</>
 												)}

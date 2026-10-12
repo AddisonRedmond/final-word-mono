@@ -1,8 +1,14 @@
 import { Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { RacePlayer } from "@/types/race.types";
-import { getInitials } from "@/utils/opponents";
+import {
+	GAP,
+	getInitials,
+	getRaceCardHeight,
+	getRaceWidthForHeight,
+	MAX_RACE_OPPONENT_WIDTH,
+} from "@/utils/opponents";
 
 export type RaceOpponent = RacePlayer & { id: string };
 
@@ -11,6 +17,11 @@ type RaceOpponentsProps = {
 	opponents: RaceOpponent[];
 	/** Words needed to qualify this round; drives the progress bar. */
 	qualifyingCount: number;
+};
+
+type ContainerSize = {
+	width: number;
+	height: number;
 };
 
 /**
@@ -25,10 +36,75 @@ type RaceOpponentsProps = {
  */
 const RaceOpponents = memo(
 	({ opponents, qualifyingCount }: RaceOpponentsProps) => {
-		const active = opponents.filter((opponent) => !opponent.isEliminated);
+		const ref = useRef<HTMLDivElement>(null);
+
+		const active = useMemo(
+			() => opponents.filter((opponent) => !opponent.isEliminated),
+			[opponents],
+		);
+
+		const [containerSize, setContainerSize] = useState<ContainerSize>({
+			width: 0,
+			height: 0,
+		});
+
+		// Measure the column so cards can grow to fill it (matching Battle
+		// Royale), re-measuring on resize.
+		useEffect(() => {
+			const element = ref.current;
+			if (!element) return;
+
+			const observer = new ResizeObserver(([entry]) => {
+				if (!entry) return;
+
+				const width = Math.round(entry.contentRect.width);
+				const height = Math.round(entry.contentRect.height);
+
+				setContainerSize((previous) =>
+					previous.width === width && previous.height === height
+						? previous
+						: { width, height },
+				);
+			});
+
+			observer.observe(element);
+			return () => observer.disconnect();
+		}, []);
+
+		// Pick the card width that best fills the column: try every column count
+		// and keep the layout yielding the largest card, bounded by both the
+		// available width and the width implied by the available height. Then
+		// clamp to the max so a small field doesn't dwarf the player's board.
+		const cardWidth = useMemo(() => {
+			const count = active.length;
+			if (!count || !containerSize.width || !containerSize.height) {
+				return 0;
+			}
+
+			let largestWidth = 0;
+			for (let columns = 1; columns <= count; columns++) {
+				const rows = Math.ceil(count / columns);
+				const availableWidth =
+					(containerSize.width - GAP * (columns - 1)) / columns;
+				const availableHeight =
+					(containerSize.height - GAP * (rows - 1)) / rows;
+				const maxWidthFromHeight = getRaceWidthForHeight(availableHeight);
+				largestWidth = Math.max(
+					largestWidth,
+					Math.min(availableWidth, maxWidthFromHeight),
+				);
+			}
+
+			return Math.min(MAX_RACE_OPPONENT_WIDTH, Math.max(0, largestWidth));
+		}, [active.length, containerSize.width, containerSize.height]);
+
+		const cardHeight = cardWidth ? getRaceCardHeight(cardWidth) : undefined;
 
 		return (
-			<div className="scrollbar-gutter-stable min-h-0 min-w-0 flex-1 overflow-auto p-1">
+			<div
+				className="scrollbar-gutter-stable min-h-0 min-w-0 flex-1 overflow-auto p-1"
+				ref={ref}
+			>
 				<div className="flex flex-wrap content-start justify-evenly gap-2">
 					<AnimatePresence mode="popLayout">
 						{active.map((opponent) => {
@@ -41,11 +117,16 @@ const RaceOpponents = memo(
 							return (
 								<motion.div
 									animate={{ opacity: 1, scale: 1 }}
-									className="flex w-28 flex-col items-center gap-y-1.5 rounded-lg bg-zinc-100 p-2 shadow-md"
+									className="flex min-w-0 flex-col items-center justify-between gap-y-1.5 rounded-lg bg-zinc-100 p-2 shadow-md"
 									exit={{ opacity: 0, scale: 0.7 }}
 									initial={{ opacity: 0, scale: 0.7 }}
 									key={opponent.id}
 									layout
+									style={
+										cardWidth
+											? { width: cardWidth, height: cardHeight }
+											: undefined
+									}
 									transition={{ duration: 0.25, ease: "easeOut" }}
 								>
 									<div className="flex w-full items-center justify-between gap-x-1">
