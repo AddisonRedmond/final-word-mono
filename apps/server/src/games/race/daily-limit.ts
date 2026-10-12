@@ -21,7 +21,6 @@
  * (Req 11.3).
  */
 
-import { guestModeGate } from "../guest-mode-gate.js";
 import {
   canStartRealtimeGame,
   recordRealtimeGameStart,
@@ -30,33 +29,13 @@ import {
 /**
  * Returns whether the player may start a Race match.
  *
- * Guests (`isAnonymous`) delegate to the shared one-game-per-mode gate
- * (`guestModeGate(userId, "race")`, which reads this mode's lifetime
- * `player_mode_stats` row, R6.1, R6.2) — unchanged.
- *
- * Registered users are gated by the shared free-tier realtime limit
+ * Players are gated by the shared free-tier realtime limit
  * (`canStartRealtimeGame`): free accounts get a fixed number of realtime games
- * per UTC day SHARED across Race and Battle Royale; premium is unlimited. This
- * replaces the old dormant lifetime-`gamesPlayed` stub (which could not express
- * a per-day limit). A block maps to the `daily-limit` `join:error` reason in
- * the join handler.
- *
- * NOTE: this seam is consulted at TWO points for Race (see `handlers.ts`): once
- * at join with the real `isAnonymous` (the gate), and once per real player at
- * match start pinned to `isAnonymous = false`. The match-start consultation is
- * post-admission, so the authoritative block is the join-time one; recording
- * (not re-blocking) is what matters at start, via `recordMatchStart`.
+ * per UTC day SHARED across Race and Battle Royale; premium is unlimited. A
+ * block maps to the `daily-limit` `join:error` reason in the join handler.
  */
-export const canStartMatch = async (
-  userId: string,
-  isAnonymous: boolean, // from socket.data.isAnonymous via the join handler
-): Promise<boolean> => {
-  // Guests: one game per mode, derived from this mode's stats row (R6.1, R6.2).
-  if (isAnonymous) {
-    return guestModeGate(userId, "race");
-  }
-
-  // Registered users: free 3/UTC-day shared across modes, premium unlimited.
+export const canStartMatch = async (userId: string): Promise<boolean> => {
+  // Free: 3/UTC-day shared across modes, premium unlimited.
   return canStartRealtimeGame(userId);
 };
 

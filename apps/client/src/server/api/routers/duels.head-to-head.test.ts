@@ -24,7 +24,7 @@ vi.mock("@/db/stats", () => ({
 
 vi.mock("@/server/api/trpc", () => ({
 	createTRPCRouter: (routes: unknown) => routes,
-	guestProtectedProcedure: new Proxy(
+	protectedProcedure: new Proxy(
 		{},
 		{
 			get: () => () => ({ query: () => ({}), mutation: () => ({}) }),

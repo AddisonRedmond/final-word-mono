@@ -6,16 +6,13 @@
 // server counts both against one per-day counter), so this renders once near the
 // realtime cards rather than per card.
 //
-// Renders nothing for:
-//   - guests (they have the separate one-game-per-mode gate + sign-up prompt),
-//   - premium users (unlimited realtime play).
+// Renders nothing for premium users (unlimited realtime play).
 // While premium status is still resolving it shows a neutral skeleton pill
 // rather than a concrete count, so a premium user never flashes a wrong number
 // and a free user transitions skeleton→content without a layout snap.
 
 import { useEffect, useState } from "react";
 import { TIER_LIMITS } from "@/db/schema";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { usePremium } from "@/hooks/usePremium";
 import { api } from "@/utils/api";
 
@@ -34,7 +31,6 @@ const formatResetIn = (ms: number): string => {
 };
 
 const RealtimeGamesRemaining: React.FC = () => {
-	const isGuest = useIsGuest();
 	// Premium status tells us whether to show the counter at all (premium =
 	// unlimited, nothing to show). `isPremium` defaults to false WHILE LOADING, so
 	// we must also wait on `isPremiumLoading` before rendering — otherwise a
@@ -42,9 +38,7 @@ const RealtimeGamesRemaining: React.FC = () => {
 	// vanishes once premium resolves (the flash this guards against).
 	const { isPremium, isLoading: isPremiumLoading } = usePremium();
 
-	// Guests can't query this (guestProtectedProcedure) and have their own gate.
 	const { data } = api.billing.realtimeUsage.useQuery(undefined, {
-		enabled: !isGuest,
 		// Keep in step with the server counter; refetch when the user returns.
 		refetchOnWindowFocus: true,
 	});
@@ -63,9 +57,9 @@ const RealtimeGamesRemaining: React.FC = () => {
 		return () => clearInterval(id);
 	}, [data?.resetsAt]);
 
-	// Guests never see this (they have their own gate), and neither do premium
-	// users (unlimited realtime play) once their status is known.
-	if (isGuest || isPremium || data?.isPremium) {
+	// Premium users (unlimited realtime play) never see this once their status
+	// is known.
+	if (isPremium || data?.isPremium) {
 		return null;
 	}
 

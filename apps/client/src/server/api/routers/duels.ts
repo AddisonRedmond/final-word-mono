@@ -27,7 +27,7 @@ import {
 	tierLimits,
 } from "@/db/schema";
 import { type DbOrTransaction, upsertModeStats } from "@/db/stats";
-import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
 	determineDuelWinner,
 	getRandomWord,
@@ -267,7 +267,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Get active duels for the current user.
 	 */
-	allDuels: guestProtectedProcedure.query(async ({ ctx }) => {
+	allDuels: protectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		const declinedDuel = ctx.db
@@ -316,7 +316,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Create a new duel.
 	 */
-	sendDuel: guestProtectedProcedure
+	sendDuel: protectedProcedure
 		.input(z.array(z.string().uuid()).min(1).max(MAX_INVITEES_CEILING))
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -467,7 +467,7 @@ export const duelsRouter = createTRPCRouter({
 	 * all be friends (R5.7), the invitee cap and active-duel cap for the caller's
 	 * tier must not be exceeded (R5.4), all with the same tier-aware messages.
 	 */
-	rematchDuel: guestProtectedProcedure
+	rematchDuel: protectedProcedure
 		.input(z.object({ sourceDuelId: z.string().uuid() }))
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -645,7 +645,7 @@ export const duelsRouter = createTRPCRouter({
 			});
 		}),
 
-	startOrResumeDuel: guestProtectedProcedure
+	startOrResumeDuel: protectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -764,7 +764,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Decline a duel invitation.
 	 */
-	declineDuel: guestProtectedProcedure
+	declineDuel: protectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -859,7 +859,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Forfeit an active duel.
 	 */
-	forfeitDuel: guestProtectedProcedure
+	forfeitDuel: protectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -961,7 +961,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Acknowledge that the user has seen the completed duel.
 	 */
-	acknowledgeDuel: guestProtectedProcedure
+	acknowledgeDuel: protectedProcedure
 		.input(z.string().uuid())
 		.mutation(async ({ ctx, input }) => {
 			const [duel] = await ctx.db
@@ -1015,7 +1015,7 @@ export const duelsRouter = createTRPCRouter({
 	 * inverse of the archive-exclusion filter in `allDuels`, so an archived duel
 	 * leaves the active list and shows up here instead.
 	 */
-	archivedDuels: guestProtectedProcedure.query(async ({ ctx }) => {
+	archivedDuels: protectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		const archivedForUser = ctx.db
@@ -1055,7 +1055,7 @@ export const duelsRouter = createTRPCRouter({
 	 * participant insert) — it's used to review an archived duel's result as
 	 * many times as the user likes without changing any state.
 	 */
-	getDuelResult: guestProtectedProcedure
+	getDuelResult: protectedProcedure
 		.input(z.string().uuid())
 		.query(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -1127,7 +1127,7 @@ export const duelsRouter = createTRPCRouter({
 	 * scoped to the caller's duel IDs, then aggregate in `computeHeadToHead`.
 	 * Draws and multi-player duels (won by a third party) fall out naturally.
 	 */
-	headToHead: guestProtectedProcedure
+	headToHead: protectedProcedure
 		.input(z.object({ opponentId: z.string().uuid() }))
 		.query(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -1183,7 +1183,7 @@ export const duelsRouter = createTRPCRouter({
 	 * participants' profiles (opponents) for that duel. Opponent identities come
 	 * from `duels.participants`; their display info is joined from `profiles`.
 	 */
-	history: guestProtectedProcedure.query(async ({ ctx }) => {
+	history: protectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		// Caller's own results, newest first.
@@ -1253,7 +1253,7 @@ export const duelsRouter = createTRPCRouter({
 	/*
 	 * Submit a guess.
 	 */
-	handleDuelGuess: guestProtectedProcedure
+	handleDuelGuess: protectedProcedure
 		.input(
 			z.object({
 				duelId: z.string().uuid(),

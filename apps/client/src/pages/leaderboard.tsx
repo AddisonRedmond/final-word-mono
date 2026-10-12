@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import Navbar from "@/components/navigation/navbar";
 import { SCORED_MODES, type ScoredMode, seasonKey } from "@/db/schema";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { useAuthStore } from "@/state/auth-store";
 import { api } from "@/utils/api";
 
@@ -60,7 +59,6 @@ const formatAverage = (value: number | null): string =>
 const Leaderboard: React.FC = () => {
 	const authResolved = useAuthStore((state) => state.authResolved);
 	const user = useAuthStore((state) => state.user);
-	const isGuest = useIsGuest();
 
 	const [mode, setMode] = useState<ScoredMode>("battle_royale");
 	const currentSeason = useMemo(() => seasonKey(), []);
@@ -76,9 +74,9 @@ const Leaderboard: React.FC = () => {
 	}, [currentSeason]);
 
 	// The board procedure is guest-protected and requires a session, so only a
-	// resolved, registered (non-guest) user may query it. Guests/signed-out
-	// visitors still reach the page — they get a sign-in prompt instead (R3.1).
-	const canQuery = authResolved && !isGuest && user !== null;
+	// resolved user may query it. Signed-out visitors still reach the page —
+	// they get a sign-in prompt instead (R3.1).
+	const canQuery = authResolved && user !== null;
 
 	// Premium gates the expanded columns (avg placement, best match points). The
 	// core ranking stays visible to everyone (R3.7).
@@ -123,10 +121,10 @@ const Leaderboard: React.FC = () => {
 						</h1>
 					</div>
 
-					{/* Signed-out / guest: the page is public, but ranked data is
+					{/* Signed-out: the page is public, but ranked data is
 					    registered-only, so prompt for a real account instead of an
 					    empty board. */}
-					{authResolved && (!user || isGuest) ? (
+					{authResolved && !user ? (
 						<div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
 							<h2 className="font-bold text-amber-900 text-sm uppercase tracking-widest">
 								Sign in to see the leaderboard

@@ -9,18 +9,15 @@ import { KeyGroupProvider } from "@/components/game-cards/key";
 import RaceCard from "@/components/game-cards/race-card";
 import BattleRoyale from "@/components/games/battle-royale";
 import Race from "@/components/games/race";
-import GuestWelcomeCarousel from "@/components/guest/guest-welcome-carousel";
 import Navbar from "@/components/navigation/navbar";
 import PlayLimitNotice from "@/components/play-limit-notice";
 import RealtimeGamesRemaining from "@/components/realtime-games-remaining";
 import Tile from "@/components/tile";
 import { env } from "@/env";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useAuthStore } from "@/state/auth-store";
 import { useGameSessionStore } from "@/state/game-session-store";
-import { useGuestWelcomeStore } from "@/state/guest-welcome-store";
 import { useServerClockStore } from "@/state/server-clock-store";
 import { api } from "@/utils/api";
 import { createClient } from "@/utils/supabase/client";
@@ -46,8 +43,6 @@ export default function Home() {
 	);
 	const socketRef = useRef<Socket | null>(null);
 	const user = useAuthStore((state) => state.user);
-	// Guest gating (R7.3): hide the duels entry point for anonymous sessions.
-	const isGuest = useIsGuest();
 	// Responsiveness (Feature 2a): the realtime modes (Battle Royale, Race) are
 	// desktop-only. On smaller screens we hide their cards/games and surface the
 	// duel entry point instead. `hydrated` gates this so the server-rendered
@@ -55,22 +50,13 @@ export default function Home() {
 	const { isDesktop, hydrated } = useIsDesktop();
 	// Redirect to /sign-in once auth resolves with no user (sign-out from
 	// anywhere, direct nav while logged out, or session expiry). Also yields
-	// `authResolved`: until the first session read completes, `user`/`isGuest`
-	// are still their initial (loading) values, so branching on them would flash
-	// the wrong UI (e.g. the duels card appearing then vanishing for a guest).
+	// `authResolved`: until the first session read completes, `user` is still
+	// its initial (loading) value, so branching on it would flash the wrong UI.
 	const { authResolved } = useRequireAuth();
 	const setRealtimeGameActive = useGameSessionStore(
 		(state) => state.setRealtimeGameActive,
 	);
 
-	// Feature: anonymous-sign-in — show the welcome carousel once, on a guest's
-	// first sign-in. The seen-flag is persisted to localStorage, which only
-	// hydrates on the client, so we gate on a mounted flag to avoid an SSR
-	// hydration mismatch and a flash before hydration.
-	const hasSeenWelcome = useGuestWelcomeStore((state) => state.hasSeenWelcome);
-	const markWelcomeSeen = useGuestWelcomeStore(
-		(state) => state.markWelcomeSeen,
-	);
 	const [mounted, setMounted] = useState(false);
 
 	// Gate all auth-derived conditional UI on a single "ready" flag: mounted
@@ -79,15 +65,12 @@ export default function Home() {
 	// signed-out visitor (mid-redirect to /sign-in via useRequireAuth) never
 	// flashes the menu. This also removes the first-paint flashes.
 	const isReady = mounted && authResolved && user !== null;
-	const showGuestWelcome = isReady && isGuest && !hasSeenWelcome;
 
 	// Champion cosmetic: light up the FINAL/WORD hero tiles in gold with a sparkle
 	// when the player won their most recent realtime game (Race or Battle Royale).
-	// `stats.champion` is a guestProtectedProcedure, so only fire it for a
-	// resolved, registered user; guests never see the cosmetic.
 	const { data: championData, refetch: refetchChampion } =
 		api.stats.champion.useQuery(undefined, {
-			enabled: isReady && !isGuest,
+			enabled: isReady,
 			staleTime: 30_000,
 		});
 	const isChampion = championData?.isChampion ?? false;
@@ -131,9 +114,9 @@ export default function Home() {
 		const justEnded = wasPlayingRef.current && !playing;
 		wasPlayingRef.current = playing;
 
-		// Only meaningful for a resolved, registered user (the query is disabled for
-		// guests / before auth resolves anyway).
-		if (!(justEnded && isReady && !isGuest)) {
+		// Only meaningful for a resolved user (the query is disabled before auth
+		// resolves anyway).
+		if (!(justEnded && isReady)) {
 			return;
 		}
 
@@ -156,7 +139,7 @@ export default function Home() {
 		void tick();
 		timer = setInterval(() => void tick(), intervalMs);
 		return () => clearInterval(timer);
-	}, [isPlaying, isPlayingRace, isReady, isGuest, refetchChampion]);
+	}, [isPlaying, isPlayingRace, isReady, refetchChampion]);
 
 	const handlePlay = async (code?: string) => {
 		// Realtime modes are desktop-only; never start one from a small screen.
@@ -291,16 +274,6 @@ export default function Home() {
           exactly one viewport and confines scrolling to the content. */}
 			<main className="flex h-dvh flex-col overflow-hidden">
 				<Navbar />
-				{/* Feature: anonymous-sign-in — one-time welcome carousel on a guest's
-				    first sign-in; marking it seen persists so it never reopens. */}
-				<AnimatePresence>
-					{showGuestWelcome && (
-						<GuestWelcomeCarousel
-							key="guest-welcome"
-							onClose={markWelcomeSeen}
-						/>
-					)}
-				</AnimatePresence>
 				<div className="flex min-h-0 grow flex-col items-center justify-center gap-y-5 overflow-y-auto">
 					<AnimatePresence>
 						{!isPlaying && !isPlayingRace && (
@@ -370,15 +343,13 @@ export default function Home() {
 									    only one is open at a time (opening one closes the rest). */}
 									<KeyGroupProvider>
 										<div className="flex w-full flex-col items-center gap-5 sm:flex-row sm:flex-wrap sm:justify-center">
-											{/* Guest gating (R7.3): duels entry hidden for guests; the
-										    realtime game cards stay (R7.5, the single exception).
-										    Responsiveness (Feature 2a): the duel card is available
+											{/* Responsiveness (Feature 2a): the duel card is available
 										    on every screen size; the realtime cards render only on
 										    desktop. */}
 											<div className="flex w-full basis-full justify-center">
 												<RealtimeGamesRemaining />
 											</div>
-											{!isGuest && <HeadToHeadCard />}
+											<HeadToHeadCard />
 											{/* Only decide desktop-vs-mobile once hydrated so the
 										    server markup (desktop) doesn't flash a realtime card
 										    onto a phone. */}
@@ -386,9 +357,9 @@ export default function Home() {
 												(isDesktop ? (
 													<>
 														{/* Shared free-tier realtime allowance (3/UTC-day
-														    across BR + Race). Renders nothing for guests
-														    or premium. Spans the full card row so it sits
-														    above both cards. */}
+														    across BR + Race). Renders nothing for premium.
+														    Spans the full card row so it sits above both
+														    cards. */}
 
 														<BattleRoyalCard handlePlay={handlePlay} />
 														<RaceCard handlePlay={handlePlayRace} />

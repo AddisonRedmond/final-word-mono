@@ -11,7 +11,7 @@ import {
 	seasonKey,
 	seasonPlacements,
 } from "@/db/schema";
-import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 
 /**
  * Which stats scope a `me` read is for. `lifetime` is the all-time aggregate;
@@ -133,7 +133,7 @@ const toModeStatsView = (
  * `ctx.user.id`. `myPlacements()` returns the caller's archived season
  * placements, newest first (R2.5, R4.4).
  *
- * Uses `guestProtectedProcedure` so guests are rejected before any resolver
+ * Uses `protectedProcedure` so guests are rejected before any resolver
  * runs, consistent with the duels / friends routers; `/stats` is a
  * registered-only surface (R8.2).
  */
@@ -144,7 +144,7 @@ export const statsRouter = createTRPCRouter({
 	 * mode with no games simply has no entry so the page can show an empty state
 	 * rather than zeros (R2.6).
 	 */
-	me: guestProtectedProcedure
+	me: protectedProcedure
 		.input(z.object({ scope: scopeInput }).default({ scope: LIFETIME_SCOPE }))
 		.query(async ({ ctx, input }) => {
 			const userId = ctx.user.id;
@@ -203,7 +203,7 @@ export const statsRouter = createTRPCRouter({
 	 * player's state (R8.1), kept separate from `me` so the home screen can light
 	 * up the FINAL/WORD tiles without pulling the whole per-mode stats payload.
 	 */
-	champion: guestProtectedProcedure.query(async ({ ctx }) => {
+	champion: protectedProcedure.query(async ({ ctx }) => {
 		const [row] = await ctx.db
 			.select({ wonLastRealtimeGame: profiles.wonLastRealtimeGame })
 			.from(profiles)
@@ -223,7 +223,7 @@ export const statsRouter = createTRPCRouter({
 	 * are returned so the page can render a "full history is premium" gate without
 	 * guessing at entitlement.
 	 */
-	myPlacements: guestProtectedProcedure.query(async ({ ctx }) => {
+	myPlacements: protectedProcedure.query(async ({ ctx }) => {
 		const userId = ctx.user.id;
 
 		// Premium entitlement — read from the caller's profile, the same

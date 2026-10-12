@@ -2,13 +2,11 @@
 
 import { Check, X } from "lucide-react";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/navigation/navbar";
 import { SUPPORT_EMAIL } from "@/constants";
 import { DISPLAY_NAME, TIER_LIMITS } from "@/db/schema";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useAuthStore } from "@/state/auth-store";
 import { api } from "@/utils/api";
@@ -326,7 +324,6 @@ const DisplayNameSection: React.FC<{ canQuery: boolean }> = ({ canQuery }) => {
 const Profile: React.FC = () => {
 	const router = useRouter();
 	const { authResolved } = useRequireAuth();
-	const isGuest = useIsGuest();
 	const user = useAuthStore((state) => state.user);
 	const profileName = useAuthStore((state) => state.profileName);
 	const profileEmail = useAuthStore((state) => state.profileEmail);
@@ -339,9 +336,8 @@ const Profile: React.FC = () => {
 	// Polar (billing.syncFromPolar) as a safety net.
 	const justCheckedOut = router.query.checkout === "success";
 
-	// Billing status + today's realtime usage. Both are guest-protected on the
-	// server, so only fire them for a registered user.
-	const canQuery = authResolved && !isGuest && user !== null;
+	// Billing status + today's realtime usage, fired for a resolved user.
+	const canQuery = authResolved && user !== null;
 	const { data: billing, isLoading: billingLoading } =
 		api.billing.status.useQuery(undefined, {
 			enabled: canQuery,
@@ -400,25 +396,7 @@ const Profile: React.FC = () => {
 						</h1>
 					</div>
 
-					{/* Guests can't own a subscription (billing is registered-only). Point
-					    them to a real account instead of showing an empty billing panel. */}
-					{authResolved && isGuest ? (
-						<div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
-							<h2 className="font-bold text-amber-900 text-sm uppercase tracking-widest">
-								You're playing as a guest
-							</h2>
-							<p className="mt-1 text-amber-800 text-xs leading-relaxed">
-								Create a free account to manage a profile, unlock duels and
-								friends, and upgrade to premium for unlimited realtime play.
-							</p>
-							<Link
-								className="mt-3 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
-								href="/sign-in"
-							>
-								Create an account
-							</Link>
-						</div>
-					) : (
+					{(
 						<>
 							{/* Post-checkout reconciliation banner. Premium is normally
 							    granted by the Polar webhook; if that lagged or failed, we
