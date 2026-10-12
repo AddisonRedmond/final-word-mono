@@ -10,15 +10,19 @@ export const MAX_PLAYERS = 99;
 /** Debounce window (ms) for coalescing lobby state broadcasts. */
 export const GAME_UPDATE_DELAY = 250;
 
-/**
- * Delta-broadcast rollout switch (realtime-broadcast-scaling, Req 5.5).
- * OFF by default so Battle Royale emits full Trimmed_Snapshots exactly as
- * before; flipping it on enables keyframe/delta broadcasting. Mirrors Race's
- * `deltaBroadcastEnabled` so both modes share the keyframe/delta/resync model
- * behind one switch (Req 3.7). Kept as a flag so a diff/apply bug can be rolled
- * back in production without reverting the trim or the telemetry.
- */
-export const DELTA_BROADCAST_ENABLED = true;
+
+// Read from the `DELTA_BROADCAST_ENABLED` env var at boot, defaulting to ON so
+// production runs keyframe/delta broadcasting. Runtime KILL SWITCH: set
+// `DELTA_BROADCAST_ENABLED=false` (or `0`) and restart to fall back to full
+// Trimmed_Snapshots — no code change or rebuild. Only an explicit `false`/`0`
+// disables it; absent or a typo stays ON (fails safe toward the shipped-on
+// default). Read once at module load, so a flip takes effect on next start;
+// matches are in-memory so a restart ends active games anyway (no mid-match
+// flip to reconcile). Mirrors Race's env-overridable `deltaBroadcastEnabled`.
+export const DELTA_BROADCAST_ENABLED = ((): boolean => {
+  const raw = process.env.DELTA_BROADCAST_ENABLED?.trim().toLowerCase();
+  return raw !== "false" && raw !== "0";
+})();
 
 /**
  * Forced-keyframe cadence (realtime-broadcast-scaling, Req 3.6). When a room

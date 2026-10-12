@@ -76,6 +76,19 @@ export const eliminationCount = (survivors: number, pct: number): number =>
 		? 0
 		: Math.min(survivors - 1, Math.max(1, Math.ceil(survivors * pct)));
 
+// Delta-broadcast rollout switch, read from the `DELTA_BROADCAST_ENABLED` env
+// var at module load and defaulting to ON so production runs keyframe/delta
+// broadcasting. Runtime KILL SWITCH: set `DELTA_BROADCAST_ENABLED=false` (or
+// `0`) in the server environment and restart to fall back to full
+// Trimmed_Snapshots — no code change or rebuild. Only an explicit `false`/`0`
+// disables it; absent or a typo stays ON (fails safe). Shared with Battle
+// Royale's `DELTA_BROADCAST_ENABLED` constant, which reads the SAME env var, so
+// one env flip governs both modes (Req 3.7, 5.5).
+const deltaBroadcastEnabledFromEnv = (): boolean => {
+	const raw = process.env.DELTA_BROADCAST_ENABLED?.trim().toLowerCase();
+	return raw !== "false" && raw !== "0";
+};
+
 // Validated default. Parsed at module load so an invalid default would throw
 // on import rather than silently ship a broken config. Tunable without code
 // changes by editing the values below (Req 2.5, 2.6).
@@ -111,7 +124,6 @@ export const RACE_CONFIG: RaceConfig = raceConfigSchema.parse({
 	// Force a full keyframe at least every 20 deltas (~5s at a 250ms window) so
 	// a client is never more than that far from a rebase point (Req 3.6).
 	keyframeIntervalTicks: 20,
-	// Default OFF — full trimmed snapshots until deltas are wired up and
-	// verified (Req 5.5).
-	deltaBroadcastEnabled: true,
+	// Env-driven rollout switch (default ON). See deltaBroadcastEnabledFromEnv.
+	deltaBroadcastEnabled: deltaBroadcastEnabledFromEnv(),
 });
