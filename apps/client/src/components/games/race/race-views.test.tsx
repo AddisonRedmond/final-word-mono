@@ -8,9 +8,9 @@ import type {
 } from "@/hooks/useRaceSocket";
 import type {
 	ClientRaceMatch,
+	ClientRacePlayer,
 	LetterFeedback,
 	RacePhase,
-	RacePlayer,
 } from "@/types/race.types";
 import EliminationView from "./elimination-view";
 import LobbyView from "./lobby-view";
@@ -27,31 +27,29 @@ import RoundTransition from "./round-transition";
 
 const FUTURE = () => Date.now() + 60_000;
 
-function makePlayer(overrides: Partial<RacePlayer> = {}): RacePlayer {
+// The views consume the trimmed broadcast player (ClientRacePlayer), so the
+// fixtures build that shape — the dropped server-only fields (isBot,
+// roundGuesses, correctLetters, …) are never on the wire.
+function makePlayer(
+	overrides: Partial<ClientRacePlayer> = {},
+): ClientRacePlayer {
 	return {
 		name: "Player",
-		isBot: false,
 		isEliminated: false,
 		completedWords: 0,
-		qualified: false,
-		roundGuesses: 0,
-		totalGuesses: 0,
-		correctGuesses: 0,
-		correctLetters: 0,
 		...overrides,
 	};
 }
 
 function makeMatch(
 	phase: RacePhase,
-	players: Record<string, RacePlayer>,
+	players: Record<string, ClientRacePlayer>,
 	roomOverrides: Partial<ClientRaceMatch["room"]> = {},
 ): ClientRaceMatch {
 	return {
 		room: {
 			matchId: "match-1",
 			phase,
-			createdAt: 0,
 			lobbyDeadline: FUTURE(),
 			currentRoundIndex: 0,
 			roundEndsAt: FUTURE(),
@@ -77,7 +75,7 @@ describe("LobbyView (Req 10.1)", () => {
 		const match = makeMatch("lobby", {
 			me: makePlayer({ name: "Alice" }),
 			other: makePlayer({ name: "Bob" }),
-			bot0: makePlayer({ name: "Botty", isBot: true }),
+			bot0: makePlayer({ name: "Botty" }),
 		});
 
 		const { container } = render(

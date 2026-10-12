@@ -50,7 +50,9 @@ const makeMatch = (matchId: string): RaceMatch => {
 
 // A room whose timers object holds real setTimeout handles for the three
 // one-shot timers and real setInterval handles for the two tickers, so cleanup
-// has genuine handles to clear.
+// has genuine handles to clear. Also carries a `broadcastVersion` record so the
+// test can confirm the delta-broadcast version state is dropped with the room
+// (realtime-broadcast-scaling, Req 5.2).
 const makeRoomServerData = (): RaceRoomServerData => ({
   players: {},
   timers: {
@@ -60,6 +62,7 @@ const makeRoomServerData = (): RaceRoomServerData => ({
     botTicker: setInterval(() => {}, 60_000),
     updateTicker: setInterval(() => {}, 60_000),
   },
+  broadcastVersion: { seq: 3, ticksSinceKeyframe: 2 },
 });
 
 afterEach(() => {
@@ -107,9 +110,11 @@ describe("cleanupMatch clears timers and deletes room state (Req 9.4)", () => {
     expect(clearIntervalSpy).toHaveBeenCalledWith(updateTicker);
     expect(clearIntervalSpy).toHaveBeenCalledTimes(2);
 
-    // All room state is deleted.
+    // All room state is deleted — including the delta-broadcast version record,
+    // which lives on the deleted serverOnlyData entry (Req 5.2).
     expect(matches.has(matchId)).toBe(false);
     expect(serverOnlyData.has(matchId)).toBe(false);
+    expect(serverOnlyData.get(matchId)?.broadcastVersion).toBeUndefined();
     expect(botData.has(matchId)).toBe(false);
   });
 

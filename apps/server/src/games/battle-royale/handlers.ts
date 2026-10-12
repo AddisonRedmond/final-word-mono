@@ -34,7 +34,11 @@ import {
   serverOnlyData,
   serverOnlyBotData,
 } from "./state.js";
-import { emitLobbyUpdate, scheduleLobbyUpdate } from "./lobby.js";
+import {
+  buildBattleRoyaleKeyframePayload,
+  emitLobbyUpdate,
+  scheduleLobbyUpdate,
+} from "./lobby.js";
 import { getGuessContext, hasUnrevealedOccurrence } from "./guess.js";
 
 // Bots are keyed `bot0`/`bot1`/…, real players by Supabase auth UUID — so a
@@ -211,10 +215,11 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         socket.data.roomId = roomId;
         socket.join(roomId);
 
-        socket.emit("join:ack", {
-          ...existingGame,
-          players: Object.fromEntries(existingGame.players),
-        });
+        // Reconnect gets a KEYFRAME: a complete base to rebase on
+        // (realtime-broadcast-scaling Req 3.2). Flag-off this is the full
+        // trimmed snapshot exactly as before; flag-on it is the stamped
+        // keyframe envelope carried on the same `join:ack` event.
+        socket.emit("join:ack", buildBattleRoyaleKeyframePayload(roomId, existingGame));
 
         logger.info(
           { roomId, userId, playerCount: existingGame.players.size },
@@ -436,6 +441,55 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
       }
 
       emitLobbyUpdate(io, roomId, game);
+    });
+
+    // --- resync ------------------------------------------------------------
+    // The client detected a Sequence_Number gap (a dropped/reordered delta —
+    // see client task 7.x) and asks the server for a fresh base to rebase on
+    // (realtime-broadcast-scaling Req 4.4). We reply to THIS socket only (never
+    // a room broadcast) with a fresh Keyframe of the room's current trimmed
+    // state. Battle Royale mirror of Race's resync handler (Req 3.7).
+    //
+    // Wire protocol (design.md "Resync" + "the join:ack snapshot now carries
+    // seq"): keyframe and delta ride the SAME event the client already handles
+    // for state — `lobby:update`. The client reducer (task 7.1) rebases on any
+    // keyframe arriving on that event, so replying there (via `socket.emit`, so
+    // only the requester gets it) needs no new client-side wiring. With the
+    // delta flag OFF `buildBattleRoyaleKeyframePayload` returns the full trimmed
+    // snapshot, which the client simply replaces its state with — harmless.
+    //
+    // IDEMPOTENT (Req 4.8): a resync has NO side effects on Authoritative_State,
+    // gameplay, scoring, or timing — it only reads the game and advances the
+    // per-room broadcast version by one keyframe (via the shared keyframe
+    // builder), exactly as any other keyframe point does. Repeated resyncs are
+    // therefore safe: each simply replies with another current keyframe. A
+    // resync for an unknown/absent room, or from a socket not in a room, is a
+    // benign no-op (we never throw). The requester may only resync its OWN room
+    // — we look the game up by `socket.data.roomId` and confirm the player is
+    // actually present, mirroring the other handlers' guards.
+    socket.on("resync", () => {
+      const roomId = socket.data.roomId as string | undefined;
+      const userId = socket.data.userId as string | undefined;
+
+      if (!roomId || !userId) {
+        return;
+      }
+
+      const game = games.get(roomId);
+      if (!game || !game.players.has(userId)) {
+        logger.warn(
+          { roomId, userId, hasGame: Boolean(game) },
+          "Battle Royale resync ignored: game not found or socket not in the room",
+        );
+        return;
+      }
+
+      socket.emit("lobby:update", buildBattleRoyaleKeyframePayload(roomId, game));
+
+      logger.info(
+        { roomId, userId },
+        "Battle Royale resync: replied to requester with a fresh keyframe",
+      );
     });
 
     socket.on("guess", (payload: { word: string; target: TargetType }) => {

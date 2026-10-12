@@ -3,7 +3,7 @@ import { eliminationCount, type RaceConfig } from "shared/race.js";
 import type { Namespace } from "socket.io";
 import type { RaceMatch, RacePlayer } from "types/race.types.js";
 import logger from "../../../utils/logger.js";
-import { emitRaceUpdate } from "../lobby.js";
+import { emitRaceKeyframe, emitRaceUpdate } from "../lobby.js";
 import type {
 	RaceBotServerData,
 	RaceRoomServerData,
@@ -602,7 +602,11 @@ export const beginRound = (
 		"Race round begun",
 	);
 
-	emitRaceUpdate(nsp, match);
+	// Round transition is a natural keyframe point (realtime-broadcast-scaling
+	// Req 3.2): every surviving player's per-round state has just reset and a
+	// fresh word been assigned, so a full snapshot is the right rebase base.
+	// Flag-off this is byte-identical to the previous `emitRaceUpdate` snapshot.
+	emitRaceKeyframe(nsp, match);
 };
 
 /**
@@ -1034,7 +1038,10 @@ export const endRound = (
 		// intermission (clock-skew corrected on the client).
 		match.room.phase = "intermission";
 		match.room.nextRoundStartsAt = now + INTERMISSION_MS;
-		emitRaceUpdate(nsp, match);
+		// Phase transition into intermission is a keyframe point (Req 3.2): the
+		// round just resolved, eliminations applied and the next-round clock set,
+		// so a full snapshot is the right rebase base. Flag-off byte-identical.
+		emitRaceKeyframe(nsp, match);
 
 		const nextRoundIndex = roundIndex + 1;
 		if (roomServerOnlyData) {

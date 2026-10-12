@@ -7,6 +7,7 @@ import { installSocketAuth } from "./socket/auth.js";
 import { installSingleConnection } from "./socket/single-connection.js";
 import { installTimeSync } from "./socket/time-sync.js";
 import { registerGames } from "./games/registry.js";
+import { startStrainTelemetry } from "./telemetry/strain.js";
 
 const app = new Hono();
 
@@ -48,3 +49,7 @@ installTimeSync(io);
 
 // Wire up all registered games (see games/registry.ts to add more).
 registerGames(io);
+
+// Start the standing Strain_Telemetry signal (loop-lag + RSS sampler): one
+// histogram and one interval timer for the whole process.
+startStrainTelemetry();

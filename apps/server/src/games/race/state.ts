@@ -1,4 +1,5 @@
 import type { RaceMatch, RacePlayerServerData } from "types/race.types.js";
+import type { RaceBroadcastVersion } from "types/broadcast.types.js";
 import { RACE_CONFIG, type RaceConfig } from "shared/race.js";
 
 /**
@@ -35,6 +36,15 @@ export type RaceRoomTimers = {
 export type RaceRoomServerData = {
   players: Record<string, RacePlayerServerData>;
   timers: RaceRoomTimers;
+  /**
+   * Per-room delta-broadcast version state (realtime-broadcast-scaling, Req
+   * 3.1): the last emitted `seq`, deltas-since-keyframe counter, and last-sent
+   * Trimmed_Snapshot the emitter diffs against. Absent until the first delta
+   * broadcast for the room; populated lazily by the emitter (task 6). Because
+   * it lives on this server-only record, `cleanupMatch` drops it automatically
+   * when it deletes the room's `serverOnlyData` entry (Req 5.2).
+   */
+  broadcastVersion?: RaceBroadcastVersion;
 };
 
 /**

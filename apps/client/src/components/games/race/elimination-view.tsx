@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { EliminatedEvent } from "@/hooks/useRaceSocket";
-import type { RacePlayer } from "@/types/race.types";
+import type { ClientRacePlayer } from "@/types/race.types";
 
 type EliminationViewProps = {
 	/** This player's elimination outcome from `eliminated`. */
 	elimination: EliminatedEvent | undefined;
 	/** This player's snapshot (for the stat grid + placement fallback). */
-	player: RacePlayer | undefined;
+	player: ClientRacePlayer | undefined;
 	/** Leave the match. */
 	onLeave: () => void;
 };

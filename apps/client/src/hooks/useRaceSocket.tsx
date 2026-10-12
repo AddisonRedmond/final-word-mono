@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { env } from "@/env";
+import {
+	type BroadcastInput,
+	initialReducerState,
+	reduceEnvelope,
+	type ReducerState,
+} from "@/shared/broadcast-reducer";
 import { useServerClockStore } from "@/state/server-clock-store";
-import type { ClientRaceMatch, LetterFeedback } from "@/types/race.types";
+import type {
+	ClientRaceMatch,
+	ClientRacePlayer,
+	ClientRaceRoom,
+	LetterFeedback,
+} from "@/types/race.types";
 
 /**
  * Payloads for the Race lifecycle events, matching the server broadcast
@@ -101,6 +112,14 @@ export const useRaceSocket = ({
 	joinCode,
 }: UseRaceSocketProps): UseRaceSocketResult => {
 	const socketRef = useRef<Socket | null>(null);
+	// Sequence-aware reducer state (realtime-broadcast-scaling task 7.2). Held in
+	// a ref so it persists across `join:ack` / `race:update` events without
+	// triggering re-renders; the rendered snapshot flows into `match` via
+	// `setMatch`. Reset to a fresh base whenever the socket is (re)created so a
+	// new connection starts from `initialReducerState()`.
+	const reducerRef = useRef<ReducerState<ClientRaceRoom, ClientRacePlayer>>(
+		initialReducerState<ClientRaceRoom, ClientRacePlayer>(),
+	);
 
 	const [match, setMatch] = useState<ClientRaceMatch>();
 	const [transition, setTransition] = useState<RoundTransition>();
@@ -123,6 +142,32 @@ export const useRaceSocket = ({
 			transports: ["websocket"],
 		});
 		socketRef.current = socket;
+		// Fresh connection → fresh reducer base (no stale seq/resync carried over).
+		reducerRef.current = initialReducerState<ClientRaceRoom, ClientRacePlayer>();
+
+		/**
+		 * Feed one state broadcast (keyframe/delta envelope when the delta flag is
+		 * on, or a bare full Trimmed_Snapshot when it is off) through the pure
+		 * sequence-aware reducer, adopt the new reducer state, and render the
+		 * reduced snapshot. When the reducer reports a Sequence_Number gap it asks
+		 * for a resync; we emit it to the server, which replies with a fresh
+		 * keyframe on this same `race:update` event (Req 4.4). The one-in-flight
+		 * guard lives in the reducer, so we simply emit whenever the effect says
+		 * so. `removedPlayers` deletions are applied inside `applyDelta`, so the
+		 * rendered `players` map tracks the authoritative field (Req 4.6).
+		 */
+		const handleBroadcast = (
+			input: BroadcastInput<ClientRaceRoom, ClientRacePlayer>,
+		) => {
+			const { state, effect } = reduceEnvelope(reducerRef.current, input);
+			reducerRef.current = state;
+			if (state.snapshot !== undefined) {
+				setMatch(state.snapshot);
+			}
+			if (effect === "request-resync") {
+				socket.emit("resync");
+			}
+		};
 
 		const handleConnect = () => {
 			setIsConnected(true);
@@ -138,13 +183,12 @@ export const useRaceSocket = ({
 			setIsConnected(false);
 		};
 
-		const handleJoinAck = (payload: ClientRaceMatch) => {
-			setMatch(payload);
-		};
-
-		const handleRaceUpdate = (payload: ClientRaceMatch) => {
-			setMatch(payload);
-		};
+		// `join:ack` carries a keyframe (flag on) or a bare full snapshot (flag
+		// off); `race:update` carries a keyframe or a delta (flag on) or a bare
+		// snapshot (flag off). Both ride the reducer so the client stays correct
+		// in either mode and detects gaps (Req 4.1–4.6, 4.8).
+		const handleJoinAck = handleBroadcast;
+		const handleRaceUpdate = handleBroadcast;
 
 		const handleRoundTransition = (payload: RoundTransition) => {
 			setTransition(payload);

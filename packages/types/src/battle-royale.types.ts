@@ -1,3 +1,5 @@
+import type { BattleRoyaleBroadcastVersion } from "./broadcast.types.js";
+
 export type TargetType = "first" | "last" | "random" | (string & {});
 
 // Client-side selection intent for the attack picker. Distinct from the value
@@ -144,6 +146,15 @@ export type Room = {
 export type RoomServerData = {
   playerData: ServerPlayerData;
   timers: RoomTimers;
+  /**
+   * Per-room delta-broadcast version state (realtime-broadcast-scaling, Req
+   * 3.1): the last emitted `seq`, deltas-since-keyframe counter, and last-sent
+   * Trimmed_Snapshot the emitter diffs against. Absent until the first delta
+   * broadcast for the room; populated lazily by the emitter (task 6). Because
+   * it lives on this server-only record, `cleanupGame` drops it automatically
+   * when it deletes the room's `serverOnlyData` entry (Req 5.2).
+   */
+  broadcastVersion?: BattleRoyaleBroadcastVersion;
 };
 
 export type ServerOnlyData = Map<string, RoomServerData>;
@@ -153,7 +164,125 @@ export type Game = {
   players: Map<string, PlayerDisplay>;
 };
 
+// --- Trimmed broadcast DTOs (realtime-broadcast-scaling, Req 2) ---------------
+//
+// The authoritative `Room` / `PlayerDisplay` above stay the source of truth for
+// field SHAPES; these DTOs are the UI keep-list expressed as a type, projected
+// off the authoritative types with `Pick`. Because the DTO is the keep-list, a
+// field newly added to the authoritative type is server-only BY DEFAULT — it
+// will not reach the wire (or the delta surface) until its key is added to the
+// keep-list union below. The keep/drop rationale lives in this spec's
+// `UI_FIELDS.md` audit; the unions here are the authority.
+//
+// Shared by client and server so there is one definition of the broadcast shape.
+
+// Room-level fields the client renders. Drops `createdAt` (never read by any
+// client component).
+export type RoomUIFields =
+  | "lobbyId"
+  | "shareCode"
+  | "startTime"
+  | "isStarted"
+  | "isFinished"
+  | "winnerId"
+  | "isDraw"
+  | "matchEndTime";
+export type ClientBattleRoyaleRoom = Pick<Room, RoomUIFields>;
+
+// Per-player fields the client renders. Drops `endTimeStamp` (zero client
+// matches; survival time is computed from `life`) and `statsPersisted`
+// (server-only bookkeeping).
+export type PlayerDisplayUIFields =
+  | "name"
+  | "isAnonymous"
+  | "revealed_letters"
+  | "partialMatches"
+  | "noMatch"
+  | "display_queue"
+  | "isEliminated"
+  | "life"
+  | "totalGuesses"
+  | "correctGuesses"
+  | "currentWordGuesses"
+  | "lastAttackerName"
+  | "currentWordIsAttack"
+  | "currentWordAttackerName"
+  | "attackQueueView"
+  | "attackCementAt";
+export type ClientBattleRoyalePlayer = Pick<
+  PlayerDisplay,
+  PlayerDisplayUIFields
+>;
+
 export type ClientGame = {
-  room: Room;
-  players: Record<string, PlayerDisplay>;
+  room: ClientBattleRoyaleRoom;
+  players: Record<string, ClientBattleRoyalePlayer>;
 };
+
+// --- Render-contract guard (realtime-broadcast-scaling, Req 2.5) -------------
+//
+// The `Pick`s above already constrain each keep-list to `keyof` its
+// authoritative type, so a bad key fails at the `Pick`. These assertions make
+// that contract an explicit, named, compile-time check: if an authoritative
+// field is renamed or removed while its key is still in the keep-list, the
+// `satisfies` below fails to compile and names the offending key — rather than
+// the error surfacing implicitly (and more opaquely) at the `Pick`.
+//
+// Pattern: a `satisfies readonly (keyof T)[]` on the keep-list as a literal
+// array. The array is purely a type-level witness (`as const` + `satisfies`),
+// carries no runtime behaviour of its own, and is never read elsewhere.
+//
+// To extend a keep-list: add the key to BOTH the union type above AND this
+// witness array; TypeScript enforces the array stays exhaustive and valid.
+
+const ROOM_UI_FIELDS = [
+  "lobbyId",
+  "shareCode",
+  "startTime",
+  "isStarted",
+  "isFinished",
+  "winnerId",
+  "isDraw",
+  "matchEndTime",
+] as const satisfies readonly RoomUIFields[] satisfies readonly (keyof Room)[];
+
+const PLAYER_DISPLAY_UI_FIELDS = [
+  "name",
+  "isAnonymous",
+  "revealed_letters",
+  "partialMatches",
+  "noMatch",
+  "display_queue",
+  "isEliminated",
+  "life",
+  "totalGuesses",
+  "correctGuesses",
+  "currentWordGuesses",
+  "lastAttackerName",
+  "currentWordIsAttack",
+  "currentWordAttackerName",
+  "attackQueueView",
+  "attackCementAt",
+] as const satisfies readonly PlayerDisplayUIFields[] satisfies readonly (keyof PlayerDisplay)[];
+
+// Exhaustiveness: the witness array must cover EVERY member of the keep-list
+// union (not just a valid subset), so a union entry can't silently drift from
+// the array. `never` here means a union member is missing from the array above.
+type _AssertRoomExhaustive = Exclude<
+  RoomUIFields,
+  (typeof ROOM_UI_FIELDS)[number]
+> extends never
+  ? true
+  : never;
+type _AssertPlayerDisplayExhaustive = Exclude<
+  PlayerDisplayUIFields,
+  (typeof PLAYER_DISPLAY_UI_FIELDS)[number]
+> extends never
+  ? true
+  : never;
+const _roomExhaustive: _AssertRoomExhaustive = true;
+const _playerDisplayExhaustive: _AssertPlayerDisplayExhaustive = true;
+void _roomExhaustive;
+void _playerDisplayExhaustive;
+void ROOM_UI_FIELDS;
+void PLAYER_DISPLAY_UI_FIELDS;

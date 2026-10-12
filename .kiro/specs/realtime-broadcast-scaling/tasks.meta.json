@@ -1,0 +1,440 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Loop-lag + RSS sampler": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478368
+      },
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820484832
+      },
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820650199
+      }
+    ],
+    "1.2 Broadcast counters with aggregate flush": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478468
+      },
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820655264
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820903445
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821062242
+      }
+    ],
+    "1.3 Wire into both emit choke points": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478582
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821064629
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821319643
+      }
+    ],
+    "2.1 Resolve the four re-evaluate items in `UI_FIELDS.md`": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478664
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821322444
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821424907
+      }
+    ],
+    "2.2 Define DTOs as `Pick` projections of the authoritative types": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478733
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821427406
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821655654
+      }
+    ],
+    "2.3 Render-contract guard": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478803
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821658054
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821789289
+      }
+    ],
+    "3.1 Race projection": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478868
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821795137
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821891417
+      }
+    ],
+    "3.2 Battle Royale projection": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820478933
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821893914
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822048256
+      }
+    ],
+    "3.3 Trim shape tests": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479045
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822050635
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822176702
+      }
+    ],
+    "4.1 Keyframe/Delta envelope + enable flag": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479120
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822179620
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822342789
+      }
+    ],
+    "4.2 Per-room broadcast version record": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479212
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822345149
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822492721
+      }
+    ],
+    "5.1 Trimmed-snapshot diff": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479282
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822495956
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822686370
+      }
+    ],
+    "5.2 Pure client apply": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479360
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822688846
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822791884
+      }
+    ],
+    "5.3 Property test: equivalence invariant": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479435
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822794351
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822908940
+      }
+    ],
+    "6.1 Keyframe emission points": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479513
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822911952
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824103151
+      }
+    ],
+    "6.2 Delta emission at the trailing edge": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479596
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824105654
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824502324
+      }
+    ],
+    "6.3 Resync endpoint": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479693
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824505256
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824744835
+      }
+    ],
+    "7.1 Sequence-aware reducer": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479770
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824747955
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824980919
+      }
+    ],
+    "7.2 Resync wiring + removal handling": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479835
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824983566
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791825365836
+      }
+    ],
+    "7.3 Client apply/resync tests": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479903
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791825368594
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791825644977
+      }
+    ],
+    "8.1 Both modes behind the flag": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820479968
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791825648267
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791826154260
+      }
+    ],
+    "8.2 Regression + lifecycle events intact": [
+      {
+        "executionId": "27dc090b-4aaf-4064-b0cf-78861d6e9bcd",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791820480036
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791826157086
+      },
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791826442291
+      }
+    ],
+    "1. Process-health + broadcast-cost signal": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821319731
+      }
+    ],
+    "2. Trimmed broadcast DTOs (type is the source of truth)": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791821789419
+      }
+    ],
+    "3. Apply the trim (both modes, join + tick share one shape)": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822176815
+      }
+    ],
+    "4. Envelope types + per-room version state": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822492852
+      }
+    ],
+    "5. Pure diff + apply logic (heavily tested)": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791822909038
+      }
+    ],
+    "6. Server emit: keyframes + deltas": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791824744971
+      }
+    ],
+    "7. Sequence-aware client (both hooks)": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791825645132
+      }
+    ],
+    "8. Both modes, no regressions": [
+      {
+        "executionId": "d34991c2-612b-4c10-a9d5-207022fa7fd3",
+        "chatSessionId": "sess_6cd87a48-e602-47cf-bbfd-d602aa4275ca",
+        "timestamp": 1791826442392
+      }
+    ]
+  }
+}

@@ -57,9 +57,9 @@ plus `MatchTimer` / `QualifiedSpots` / `ProgressBars` fed by those.
 | `eliminatedAt` | **drop** | server-only survival ordering; not rendered |
 | `revealedWord` | keep | elimination + result "the word was X" |
 | `hintRevealed` | keep | `round-board` merges into green letters (final-round helper) |
-| `lastFeedback` | **re-evaluate** | the board's keyboard colouring now comes from `guess:ack` (server-accumulated hints), NOT from `player.lastFeedback`. Confirm no component reads `lastFeedback` off the broadcast; if none, **drop**. (It is set server-side but may be ack-only.) |
+| `lastFeedback` | keep | `round-board` word-length fallback — `player?.lastFeedback?.length` (round-board.tsx:74) when `roundConfig.wordLength` and the last ack are unavailable. Keyboard colouring is ack-driven, but length still reads this off the broadcast player, so it is a UI_Field |
 | `statsPersisted` | **drop** | server-only; explicitly "read only by the server" |
-| `isBot` | **re-evaluate** | check whether any roster/opponents code branches on it for display; if not, drop |
+| `isBot` | **drop** | no client component reads it — the only `isBot` reference in `apps/client/src` is `race-views.test.tsx` fixtures; no roster/opponents/display code branches on it |
 
 Keyboard hint sets for the player's OWN board (`revealedLetters` / `partialMatches`
 / `noMatch`) travel on the **`guess:ack`** path, NOT on the broadcast player — they
@@ -101,10 +101,10 @@ Broadcast type today: `ClientGame = { room: Room; players: Record<id, PlayerDisp
 | `name` | keep | opponents initials, winner/eliminated name, attacker badges |
 | `isAnonymous` | keep | guest styling |
 | `revealed_letters` | keep | opponents revealed tiles; self board full matches |
-| `partialMatches` | **re-evaluate** | self keyboard colouring — confirm the BR board reads this off the player (it may, unlike Race). Keep if read; the audit must verify |
-| `noMatch` | **re-evaluate** | same as `partialMatches` |
+| `partialMatches` | keep | self keyboard colouring — `battle-royale.tsx:310` passes `players[userId]?.partialMatches` to the keyboard `partialMatch`. Unlike Race, the BR self-board reads this off the broadcast player |
+| `noMatch` | keep | self keyboard colouring — `battle-royale.tsx:311` passes `players[userId]?.noMatch` to the keyboard `noMatch`. Read off the broadcast player like `partialMatches` |
 | `display_queue` | keep | opponents hopper + self `GuessContainer` queue |
-| `endTimeStamp` | **re-evaluate** | survival ordering is server-side; check if Winner/Eliminated reads it for display. Winner uses `life - startTime`, not `endTimeStamp` — likely **drop** |
+| `endTimeStamp` | **drop** | not read anywhere in `apps/client` (zero matches). Winner (winner.tsx:29) and Eliminated (eliminated.tsx:30) both compute survival time as `userData.life - gameStartTimestamp`, never `endTimeStamp` |
 | `isEliminated` | keep | opponents filter, self eliminated gate |
 | `life` | keep | `Health` timer, `OpponentTimer`, survival time in Winner/Eliminated |
 | `totalGuesses` | keep | Winner/Eliminated "Guesses" stat |
@@ -123,18 +123,26 @@ Server-only, never on the wire (keep excluded): `PlayerServerData` /
 
 ---
 
-## Open "re-evaluate" items (resolve during task 2.1 implementation)
+## Resolved "re-evaluate" items (task 2.1)
 
-These are the only ambiguous fields; the agent should confirm each by grepping
-the consuming components before finalizing keep/drop:
+The four previously-ambiguous fields were resolved by grepping the consuming
+components under `apps/client/src`. Each resolution is folded into the keep-list
+tables above; recorded here for traceability:
 
-1. **Race `lastFeedback`** — is it read off the broadcast player anywhere, or is
-   all keyboard colouring driven by `guess:ack`? If ack-only → drop.
-2. **Race `isBot`** — does any display code branch on it? If not → drop.
-3. **BR `partialMatches` / `noMatch`** — does the BR self-board read these off the
-   player (vs. an ack path like Race)? Keep only if read for rendering.
-4. **BR `endTimeStamp`** — confirm Winner/Eliminated use `life`, not
-   `endTimeStamp`, for survival time; if unused for display → drop.
+1. **Race `lastFeedback`** → **keep**. Read off the broadcast player at
+   `round-board.tsx:74` (`player?.lastFeedback?.length`) as the word-length
+   fallback. Keyboard colouring is ack-driven, but length still reads this
+   field, so it is a UI_Field.
+2. **Race `isBot`** → **drop**. No client component reads it. The only `isBot`
+   reference in `apps/client/src` is in `race-views.test.tsx` fixtures; no
+   roster/opponents/display code branches on it.
+3. **BR `partialMatches` / `noMatch`** → **keep** (both). The BR self-board reads
+   them off the broadcast player at `battle-royale.tsx:310-311`, feeding the
+   keyboard's `partialMatch` / `noMatch` colouring (unlike Race, which uses the
+   ack path).
+4. **BR `endTimeStamp`** → **drop**. Zero matches anywhere in `apps/client`.
+   Winner (`winner.tsx:29`) and Eliminated (`eliminated.tsx:30`) both compute
+   survival time as `userData.life - gameStartTimestamp`, never `endTimeStamp`.
 
 ## Diff-surface rule (ties to Requirement 3)
 

@@ -30,6 +30,10 @@ Final Word now works beautifully on phones and tablets, so you can jump into a g
 
 Finish a season at the **top of the leaderboard** and you'll get to pick the message winners and losers get at the end of each game. I'll review them to make sure they're not insane though. 
 
+### Smoother game switching
+
+Right now you can only have one game going at a time. Soon, if you open a new game while another is still running, you'll get a quick prompt instead of a dead end — **jump back into the game you left**, or **leave it and start fresh**. No more getting stuck between two games after a refresh or an accidental tab.
+
 ### A native mobile app
 
 I'm exploring a proper downloadable app for phones and tablets, on top of the mobile web experience you have today. This one isn't set in stone and has no release date yet, but it's something we'd love to do. The main challenge is making sure the user has enough information on a smaller screen.

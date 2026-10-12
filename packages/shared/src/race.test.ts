@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { raceConfigSchema } from "./race.js";
+import { raceConfigSchema } from "./race.ts";
 
 // Feature: round-based-elimination-race, Property 1: Config validity captures all invariants
 //

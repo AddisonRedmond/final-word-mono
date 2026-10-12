@@ -59,7 +59,7 @@ vi.mock("./daily-limit.js", () => ({
 // (`matches`, `serverOnlyData`, `serverOnlyBotData`, `config`) from state.js,
 // so we import those same references to set up and tear down scenarios.
 const { registerRaceHandlers } = await import("./handlers.js");
-const { matches, serverOnlyData, serverOnlyBotData } = await import(
+const { matches, serverOnlyData, serverOnlyBotData, config } = await import(
   "./state.js"
 );
 
@@ -392,6 +392,111 @@ describe("registerRaceHandlers connection handlers (Req 9.1–9.5)", () => {
     expect(match.players.has(stayer)).toBe(true);
     expect(matches.has(matchId)).toBe(true);
     expect(serverOnlyData.has(matchId)).toBe(true);
+  });
+
+  // --- resync (realtime-broadcast-scaling Req 4.4, 4.8) -------------------
+  // Validates: Requirements 4.4, 4.8
+  describe("resync replies to the requester with a fresh keyframe", () => {
+    it("flag OFF replies to the requesting socket only with the full trimmed snapshot", () => {
+      const userId = uuidFromSeed(20);
+      const matchId = "match-resync-off";
+      seedMatch(matchId, [
+        [userId, makePlayer({ name: "nina", completedWords: 3 })],
+        [uuidFromSeed(21), makePlayer({ name: "omar" })],
+      ]);
+
+      const prev = config.deltaBroadcastEnabled;
+      config.deltaBroadcastEnabled = false;
+      try {
+        const { socket, toEmits } = wireSocket(userId, "nina");
+        socket.data.roomId = matchId;
+
+        socket.handlers.resync();
+
+        // Reply goes to THIS socket, not a room broadcast.
+        const reply = socket.emitted.find((e) => e.event === "race:update");
+        expect(reply).toBeDefined();
+        expect(toEmits.length).toBe(0);
+
+        // Flag off → full trimmed snapshot (no envelope seq/type).
+        const payload = reply?.payload as {
+          seq?: number;
+          type?: string;
+          room: { matchId: string };
+          players: Record<string, RacePlayer>;
+        };
+        expect(payload.type).toBeUndefined();
+        expect(payload.seq).toBeUndefined();
+        expect(payload.room.matchId).toBe(matchId);
+        expect(payload.players[userId].completedWords).toBe(3);
+      } finally {
+        config.deltaBroadcastEnabled = prev;
+      }
+    });
+
+    it("flag ON replies with a keyframe envelope and advances the version by one keyframe per resync (idempotent, Req 4.8)", () => {
+      const userId = uuidFromSeed(22);
+      const matchId = "match-resync-on";
+      seedMatch(matchId, [
+        [userId, makePlayer({ name: "pam" })],
+        [uuidFromSeed(23), makePlayer({ name: "quinn" })],
+      ]);
+
+      const prev = config.deltaBroadcastEnabled;
+      config.deltaBroadcastEnabled = true;
+      try {
+        const { socket, toEmits } = wireSocket(userId, "pam");
+        socket.data.roomId = matchId;
+
+        // First resync → keyframe seq 1.
+        socket.handlers.resync();
+        // Second resync → keyframe seq 2 (idempotent: safe to repeat, each
+        // reply is another current keyframe, no crash).
+        socket.handlers.resync();
+        // Third for good measure.
+        socket.handlers.resync();
+
+        const replies = socket.emitted.filter((e) => e.event === "race:update");
+        expect(replies.length).toBe(3);
+        // Never a room broadcast — only the requester hears it.
+        expect(toEmits.length).toBe(0);
+
+        const seqs = replies.map((r) => {
+          const env = r.payload as { seq: number; type: string };
+          expect(env.type).toBe("keyframe");
+          return env.seq;
+        });
+        // Each resync advances the per-room version by exactly one keyframe.
+        expect(seqs).toEqual([1, 2, 3]);
+        expect(serverOnlyData.get(matchId)?.broadcastVersion?.seq).toBe(3);
+      } finally {
+        config.deltaBroadcastEnabled = prev;
+      }
+    });
+
+    it("resync for an unknown room is a safe no-op", () => {
+      const userId = uuidFromSeed(24);
+      const { socket, toEmits } = wireSocket(userId, "rob");
+      // Socket points at a room that was never seeded.
+      socket.data.roomId = "match-does-not-exist";
+
+      expect(() => socket.handlers.resync()).not.toThrow();
+
+      // No reply, no broadcast, no state created.
+      expect(socket.emitted.some((e) => e.event === "race:update")).toBe(false);
+      expect(toEmits.length).toBe(0);
+      expect(matches.has("match-does-not-exist")).toBe(false);
+    });
+
+    it("resync from a socket not in any room is a safe no-op", () => {
+      const userId = uuidFromSeed(25);
+      const { socket } = wireSocket(userId, "sam");
+      // No roomId on the socket at all.
+      socket.data.roomId = undefined;
+
+      expect(() => socket.handlers.resync()).not.toThrow();
+      expect(socket.emitted.some((e) => e.event === "race:update")).toBe(false);
+    });
   });
 
   // --- leave: last human out leaving only bots -> abandon (stop match) -----

@@ -24,6 +24,7 @@ import type {
 	TargetType,
 } from "types/battle-royale.types.js";
 import logger from "../../../utils/logger.js";
+import { emitBattleRoyaleKeyframe } from "../lobby.js";
 import { shareCodes } from "../state.js";
 import { persistBattleRoyaleStats, persistEliminatedAsLoss } from "../stats.js";
 import { generateBotNames } from "./bot-names.js";
@@ -558,10 +559,20 @@ export const handleStartGame = (
 			return;
 		}
 
-		io.to(game.room.lobbyId).emit("lobby:update", {
-			...game,
-			players: Object.fromEntries(game.players),
-		});
+		// Per-tick state broadcast for the game sweep (attack cementing + life
+		// expiry). Route it through the shared keyframe emitter rather than a
+		// bare `serializeGame` emit so this broadcast goes through the
+		// keyframe/delta decision like every other state broadcast
+		// (realtime-broadcast-scaling Req 3.7) — mirroring Race, whose gameplay
+		// loop broadcasts only through `emitRaceUpdate`/`emitRaceKeyframe` and
+		// never a bare `serializeRaceMatch` emit. Flag-OFF this is byte-identical
+		// to the previous full `lobby:update` snapshot; flag-ON it advances the
+		// room's version so the server's `seq`/`lastSent` stay consistent and a
+		// bare snapshot can never desync the client's sequence base. We only
+		// reach here when something changed (the no-change early-return above
+		// guards it), so a keyframe is a correct, bounded rebase base at this 1Hz
+		// tick (well under the forced-keyframe cadence).
+		emitBattleRoyaleKeyframe(io, game.room.lobbyId, game);
 
 		if (game.room.isFinished) {
 			cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
@@ -603,10 +614,11 @@ export const handleStartLobbyTimer = (
 		serverOnlyData,
 		serverOnlyBotData,
 	);
-	io.to(game.room.lobbyId).emit("lobby:update", {
-		...game,
-		players: Object.fromEntries(game.players),
-	});
+	// Game start is a phase transition and a natural keyframe point
+	// (realtime-broadcast-scaling Req 3.2): the room just flipped to started and
+	// every player's board was seeded, so a full snapshot is the right rebase
+	// base. Flag-off byte-identical to the previous full `lobby:update` snapshot.
+	emitBattleRoyaleKeyframe(io, game.room.lobbyId, game);
 
 	return true;
 };
@@ -818,14 +830,19 @@ export const applyCorrectGuessReward = ({
 		return;
 	}
 
-	// Life bonus is only awarded for solving a NON-attack word (unchanged rule).
+	// Solving a REAL (non-attack) word is the only solve that defends against
+	// incoming attacks. `serverData.currentWordIsAttack` still reflects the word
+	// just solved here (it is reassigned to the next word further down), so this
+	// guard covers both effects of a real-word solve:
+	//   - the life bonus (unchanged rule), and
+	//   - §5.2a solve-scaled clearing of PENDING (uncemented) attack words,
+	//     earliest-first, BEFORE the next word is pulled (only pending is touched).
+	// Surviving an ATTACK word must NOT mitigate incoming pending attacks — only
+	// clearing your own real words does (ATTACK_MECHANICS.md §5.2a).
 	if (!serverData.currentWordIsAttack) {
 		player.life = Math.min(currentLife + bonusLife, maxLifeExpiry);
+		clearPendingBySolve(serverData, player.currentWordGuesses);
 	}
-
-	// §5.2a: a fast solve of the current word clears pending (uncemented) attack
-	// words earliest-first, BEFORE we pull the next word. Only pending is touched.
-	clearPendingBySolve(serverData, player.currentWordGuesses);
 
 	player.correctGuesses += 1;
 	player.currentWordGuesses = 0;
