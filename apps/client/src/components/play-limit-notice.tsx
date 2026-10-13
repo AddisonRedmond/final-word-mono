@@ -19,11 +19,8 @@ import Link from "next/link";
  * Reasons the server sends on a match-start `join:error`. These mirror the
  * server-side literals (the client and server are separate packages, so the
  * strings are duplicated here as the client's source of truth):
- *   - "guest-mode-limit": a guest used their one game in a mode (live today).
- *   - "daily-limit": a registered user hit their per-24h cap (wired on the
- *     server, dormant until the free-account cap is switched on).
+ *   - "daily-limit": a user hit the shared free-tier per-24h realtime cap.
  */
-export const GUEST_MODE_LIMIT_REASON = "guest-mode-limit";
 export const DAILY_LIMIT_REASON = "daily-limit";
 
 /** The presentation for a single limit reason. */
@@ -41,11 +38,6 @@ type LimitNotice = {
  * for any new `join:error` reason and the home-screen notice supports it.
  */
 export const LIMIT_NOTICES: Record<string, LimitNotice> = {
-	[GUEST_MODE_LIMIT_REASON]: {
-		title: "You've used your guest game",
-		body: "Guests get one game per mode. Sign in with a real account to keep playing and unlock duels, friends, and saved stats.",
-		cta: { label: "Sign in to play more", href: "/sign-in" },
-	},
 	[DAILY_LIMIT_REASON]: {
 		title: "Daily game limit reached",
 		body: "Free accounts get 3 realtime games per day, shared across Battle Royale and Race. Your limit resets at midnight UTC — or go premium for unlimited play.",

@@ -17,7 +17,7 @@ import {
 	utcDayKey,
 } from "@/db/schema";
 import { env } from "@/env";
-import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import logger, { serializeError } from "@/server/logger";
 import { polar } from "@/server/polar";
 
@@ -50,9 +50,9 @@ export const billingRouter = createTRPCRouter({
 	/**
 	 * Current premium status for the signed-in (non-guest) user, computed from the
 	 * `profiles` row the Polar webhook maintains. Guests are rejected by
-	 * `guestProtectedProcedure` before this runs.
+	 * `protectedProcedure` before this runs.
 	 */
-	status: guestProtectedProcedure.query(
+	status: protectedProcedure.query(
 		async ({ ctx }): Promise<BillingStatus> => {
 			const [profile] = await ctx.db
 				.select({
@@ -83,10 +83,10 @@ export const billingRouter = createTRPCRouter({
 	 * match start, so the display and the server-side gate agree.
 	 *
 	 * Premium users are unlimited: `limit`/`remaining` are null. Guests are
-	 * rejected by `guestProtectedProcedure` (they have the separate one-game-per-
+	 * rejected by `protectedProcedure` (they have the separate one-game-per-
 	 * mode gate instead).
 	 */
-	realtimeUsage: guestProtectedProcedure.query(
+	realtimeUsage: protectedProcedure.query(
 		async ({ ctx }): Promise<RealtimeUsage> => {
 			const now = new Date();
 			const day = utcDayKey(now);
@@ -153,7 +153,7 @@ export const billingRouter = createTRPCRouter({
 	 * Returns the reconciled `{ isPremium, status, premiumUntil }` so the caller
 	 * (e.g. the profile page after checkout) can update the UI immediately.
 	 */
-	syncFromPolar: guestProtectedProcedure.mutation(
+	syncFromPolar: protectedProcedure.mutation(
 		async ({ ctx }): Promise<BillingStatus> => {
 			const userId = ctx.user.id;
 

@@ -5,8 +5,7 @@
  * free-tier realtime play limit (free: 3 realtime games per UTC day shared
  * across modes; premium: unlimited). Premium state lives on the player's
  * `profiles` row, maintained by the Polar webhook in apps/client — the game
- * server only READS it here, mirroring how `guestModeGate` reads the per-mode
- * stats tables.
+ * server only READS it here.
  *
  * The "what counts as premium" rule itself (entitling status + not-expired)
  * lives in the shared db package as `isPremiumEntitlement`, so the client's
@@ -26,9 +25,8 @@ import logger from "../utils/logger.js";
 
 /**
  * Returns whether the given user currently has premium access, read from their
- * `profiles` row. Registered or guest — this only reflects billing state; guest
- * gating is handled separately by `guestModeGate`. On any read error, resolves
- * to `false` (apply free-tier limits).
+ * `profiles` row. On any read error, resolves to `false` (apply free-tier
+ * limits).
  */
 export const isPremiumUser = async (userId: string): Promise<boolean> => {
   try {

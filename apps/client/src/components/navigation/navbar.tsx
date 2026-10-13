@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SUPPORT_EMAIL } from "@/constants";
 import { useAuthStore } from "@/state/auth-store";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { AnimatePresence, motion } from "motion/react";
 
 const Navbar = () => {
@@ -16,9 +15,6 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-
-  // Guest gating (R7.4): hide the Friends link for anonymous sessions.
-  const isGuest = useIsGuest();
 
   const profileName = useAuthStore((state) => state.profileName);
   const profileEmail = useAuthStore((state) => state.profileEmail);
@@ -105,35 +101,29 @@ const Navbar = () => {
           <Home aria-hidden="true" size={16} />
           Home
         </Link>
-        {/* Guest gating (R7.4): Friends link hidden for guests. */}
-        {!isGuest && (
-          <Link
-            href="/friends"
-            className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
-              router.pathname === "/friends"
-                ? "border-green-400 bg-green-50 text-green-700"
-                : "border-gray-200 hover:bg-gray-100 text-gray-700"
-            }`}
-          >
-            <Users aria-hidden="true" size={16} />
-            Friends
-          </Link>
-        )}
-        {/* Stats link hidden for guests (registered-only, like Friends). */}
-        {!isGuest && (
-          <Link
-            href="/stats"
-            className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
-              router.pathname === "/stats"
-                ? "border-green-400 bg-green-50 text-green-700"
-                : "border-gray-200 hover:bg-gray-100 text-gray-700"
-            }`}
-          >
-            <ChartColumn aria-hidden="true" size={16} />
-            Stats
-          </Link>
-        )}
-        {/* Leaderboard link visible to everyone (including guests). */}
+        <Link
+          href="/friends"
+          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            router.pathname === "/friends"
+              ? "border-green-400 bg-green-50 text-green-700"
+              : "border-gray-200 hover:bg-gray-100 text-gray-700"
+          }`}
+        >
+          <Users aria-hidden="true" size={16} />
+          Friends
+        </Link>
+        <Link
+          href="/stats"
+          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+            router.pathname === "/stats"
+              ? "border-green-400 bg-green-50 text-green-700"
+              : "border-gray-200 hover:bg-gray-100 text-gray-700"
+          }`}
+        >
+          <ChartColumn aria-hidden="true" size={16} />
+          Stats
+        </Link>
+        {/* Leaderboard link visible to everyone. */}
         <Link
           href="/leaderboard"
           className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
@@ -190,17 +180,14 @@ const Navbar = () => {
                   >
                     Roadmap
                   </Link>
-                  {/* Profile / manage subscription. Hidden for guests (billing
-                      and profile management are registered-only). */}
-                  {!isGuest && (
-                    <Link
-                      href="/profile"
-                      onClick={() => setMenuOpen(false)}
-                      className="block w-full px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
-                    >
-                      Profile
-                    </Link>
-                  )}
+                  {/* Profile / manage subscription. */}
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block w-full px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                  >
+                    Profile
+                  </Link>
                   {/* Contact support — a mailto escape hatch so no one ever
                       feels stuck without help. Shown to everyone, guests
                       included (unlike Profile, which is registered-only). */}
@@ -283,43 +270,37 @@ const Navbar = () => {
                   Home
                 </Link>
 
-                {/* Guest gating (R7.4): Friends link hidden for guests. */}
-                {!isGuest && (
-                  <Link
-                    href="/friends"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                      router.pathname === "/friends"
-                        ? "text-green-700"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
-                      F
-                    </span>
-                    Friends
-                  </Link>
-                )}
+                <Link
+                  href="/friends"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/friends"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                    F
+                  </span>
+                  Friends
+                </Link>
 
-                {/* Stats tile hidden for guests (registered-only). */}
-                {!isGuest && (
-                  <Link
-                    href="/stats"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                      router.pathname === "/stats"
-                        ? "text-green-700"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
-                      S
-                    </span>
-                    Stats
-                  </Link>
-                )}
+                <Link
+                  href="/stats"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/stats"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                    S
+                  </span>
+                  Stats
+                </Link>
 
-                {/* Leaderboard tile visible to everyone (including guests). */}
+                {/* Leaderboard tile visible to everyone. */}
                 <Link
                   href="/leaderboard"
                   onClick={() => setMobileMenuOpen(false)}
@@ -353,23 +334,21 @@ const Navbar = () => {
                   Roadmap
                 </Link>
 
-                {/* Profile / manage subscription. Hidden for guests. */}
-                {!isGuest && (
-                  <Link
-                    href="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                      router.pathname === "/profile"
-                        ? "text-green-700"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
-                      P
-                    </span>
-                    Profile
-                  </Link>
-                )}
+                {/* Profile / manage subscription. */}
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
+                    router.pathname === "/profile"
+                      ? "text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                    P
+                  </span>
+                  Profile
+                </Link>
 
                 {/* Contact support — mailto escape hatch, shown to everyone
                     (guests included) so no one feels stuck without help. */}

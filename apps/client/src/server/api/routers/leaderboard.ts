@@ -11,7 +11,7 @@ import {
 	seasonPlacements,
 } from "@/db/schema";
 import { compareSeasonRanking } from "@/db/ranking";
-import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import type { db } from "@/server/db";
 
 /** The server-side Drizzle handle, as exposed on the tRPC context. */
@@ -100,7 +100,7 @@ export const leaderboardRouter = createTRPCRouter({
 	 * bots never have stats rows). The caller's own rank is always surfaced in
 	 * `me`, even when it falls outside the returned page (R3.4).
 	 */
-	board: guestProtectedProcedure
+	board: protectedProcedure
 		.input(boardInput)
 		.query(async ({ ctx, input }) => {
 			const mode = input.mode as ScoredMode;

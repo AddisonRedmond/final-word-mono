@@ -17,7 +17,7 @@ import {
 	nextDisplayNameChangeAt,
 	profiles,
 } from "@/db/schema";
-import { createTRPCRouter, guestProtectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import logger, { serializeError } from "@/server/logger";
 
 // A single shared profanity filter instance (its word list is static, so one
@@ -62,7 +62,7 @@ export const profileRouter = createTRPCRouter({
 	 * was last changed, and whether/when they can change it again. Drives the
 	 * profile form's enabled/disabled state and the "next change" notice.
 	 */
-	displayNameInfo: guestProtectedProcedure.query(
+	displayNameInfo: protectedProcedure.query(
 		async ({ ctx }): Promise<DisplayNameInfo> => {
 			const [profile] = await ctx.db
 				.select({
@@ -97,7 +97,7 @@ export const profileRouter = createTRPCRouter({
 	 * navbar greeting), and stamps `nameChangedAt` to start the next cooldown.
 	 * Returns the fresh DisplayNameInfo so the client can update immediately.
 	 */
-	updateDisplayName: guestProtectedProcedure
+	updateDisplayName: protectedProcedure
 		.input(z.object({ name: displayNameInput }))
 		.mutation(async ({ ctx, input }): Promise<DisplayNameInfo> => {
 			const userId = ctx.user.id;

@@ -5,15 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // page (R3.4 caller row pinned when off-page, R3.7 premium columns gated
 // without hiding the core ranking, plus loading/empty states).
 //
-// The page reads the auth store (authResolved + user), the guest selector, and
-// two tRPC queries (billing.status for the premium gate, leaderboard.board for
-// the ranked page). We mock those boundaries so it renders in jsdom and drive
-// each state through the mock return values.
-
-const isGuestMock = vi.fn<() => boolean>(() => false);
-vi.mock("@/hooks/useIsGuest", () => ({
-	useIsGuest: () => isGuestMock(),
-}));
+// The page reads the auth store (authResolved + user) and two tRPC queries
+// (billing.status for the premium gate, leaderboard.board for the ranked page).
+// We mock those boundaries so it renders in jsdom and drive each state through
+// the mock return values.
 
 // The page selects `authResolved` and `user` from the auth store; the real
 // store builds a Supabase browser client at module load, so stub it.
@@ -90,7 +85,6 @@ const setBoard = (value: {
 beforeEach(() => {
 	authState.authResolved = true;
 	authState.user = { id: "me" };
-	isGuestMock.mockReturnValue(false);
 	billingStatusQuery.mockReturnValue({ data: { isPremium: false } });
 	setBoard({ data: undefined, isLoading: true });
 });
@@ -246,8 +240,8 @@ describe("/leaderboard page states (R3.4, R3.7)", () => {
 		expect(screen.getByText("Best Match")).toBeDefined();
 	});
 
-	it("prompts a guest to sign in instead of showing ranked data (R3.1)", () => {
-		isGuestMock.mockReturnValue(true);
+	it("prompts a signed-out visitor to sign in instead of showing ranked data (R3.1)", () => {
+		authState.user = null;
 
 		render(<Leaderboard />);
 

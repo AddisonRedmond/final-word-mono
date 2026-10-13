@@ -10,7 +10,6 @@ export const env = createEnv({
 		NODE_ENV: z.enum(["development", "test", "production"]),
 		DATABASE_URL: z.string().url(),
 		SUPABASE_SERVICE_ROLE_KEY: z.string(),
-		TURNSTILE_SECRET_KEY: z.string(),
 		// Polar (polar.sh) billing. POLAR_ACCESS_TOKEN is an Organization Access
 		// Token (server-only secret). POLAR_WEBHOOK_SECRET verifies incoming
 		// webhook signatures. POLAR_SERVER selects the sandbox or production API.
@@ -28,7 +27,6 @@ export const env = createEnv({
 		NEXT_PUBLIC_WS_URL: z.string(),
 		NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string(),
 		NEXT_PUBLIC_SUPABASE_URL: z.string(),
-		NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string(),
 		// Polar premium product id, exposed to the browser so the checkout button
 		// knows which product to purchase. Not a secret.
 		NEXT_PUBLIC_POLAR_PREMIUM_PRODUCT_ID: z.string(),
@@ -38,7 +36,6 @@ export const env = createEnv({
 		NODE_ENV: process.env.NODE_ENV,
 		DATABASE_URL: process.env.DATABASE_URL,
 		SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-		TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
 		POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
 		POLAR_WEBHOOK_SECRET: process.env.POLAR_WEBHOOK_SECRET,
 		POLAR_SERVER: process.env.POLAR_SERVER,
@@ -48,7 +45,6 @@ export const env = createEnv({
 			process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 		NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
 		NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
-		NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
 	},
 	/**
 	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

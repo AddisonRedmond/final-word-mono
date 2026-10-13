@@ -6,14 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // layout).
 //
 // The Stats page pulls in the tRPC `api` (two react-query reads), the auth
-// store, and the guest/require-auth hooks. We mock those boundaries so the page
+// store, and the require-auth hook. We mock those boundaries so the page
 // renders in jsdom without a provider/network, and drive each state (loading,
-// empty, populated, premium-gated, guest) through the mock return values.
-
-const isGuestMock = vi.fn<() => boolean>(() => false);
-vi.mock("@/hooks/useIsGuest", () => ({
-	useIsGuest: () => isGuestMock(),
-}));
+// empty, populated, premium-gated) through the mock return values.
 
 // useRequireAuth only reports whether auth has resolved for these tests; the
 // redirect side-effect needs next/router, which we stub below.
@@ -102,7 +97,6 @@ const setStatsMe = (value: {
 
 beforeEach(() => {
 	authResolvedMock.mockReturnValue(true);
-	isGuestMock.mockReturnValue(false);
 	myPlacementsQuery.mockReturnValue(makePlacements());
 	setStatsMe({ isLoading: false, data: undefined });
 });
@@ -231,18 +225,5 @@ describe("/stats page states (R2.6, R2.7)", () => {
 		// Season points surface on the scored seasonal card.
 		expect(screen.getByText("Season points")).toBeDefined();
 		expect(screen.getByText("42")).toBeDefined();
-	});
-
-	it("shows the account prompt for a guest instead of a stats surface", () => {
-		isGuestMock.mockReturnValue(true);
-
-		render(<Stats />);
-
-		expect(screen.getByText("You're playing as a guest")).toBeDefined();
-		expect(
-			screen.getByRole("link", { name: "Create an account" }),
-		).toBeDefined();
-		// The lifetime/season toggle (part of the stats surface) is not shown.
-		expect(screen.queryByRole("button", { name: "Lifetime" })).toBeNull();
 	});
 });

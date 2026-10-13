@@ -32,9 +32,6 @@ function makePlayer(overrides: Partial<RacePlayer> = {}): RacePlayer {
 		name: "Player",
 		isBot: false,
 		isEliminated: false,
-		// RacePlayer now carries the anonymous-sign-in guest flag (Req 4.5/4.6);
-		// the views don't read it, so default it false and allow per-test override.
-		isAnonymous: false,
 		completedWords: 0,
 		qualified: false,
 		roundGuesses: 0,

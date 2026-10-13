@@ -351,7 +351,6 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
 
 		botsDisplayData.set(botId, {
 			name: displayNames[i] ?? botId,
-			isAnonymous: false, // bots are never guest accounts
 			life: lifeExpiry,
 			isEliminated: false,
 			totalGuesses: 0,

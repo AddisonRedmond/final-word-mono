@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import Navbar from "@/components/navigation/navbar";
 import type { GameMode } from "@/db/schema";
-import { useIsGuest } from "@/hooks/useIsGuest";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import type { ModeStatsView } from "@/server/api/routers/stats";
 import { useAuthStore } from "@/state/auth-store";
@@ -177,14 +176,12 @@ const ModeCard: React.FC<{
 
 const Stats: React.FC = () => {
 	const { authResolved } = useRequireAuth();
-	const isGuest = useIsGuest();
 	const user = useAuthStore((state) => state.user);
 
 	const [scope, setScope] = useState<Scope>("lifetime");
 
-	// Both reads are guest-protected on the server, so only fire them for a
-	// resolved, registered user (mirrors profile.tsx's query gating).
-	const canQuery = authResolved && !isGuest && user !== null;
+	// Both reads fire for a resolved user (mirrors profile.tsx's query gating).
+	const canQuery = authResolved && user !== null;
 
 	const { data: stats, isLoading: statsLoading } = api.stats.me.useQuery(
 		{ scope },
@@ -228,25 +225,7 @@ const Stats: React.FC = () => {
 						<h1 className="font-mono text-lg uppercase tracking-wide">Stats</h1>
 					</div>
 
-					{/* Guests can't own stats surfaces (registered-only, R8.2). Point
-					    them to a real account instead of an empty page. */}
-					{authResolved && isGuest ? (
-						<div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
-							<h2 className="font-bold text-amber-900 text-sm uppercase tracking-widest">
-								You're playing as a guest
-							</h2>
-							<p className="mt-1 text-amber-800 text-xs leading-relaxed">
-								Create a free account to track your stats across every mode, see
-								your win streaks, and climb the seasonal leaderboard.
-							</p>
-							<Link
-								className="mt-3 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
-								href="/sign-in"
-							>
-								Create an account
-							</Link>
-						</div>
-					) : (
+					{(
 						<>
 							{/* Lifetime vs current-season toggle (R2.4). */}
 							<div className="flex items-center gap-1 self-start rounded-md border border-gray-200 bg-white/80 p-1">
