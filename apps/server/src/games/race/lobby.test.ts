@@ -327,7 +327,6 @@ const makeMatchWithPlayer = (): RaceMatch => ({
       {
         name: "P1",
         isEliminated: false,
-        isAnonymous: false,
         completedWords: 0,
         qualified: false,
         totalGuesses: 0,

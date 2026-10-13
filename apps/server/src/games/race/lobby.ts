@@ -47,7 +47,6 @@ const projectRaceRoom = (room: RaceRoom): ClientRaceRoom => ({
 const projectRacePlayer = (player: RacePlayer): ClientRacePlayer => ({
   name: player.name,
   isEliminated: player.isEliminated,
-  isAnonymous: player.isAnonymous,
   completedWords: player.completedWords,
   qualified: player.qualified,
   totalGuesses: player.totalGuesses,

@@ -194,7 +194,6 @@ export type ClientBattleRoyaleRoom = Pick<Room, RoomUIFields>;
 // (server-only bookkeeping).
 export type PlayerDisplayUIFields =
   | "name"
-  | "isAnonymous"
   | "revealed_letters"
   | "partialMatches"
   | "noMatch"
@@ -248,7 +247,6 @@ const ROOM_UI_FIELDS = [
 
 const PLAYER_DISPLAY_UI_FIELDS = [
   "name",
-  "isAnonymous",
   "revealed_letters",
   "partialMatches",
   "noMatch",

@@ -48,7 +48,6 @@ const makePlayer = (
   fields: Partial<PlayerDisplay> = {},
 ): PlayerDisplay => ({
   name: id,
-  isAnonymous: false,
   revealed_letters: {},
   partialMatches: [],
   noMatch: [],

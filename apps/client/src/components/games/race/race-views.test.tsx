@@ -37,6 +37,9 @@ function makePlayer(
 		name: "Player",
 		isEliminated: false,
 		completedWords: 0,
+		qualified: false,
+		totalGuesses: 0,
+		correctGuesses: 0,
 		...overrides,
 	};
 }

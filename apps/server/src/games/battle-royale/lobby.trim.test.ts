@@ -38,7 +38,6 @@ const DROPPED_ROOM_KEYS = ["createdAt"];
 // The audited player keep-list (UI_FIELDS.md "Battle Royale / PlayerDisplay").
 const EXPECTED_PLAYER_KEYS = [
   "name",
-  "isAnonymous",
   "revealed_letters",
   "partialMatches",
   "noMatch",
@@ -65,7 +64,6 @@ const DROPPED_PLAYER_KEYS = ["endTimeStamp", "statsPersisted"];
 const makeFullPlayer = (name: string): PlayerDisplay => ({
   // keep-list
   name,
-  isAnonymous: false,
   revealed_letters: { 0: "A" },
   partialMatches: ["b"],
   noMatch: ["c"],

@@ -40,7 +40,6 @@ const DROPPED_ROOM_KEYS = ["createdAt"];
 const EXPECTED_PLAYER_KEYS = [
   "name",
   "isEliminated",
-  "isAnonymous",
   "completedWords",
   "qualified",
   "totalGuesses",
@@ -70,7 +69,6 @@ const makeFullPlayer = (name: string): RacePlayer => ({
   // keep-list
   name,
   isEliminated: true,
-  isAnonymous: false,
   completedWords: 3,
   qualified: true,
   totalGuesses: 12,

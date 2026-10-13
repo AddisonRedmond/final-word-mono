@@ -110,7 +110,6 @@ export type ClientRaceRoom = Pick<RaceRoom, RaceRoomUIFields>;
 export type RacePlayerUIFields =
   | "name"
   | "isEliminated"
-  | "isAnonymous"
   | "completedWords"
   | "qualified"
   | "totalGuesses"
@@ -157,7 +156,6 @@ const RACE_ROOM_UI_FIELDS = [
 const RACE_PLAYER_UI_FIELDS = [
   "name",
   "isEliminated",
-  "isAnonymous",
   "completedWords",
   "qualified",
   "totalGuesses",

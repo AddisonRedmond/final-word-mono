@@ -100,7 +100,6 @@ const room = (over: Partial<ClientRaceRoom> = {}): ClientRaceRoom => ({
 const player = (over: Partial<ClientRacePlayer> = {}): ClientRacePlayer => ({
 	name: "p",
 	isEliminated: false,
-	isAnonymous: false,
 	completedWords: 0,
 	qualified: false,
 	totalGuesses: 0,

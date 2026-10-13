@@ -32,7 +32,6 @@ const ROOM_ID = "test-br-delta-on";
 
 const makePlayer = (id: string): PlayerDisplay => ({
   name: id,
-  isAnonymous: false,
   revealed_letters: {},
   partialMatches: [],
   noMatch: [],

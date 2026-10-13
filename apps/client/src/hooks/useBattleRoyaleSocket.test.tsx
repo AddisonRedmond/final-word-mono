@@ -75,7 +75,6 @@ const player = (
 	over: Partial<ClientBattleRoyalePlayer> = {},
 ): ClientBattleRoyalePlayer => ({
 	name: "p",
-	isAnonymous: false,
 	isEliminated: false,
 	life: 3,
 	totalGuesses: 0,

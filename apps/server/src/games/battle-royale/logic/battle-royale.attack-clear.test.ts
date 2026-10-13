@@ -26,7 +26,6 @@ const USER = "u1";
 
 const makePlayer = (over: Partial<PlayerDisplay> = {}): PlayerDisplay => ({
 	name: USER,
-	isAnonymous: false,
 	isEliminated: false,
 	life: Date.now() + 30_000,
 	totalGuesses: 0,

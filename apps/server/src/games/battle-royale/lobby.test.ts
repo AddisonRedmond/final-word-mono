@@ -32,7 +32,6 @@ const ROOM_ID = "test-br-lobby";
 // (`createdAt`, `endTimeStamp`, `statsPersisted`) so the trim is observable.
 const makePlayer = (id: string): PlayerDisplay => ({
   name: id,
-  isAnonymous: false,
   revealed_letters: {},
   partialMatches: [],
   noMatch: [],

@@ -52,7 +52,6 @@ const projectPlayer = (
   player: PlayerDisplay,
 ): ClientBattleRoyalePlayer => ({
   name: player.name,
-  isAnonymous: player.isAnonymous,
   revealed_letters: player.revealed_letters,
   partialMatches: player.partialMatches,
   noMatch: player.noMatch,

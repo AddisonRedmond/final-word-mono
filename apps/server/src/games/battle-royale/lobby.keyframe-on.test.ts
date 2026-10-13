@@ -30,7 +30,6 @@ const ROOM_ID = "test-br-keyframe-on";
 
 const makePlayer = (id: string): PlayerDisplay => ({
   name: id,
-  isAnonymous: false,
   revealed_letters: {},
   partialMatches: [],
   noMatch: [],
