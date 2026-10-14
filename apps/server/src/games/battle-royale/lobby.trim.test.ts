@@ -43,6 +43,8 @@ const EXPECTED_PLAYER_KEYS = [
   "noMatch",
   "display_queue",
   "isEliminated",
+  "revealedWord",
+  "points",
   "life",
   "totalGuesses",
   "correctGuesses",
@@ -68,7 +70,13 @@ const makeFullPlayer = (name: string): PlayerDisplay => ({
   partialMatches: ["b"],
   noMatch: ["c"],
   display_queue: [{ 1: "D" }],
-  isEliminated: true,
+  // Not eliminated: this is the full-passthrough fixture, so every keep-list
+  // field (incl. `revealed_letters`) must survive projection. The eliminated
+  // case — where `revealed_letters` is intentionally dropped — is covered by
+  // its own test below.
+  isEliminated: false,
+  revealedWord: "APPLE",
+  points: 120,
   life: 2,
   totalGuesses: 9,
   correctGuesses: 3,
@@ -161,6 +169,34 @@ describe("serializeGame trim shape (Task 3.3)", () => {
         (authoritativeP1 as unknown as Record<string, unknown>)[key],
       );
     }
+  });
+
+  it("drops revealed_letters for an eliminated player, keeping it for the living", () => {
+    // On elimination the server fills `revealed_letters` with the whole solution
+    // word; no client surface reads it for an eliminated slot, so the projection
+    // drops it to keep dead slots light in every keyframe. A living player's map
+    // is untouched.
+    const game: Game = {
+      room: makeFullRoom(),
+      players: new Map<string, PlayerDisplay>([
+        ["alive", makeFullPlayer("alive")],
+        [
+          "dead",
+          { ...makeFullPlayer("dead"), isEliminated: true },
+        ],
+      ]),
+    };
+
+    const { players } = serializeGame(game);
+
+    // Living player: the full revealed map survives.
+    expect(players.alive?.revealed_letters).toEqual({ 0: "A" });
+    // Eliminated player: revealed_letters is dropped (undefined), while the rest
+    // of the keep-list is still projected.
+    expect(players.dead?.revealed_letters).toBeUndefined();
+    expect(players.dead?.isEliminated).toBe(true);
+    expect(players.dead?.life).toBe(2);
+    expect(players.dead?.name).toBe("dead");
   });
 
   it("does not mutate the authoritative game", () => {

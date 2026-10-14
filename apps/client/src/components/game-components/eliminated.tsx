@@ -76,6 +76,16 @@ const Eliminated = ({
                   {eliminatedBy}
                 </span>
               </p>
+              {userData.revealedWord && (
+                <div className="mt-4">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    Your word was
+                  </p>
+                  <p className="mt-1 text-2xl font-black uppercase tracking-[0.25em] text-emerald-300">
+                    {userData.revealedWord}
+                  </p>
+                </div>
+              )}
               <div className="mt-7 grid grid-cols-3 divide-x divide-white/15 border-y border-white/15 py-4">
                 <div className="px-2">
                   <p className="text-xl font-bold tabular-nums">
@@ -102,6 +112,14 @@ const Eliminated = ({
                   </p>
                 </div>
               </div>
+              {typeof userData.points === "number" && (
+                <p className="mt-4 text-sm font-semibold text-zinc-300">
+                  Points earned{" "}
+                  <span className="font-black tabular-nums tracking-wider text-amber-300">
+                    +{userData.points}
+                  </span>
+                </p>
+              )}
               <button
                 type="button"
                 onClick={handleLeave}

@@ -112,6 +112,11 @@ type PlayerStatResult = {
   isDraw: boolean;
   totalGuesses: number;
   correctGuesses: number;
+  // The live player record this outcome belongs to. Optional so pure stat
+  // writes can omit it; when present, `writeModeStats` stamps the same `points`
+  // it banks to the DB onto this object so the end screen shows the exact value
+  // that was scored (single `matchPoints` call, no divergence).
+  player?: PlayerDisplay;
 };
 
 /**
@@ -136,6 +141,12 @@ const writeModeStats = (result: PlayerStatResult, now: Date) => {
   // once per player per game and shared by both the lifetime and seasonal
   // upserts.
   const points = matchPoints(placement, correctGuesses);
+  // Surface the SAME points on the live player so the end screen shows exactly
+  // what was banked. Stamped here (the single `matchPoints` call site) so the
+  // displayed and persisted values can never drift apart.
+  if (result.player) {
+    result.player.points = points;
+  }
   const outcome = {
     won,
     isDraw,
@@ -178,6 +189,30 @@ const upsertPlayerStat = (result: PlayerStatResult, now: Date) =>
   writeModeStats(result, now);
 
 /**
+ * Stamp the winner's end-screen `points` SYNCHRONOUSLY at the moment the match
+ * is decided (placement 1), so the value is on the player before the finishing
+ * tick's keyframe is broadcast.
+ *
+ * The winner's DB stats are written later, from the finish/cleanup path, but
+ * that runs after the final broadcast and then deletes the game — so without
+ * this synchronous stamp the winner's card would never receive its points. The
+ * number is the same `matchPoints(1, correctGuesses)` the DB write recomputes,
+ * so shown and banked always agree. No-op for a bot winner or a draw (no
+ * winnerId).
+ */
+export const stampWinnerPoints = (game: Game): void => {
+  const { winnerId } = game.room;
+  if (!winnerId || !isRealPlayer(winnerId)) {
+    return;
+  }
+  const winner = game.players.get(winnerId);
+  if (!winner) {
+    return;
+  }
+  winner.points = matchPoints(1, winner.correctGuesses);
+};
+
+/**
  * Upsert per-user aggregate Battle Royale stats for a finished match.
  *
  * One row per user (see packages/db schema). Bots are excluded. This never
@@ -218,6 +253,7 @@ export const persistBattleRoyaleStats = async (game: Game): Promise<void> => {
             isDraw: game.room.isDraw,
             totalGuesses: player.totalGuesses,
             correctGuesses: player.correctGuesses,
+            player,
           },
           now,
         );
@@ -291,6 +327,9 @@ export const persistLeaverAsLoss = (game: Game, userId: string): void => {
   const placement = Math.max(1, aliveCount);
   const totalGuesses = player.totalGuesses;
   const correctGuesses = player.correctGuesses;
+  // Stamp points synchronously, consistent with the other outcome paths and
+  // with the synchronous snapshot above (the player is removed right after).
+  player.points = matchPoints(placement, correctGuesses);
   const roomId = game.room.lobbyId;
 
   void (async () => {
@@ -370,6 +409,11 @@ export const persistEliminatedAsLoss = (
     // Mark before the async write so the finish/leave path can't also write.
     player.statsPersisted = true;
     const { totalGuesses, correctGuesses } = player;
+    // Stamp points SYNCHRONOUSLY (like the guess counts above) so the value is
+    // on the player before the next broadcast tick carries it to the end
+    // screen; the DB write below recomputes the identical number from the same
+    // inputs, so the shown and banked points always match.
+    player.points = matchPoints(placement, correctGuesses);
 
     void (async () => {
       try {

@@ -45,6 +45,17 @@ export type PlayerDisplay = {
   display_queue?: RevealedLetters[];
   endTimeStamp?: number;
   isEliminated: boolean;
+  // The solution word this player was on when they were eliminated (or at the
+  // match-time cap). Set once, at the moment of outcome, so the end screen can
+  // show "your word was X" the way Race's result/elimination views do. Undefined
+  // while still alive. Display-safe: an eliminated player is out and can't act
+  // on it. Mirrors Race's `RacePlayer.revealedWord`.
+  revealedWord?: string;
+  // Points this player earned for THIS game (placement + win bonus + combat),
+  // stamped at the moment of outcome from the same `matchPoints(...)` call that
+  // feeds the stats write, so the end-screen number matches what was banked.
+  // Undefined until the player's outcome is decided.
+  points?: number;
   life: number;
   totalGuesses: number;
   correctGuesses: number;
@@ -199,6 +210,8 @@ export type PlayerDisplayUIFields =
   | "noMatch"
   | "display_queue"
   | "isEliminated"
+  | "revealedWord"
+  | "points"
   | "life"
   | "totalGuesses"
   | "correctGuesses"
@@ -252,6 +265,8 @@ const PLAYER_DISPLAY_UI_FIELDS = [
   "noMatch",
   "display_queue",
   "isEliminated",
+  "revealedWord",
+  "points",
   "life",
   "totalGuesses",
   "correctGuesses",

@@ -392,6 +392,14 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       // the match immediately. `finishMatch` is idempotent, so a later correct
       // guess after the first is a no-op.
       if (isFinalRound && result.isMatch) {
+        // Stamp the winner's reveal with the word they JUST SOLVED, before
+        // finishMatch runs. The correct guess above already rotated
+        // `serverData.word` to a fresh next word (line ~343), so finishMatch's
+        // fallback loop would otherwise fill `revealedWord` from that rotated-in
+        // word and show the WRONG word on the victory screen. The won word only
+        // survives here as `guessedWord`; set it now, and finishMatch's loop —
+        // which skips players that already have `revealedWord` — preserves it.
+        player.revealedWord = guessedWord;
         handleFinalRoundWin(match, nsp, config, uid, lifecycleDeps);
         return;
       }

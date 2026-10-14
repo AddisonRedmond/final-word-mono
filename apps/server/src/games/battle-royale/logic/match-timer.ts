@@ -8,7 +8,7 @@ import type {
 import logger from "../../../utils/logger.js";
 import { MATCH_TIME_LIMIT_MS } from "shared/battle-royale.js";
 import { emitBattleRoyaleKeyframe } from "../lobby.js";
-import { persistEliminatedAsLoss } from "../stats.js";
+import { persistEliminatedAsLoss, stampWinnerPoints } from "../stats.js";
 
 type RevealEliminatedPlayerWord = (
   player: PlayerDisplay,
@@ -107,6 +107,10 @@ export const scheduleMatchTimeLimit = ({
       if (eliminatedThisTick.length > 0) {
         persistEliminatedAsLoss(game, eliminatedThisTick);
       }
+
+      // Stamp the winner's end-screen points now, before the terminal keyframe
+      // below carries it out and cleanup deletes the game.
+      stampWinnerPoints(game);
 
       logger.info(
         {

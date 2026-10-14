@@ -47,16 +47,29 @@ const projectRoom = (room: Room): ClientBattleRoyaleRoom => ({
  * ONLY the keep-list fields the client renders — `endTimeStamp` (survival time
  * is derived from `life`) and `statsPersisted` (server-only bookkeeping) are
  * dropped. Returns a NEW object; the live player is never mutated (Req 2.4).
+ *
+ * `revealed_letters` is dropped for ELIMINATED players: no client surface reads
+ * it for them (eliminated opponents are filtered out of the opponents grid, and
+ * an eliminated player's own board is covered by the `Eliminated` overlay, which
+ * reads none of these letters). On elimination the server fills this map with
+ * the whole solution word, so keeping it would re-broadcast a full-word map for
+ * every eliminated slot in every keyframe for the rest of the match — the bulk
+ * of the keyframe growth observed in prod. Dropping it keeps dead slots light.
  */
 const projectPlayer = (
   player: PlayerDisplay,
 ): ClientBattleRoyalePlayer => ({
   name: player.name,
-  revealed_letters: player.revealed_letters,
+  revealed_letters: player.isEliminated ? undefined : player.revealed_letters,
   partialMatches: player.partialMatches,
   noMatch: player.noMatch,
   display_queue: player.display_queue,
   isEliminated: player.isEliminated,
+  // Set once at the moment of outcome; carries the eliminated player's word and
+  // this game's points to the end screen. Undefined (and thus absent-valued)
+  // for living players.
+  revealedWord: player.revealedWord,
+  points: player.points,
   life: player.life,
   totalGuesses: player.totalGuesses,
   correctGuesses: player.correctGuesses,

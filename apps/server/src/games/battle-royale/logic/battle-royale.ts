@@ -26,7 +26,11 @@ import type {
 import logger from "../../../utils/logger.js";
 import { emitBattleRoyaleKeyframe } from "../lobby.js";
 import { shareCodes } from "../state.js";
-import { persistBattleRoyaleStats, persistEliminatedAsLoss } from "../stats.js";
+import {
+	persistBattleRoyaleStats,
+	persistEliminatedAsLoss,
+	stampWinnerPoints,
+} from "../stats.js";
 import { generateBotNames } from "./bot-names.js";
 import { scheduleMatchTimeLimit } from "./match-timer.js";
 import words from "./words.js";
@@ -385,6 +389,11 @@ const revealEliminatedPlayerWord = (
 	});
 
 	player.revealed_letters = revealed;
+	// Also stamp the scalar word for the end screen. `revealed_letters` is
+	// dropped from the broadcast for eliminated players (it's a heavy per-index
+	// map no live surface renders for them), so the end-screen reveal reads this
+	// small scalar instead — mirroring Race's `revealedWord`.
+	player.revealedWord = word;
 };
 
 export const handleStartGame = (
@@ -537,6 +546,10 @@ export const handleStartGame = (
 			const [winnerId] = remainingPlayers[0] as [string, PlayerDisplay];
 			game.room.winnerId = winnerId;
 			game.room.isFinished = true;
+			// Stamp the winner's points now, before this tick's keyframe is emitted
+			// below and the game is cleaned up — the finish-path DB write runs too
+			// late to reach the winner's end screen.
+			stampWinnerPoints(game);
 			logger.info(
 				{ roomId: game.room.lobbyId, winnerId },
 				"Game ended: one player remains",

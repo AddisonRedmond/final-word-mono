@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io-client";
 import type { RefObject } from "react";
 import type { PlayerDisplay, TargetType } from "@/types/battle-royale.types";
-import SpellCheckWords from "@/utils/spell-check-words";
+import { FIVE_LETTER_WORDS } from "@/shared/spell-check-words";
 
 export type SocketRef = RefObject<Socket | null>;
 
@@ -11,7 +11,7 @@ type GuessArgs = {
   socketRef: SocketRef;
 };
 
-const validGuessWords = new Set(SpellCheckWords);
+const validGuessWords = new Set(FIVE_LETTER_WORDS);
 
 const normalizeGuess = (word: string): string => word.trim().toUpperCase();
 

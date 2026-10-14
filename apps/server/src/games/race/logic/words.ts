@@ -1,14 +1,16 @@
 import { WORDS_BY_LENGTH } from "shared/words.js";
 
-// Race_Mode word source. Reuses the shared per-length word lists (relocated
-// from the client) so there is a single source of truth for the 4/5/6-letter
-// vocabularies. Unlike Battle Royale, there are no attack-word bonus lists.
+// Race_Mode SECRET word source. Draws from the shared per-length GUESS word
+// lists (`words.ts`) — the curated answer pool — so secrets are fair, common
+// words. Guess spell-checking is a separate concern handled client-side against
+// the larger `spell-check-words.ts` lexicon. Unlike Battle Royale, there are no
+// attack-word bonus lists.
 
 /**
- * Select a uniformly-random word of the requested length from the shared
- * per-length list. Falls back to a length-appropriate placeholder if no list
- * is configured for that length (should not happen for validated Race_Config
- * word lengths of 4, 5, or 6).
+ * Select a uniformly-random SECRET word of the requested length from the shared
+ * per-length guess-word list. Falls back to a length-appropriate placeholder if
+ * no list is configured for that length (should not happen for validated
+ * Race_Config word lengths of 4, 5, or 6).
  */
 export const getRandomWord = (length: number): string => {
   const list = WORDS_BY_LENGTH[length];

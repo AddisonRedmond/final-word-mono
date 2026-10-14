@@ -145,6 +145,14 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
                   </p>
                 </div>
               </div>
+              {typeof userData.points === "number" && (
+                <p className="mt-4 text-sm font-semibold text-zinc-300">
+                  Points earned{" "}
+                  <span className="font-black tabular-nums tracking-wider text-amber-300">
+                    +{userData.points}
+                  </span>
+                </p>
+              )}
               <button
                 type="button"
                 onClick={handleLeave}

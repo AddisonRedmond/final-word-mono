@@ -1,12 +1,13 @@
-import { WORDS_BY_LENGTH } from "@/shared/words";
+import { SPELL_CHECK_WORDS_BY_LENGTH } from "@/shared/spell-check-words";
 
 // Race client-side guess validation, mirroring Battle Royale's
 // `utils/battle-royale.ts` `isValidGuess`. Battle Royale is fixed at 5-letter
 // words, so it hardcodes the length and a single 5-letter dictionary; Race has
 // per-round word lengths (4/5/6), so validation is length-aware and checks the
-// matching shared per-length list — the same vocabulary the server draws target
-// words from (`shared/words`), so a word the client accepts is one the server
-// could have assigned.
+// matching shared per-length SPELL-CHECK list (`spell-check-words.ts`). That
+// lexicon is a superset of the server's secret pool (`words.ts`), so every word
+// the server could assign is accepted here, plus the many valid English words a
+// player may legitimately guess that are never used as answers.
 
 /** Case-insensitive, trimmed, upper-cased form used for dictionary lookups. */
 const normalizeGuess = (word: string): string => word.trim().toUpperCase();
@@ -14,7 +15,7 @@ const normalizeGuess = (word: string): string => word.trim().toUpperCase();
 // Build a lookup Set per length once, from the shared per-length lists, so
 // validation is O(1) rather than scanning the array on every keystroke/submit.
 const wordSetsByLength: Record<number, Set<string>> = Object.fromEntries(
-	Object.entries(WORDS_BY_LENGTH).map(([length, words]) => [
+	Object.entries(SPELL_CHECK_WORDS_BY_LENGTH).map(([length, words]) => [
 		Number(length),
 		new Set(words.map((word) => word.toUpperCase())),
 	]),

@@ -1,15 +1,19 @@
-import { FIVE_LETTER_WORDS as words } from "@/shared/words";
+import { FIVE_LETTER_GUESS_WORDS as secretWords } from "@/shared/words";
+import { FIVE_LETTER_WORDS as spellCheckWords } from "@/shared/spell-check-words";
 import type { DuelParticipant } from "@/db/schema";
 
 export const WORD_LENGTH = 5;
 export const MAX_GUESSES = 6;
-const validWords = new Set(words.map((word) => word.toUpperCase()));
+// Spell-check against the larger lexicon so any valid English word is an
+// allowed guess, while secrets are drawn only from the curated guess pool.
+const validWords = new Set(spellCheckWords.map((word) => word.toUpperCase()));
 
+/** Picks a SECRET word from the curated five-letter guess/answer pool. */
 export const getRandomWord = (): string => {
-  return words[Math.floor(Math.random() * words.length)]!;
+  return secretWords[Math.floor(Math.random() * secretWords.length)]!;
 };
 
-/** Returns whether a five-letter guess exists in the canonical duel word list. */
+/** Returns whether a five-letter guess is a real word in the spell-check lexicon. */
 export const isValidDuelWord = (word: string): boolean =>
   word.length === WORD_LENGTH && validWords.has(word.toUpperCase());
 
