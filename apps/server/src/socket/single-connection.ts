@@ -1,4 +1,4 @@
-import type { ExtendedError, Server, Socket } from "socket.io";
+import type { ExtendedError, Namespace, Server, Socket } from "socket.io";
 import logger from "../utils/logger.js";
 
 /**
@@ -9,22 +9,38 @@ export const ALREADY_CONNECTED_MESSAGE =
   "You already have an active game open in another client.";
 
 /**
- * Tracks the live socket id for each authenticated user so a single user can
- * only hold one connection at a time. Keyed by `socket.data.userId`.
+ * Tracks the live socket for each authenticated user so a single user can only
+ * hold ONE connection at a time — across EVERY namespace, not just one.
+ *
+ * The games live on separate Socket.IO namespaces (Battle Royale on the default
+ * `/`, Race on `/race`), and Socket.IO middleware/connection events are
+ * per-namespace. So the guard must be installed on each namespace, all sharing
+ * this one module-level registry; otherwise a user could hold a `/` socket and
+ * a `/race` socket at the same time (the cross-mode bug this prevents). We store
+ * the Socket reference (not just its id) so a colliding connection can inspect
+ * whether the previous socket is still live.
  */
-const activeSocketByUser = new Map<string, string>();
+const activeSocketByUser = new Map<string, Socket>();
 
 /**
- * Enforces a single active socket per authenticated user.
+ * Enforces a single active socket per authenticated user, spanning all
+ * namespaces it is installed on.
  *
- * Must be installed AFTER the auth middleware so `socket.data.userId` is
- * populated. The middleware rejects any connection from a user who already has
- * a live socket; the thrown error's message is delivered to the client's
- * `connect_error` listener. A `connection`/`disconnect` listener keeps the
- * registry in sync so a user can reconnect once their previous socket closes.
+ * Install on each namespace AFTER its auth middleware so `socket.data.userId`
+ * is populated (default namespace in `index.ts`, `/race` in the Race module).
+ *
+ * Collision handling: if the user already has a RECORDED socket, we check
+ * whether it is still connected.
+ *   - Still connected  -> a genuine second tab/device: reject the new socket
+ *     (the message reaches the client's `connect_error` listener).
+ *   - Already gone      -> the common page-refresh case, where the browser opens
+ *     the new socket before the old one's `disconnect` has reached the server.
+ *     We take over the slot and admit the new socket, so a refresh (including a
+ *     refresh into the OTHER game mode) reconnects cleanly instead of hitting a
+ *     false "already connected" rejection.
  */
-export const installSingleConnection = (io: Server) => {
-  io.use((socket: Socket, next: (err?: ExtendedError) => void) => {
+export const installSingleConnection = (target: Server | Namespace) => {
+  target.use((socket: Socket, next: (err?: ExtendedError) => void) => {
     const userId = socket.data.userId as string | undefined;
 
     if (!userId) {
@@ -33,20 +49,24 @@ export const installSingleConnection = (io: Server) => {
       return;
     }
 
-    if (activeSocketByUser.has(userId)) {
+    const existing = activeSocketByUser.get(userId);
+
+    if (existing && existing.connected && existing.id !== socket.id) {
       logger.warn(
-        { userId, socketId: socket.id },
+        { userId, socketId: socket.id, existingSocketId: existing.id },
         "Rejected duplicate socket connection for user",
       );
       next(new Error(ALREADY_CONNECTED_MESSAGE));
       return;
     }
 
-    activeSocketByUser.set(userId, socket.id);
+    // No live prior socket (or it is the refresh case where the old one is
+    // already closing): take over the slot.
+    activeSocketByUser.set(userId, socket);
     next();
   });
 
-  io.on("connection", (socket: Socket) => {
+  target.on("connection", (socket: Socket) => {
     const userId = socket.data.userId as string | undefined;
 
     socket.on("disconnect", () => {
@@ -56,9 +76,16 @@ export const installSingleConnection = (io: Server) => {
 
       // Only clear the slot if this socket is the one we recorded, so a stale
       // disconnect can't free a slot a newer connection legitimately owns.
-      if (activeSocketByUser.get(userId) === socket.id) {
+      if (activeSocketByUser.get(userId)?.id === socket.id) {
         activeSocketByUser.delete(userId);
       }
     });
   });
+};
+
+/**
+ * Test-only: clears the cross-namespace registry so each test starts clean.
+ */
+export const __resetActiveSocketsForTest = () => {
+  activeSocketByUser.clear();
 };

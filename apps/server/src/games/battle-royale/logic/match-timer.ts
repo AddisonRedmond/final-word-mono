@@ -7,6 +7,7 @@ import type {
 } from "types/battle-royale.types.js";
 import logger from "../../../utils/logger.js";
 import { MATCH_TIME_LIMIT_MS } from "shared/battle-royale.js";
+import { emitBattleRoyaleKeyframe } from "../lobby.js";
 import { persistEliminatedAsLoss } from "../stats.js";
 
 type RevealEliminatedPlayerWord = (
@@ -118,9 +119,15 @@ export const scheduleMatchTimeLimit = ({
       );
     }
 
-    io.to(game.room.lobbyId).emit("lobby:update", {
-      ...game,
-      players: Object.fromEntries(game.players),
-    });
+    // Terminal state broadcast at the match cap, right before teardown. Route
+    // it through the shared keyframe emitter rather than a bare `serializeGame`
+    // emit so it goes through the keyframe/delta decision like every other
+    // state broadcast (realtime-broadcast-scaling Req 3.7). Flag-OFF this is
+    // byte-identical to the previous full `lobby:update` snapshot; flag-ON it
+    // is a proper keyframe that advances the room's version so a stale bare
+    // snapshot never desyncs the client's sequence base. A keyframe is the
+    // right shape here: it is the definitive final full state (mirrors Race's
+    // finish-side `emitRaceUpdate`), and it correctly advances `seq`/`lastSent`.
+    emitBattleRoyaleKeyframe(io, game.room.lobbyId, game);
     cleanupGame(game.room.lobbyId, games, serverOnlyData, serverOnlyBotData);
   }, MATCH_TIME_LIMIT_MS);

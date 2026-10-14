@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import type { RacePlayer } from "@/types/race.types";
+import type { ClientRacePlayer } from "@/types/race.types";
 import {
 	GAP,
 	getInitials,
@@ -10,7 +10,10 @@ import {
 	MAX_RACE_OPPONENT_WIDTH,
 } from "@/utils/opponents";
 
-export type RaceOpponent = RacePlayer & { id: string };
+// Opponent cards render off the trimmed broadcast player (ClientRacePlayer),
+// not the full authoritative RacePlayer — the dropped server-only fields are
+// never on the wire.
+export type RaceOpponent = ClientRacePlayer & { id: string };
 
 type RaceOpponentsProps = {
 	/** Non-self players to render in this flanking column. */

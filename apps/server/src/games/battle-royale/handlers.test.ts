@@ -41,6 +41,7 @@ type FakeSocket = {
   id: string;
   data: { userId: string; name: string; roomId?: string };
   handlers: Record<string, (...args: unknown[]) => unknown>;
+  emitted: Array<{ event: string; payload: unknown }>;
   leftRooms: string[];
   on: (event: string, cb: (...args: unknown[]) => unknown) => void;
   emit: (event: string, payload?: unknown) => void;
@@ -52,11 +53,14 @@ const makeSocket = (userId: string, name: string): FakeSocket => ({
   id: `sock-${userId}`,
   data: { userId, name },
   handlers: {},
+  emitted: [],
   leftRooms: [],
   on(event, cb) {
     this.handlers[event] = cb;
   },
-  emit() {},
+  emit(event, payload) {
+    this.emitted.push({ event, payload });
+  },
   join() {},
   leave(room) {
     this.leftRooms.push(room);
@@ -65,19 +69,25 @@ const makeSocket = (userId: string, name: string): FakeSocket => ({
 
 const makeIo = () => {
   let connectionCb: ((socket: FakeSocket) => void) | undefined;
+  const toEmits: Array<{ room: string; event: string; payload: unknown }> = [];
   const io = {
     on(event: string, cb: (socket: FakeSocket) => void) {
       if (event === "connection") {
         connectionCb = cb;
       }
     },
-    to() {
-      return { emit: () => {} };
+    to(room: string) {
+      return {
+        emit: (event: string, payload?: unknown) => {
+          toEmits.push({ room, event, payload });
+        },
+      };
     },
   };
   return {
     io: io as unknown as Server,
     connect: (socket: FakeSocket) => connectionCb?.(socket),
+    toEmits,
   };
 };
 
@@ -120,6 +130,16 @@ const wire = (userId: string, name: string) => {
   return socket;
 };
 
+/** Like `wire`, but also surfaces the room-broadcast capture so a test can
+ * assert a resync reply goes to the requesting socket ONLY (never `io.to`). */
+const wireWithRoom = (userId: string, name: string) => {
+  const { io, connect, toEmits } = makeIo();
+  registerBattleRoyaleHandlers(io);
+  const socket = makeSocket(userId, name);
+  connect(socket);
+  return { socket, toEmits };
+};
+
 describe("Battle Royale leave: bots-only cleanup", () => {
   beforeEach(() => {
     games.clear();
@@ -153,6 +173,59 @@ describe("Battle Royale leave: bots-only cleanup", () => {
     expect(games.has(lobbyId)).toBe(false);
     expect(serverOnlyData.has(lobbyId)).toBe(false);
     expect(serverOnlyBotData.has(lobbyId)).toBe(false);
+  });
+
+  // --- resync (realtime-broadcast-scaling Req 4.4, 4.8), flag OFF ---------
+  // Validates: Requirements 4.4, 4.8
+  it("resync (flag OFF) replies to the requesting socket only with the full trimmed snapshot", () => {
+    const userId = randomUUID();
+    const lobbyId = "br-resync-off";
+    seedStartedGame(lobbyId, [
+      [userId, makePlayer({ name: "nina", totalGuesses: 4 })],
+      [randomUUID(), makePlayer({ name: "omar" })],
+    ]);
+
+    const { socket, toEmits } = wireWithRoom(userId, "nina");
+    socket.data.roomId = lobbyId;
+
+    socket.handlers.resync?.();
+
+    // Reply goes to THIS socket, not a room broadcast.
+    const reply = socket.emitted.find((e) => e.event === "lobby:update");
+    expect(reply).toBeDefined();
+    expect(toEmits.length).toBe(0);
+
+    // Flag off → full trimmed snapshot (no envelope seq/type).
+    const payload = reply?.payload as {
+      seq?: number;
+      type?: string;
+      room: { lobbyId: string };
+      players: Record<string, PlayerDisplay>;
+    };
+    expect(payload.type).toBeUndefined();
+    expect(payload.seq).toBeUndefined();
+    expect(payload.room.lobbyId).toBe(lobbyId);
+    expect(payload.players[userId].totalGuesses).toBe(4);
+  });
+
+  it("resync for an unknown room is a safe no-op", () => {
+    const userId = randomUUID();
+    const { socket, toEmits } = wireWithRoom(userId, "rob");
+    socket.data.roomId = "br-does-not-exist";
+
+    expect(() => socket.handlers.resync?.()).not.toThrow();
+    expect(socket.emitted.some((e) => e.event === "lobby:update")).toBe(false);
+    expect(toEmits.length).toBe(0);
+    expect(games.has("br-does-not-exist")).toBe(false);
+  });
+
+  it("resync from a socket not in any room is a safe no-op", () => {
+    const userId = randomUUID();
+    const { socket } = wireWithRoom(userId, "sam");
+    socket.data.roomId = undefined;
+
+    expect(() => socket.handlers.resync?.()).not.toThrow();
+    expect(socket.emitted.some((e) => e.event === "lobby:update")).toBe(false);
   });
 
   it("keeps the game alive when a human leaves but another human (even eliminated/spectating) remains", () => {

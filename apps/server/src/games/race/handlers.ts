@@ -4,8 +4,8 @@ import logger from "../../utils/logger.js";
 import { canStartMatch, recordMatchStart } from "./daily-limit.js";
 import {
   broadcastLobbyMembership,
+  buildRaceKeyframePayload,
   scheduleRaceUpdate,
-  serializeRaceMatch,
 } from "./lobby.js";
 import {
   abandonMatch,
@@ -404,6 +404,54 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       checkEarlyRoundEnd(match, nsp, config, lifecycleDeps);
     });
 
+    // --- resync ------------------------------------------------------------
+    // The client detected a Sequence_Number gap (a dropped/reordered delta —
+    // see client task 7.x) and asks the server for a fresh base to rebase on
+    // (realtime-broadcast-scaling Req 4.4). We reply to THIS socket only (never
+    // a room broadcast) with a fresh Keyframe of the room's current trimmed
+    // state.
+    //
+    // Wire protocol (design.md "Resync" + "the join:ack snapshot now carries
+    // seq"): keyframe and delta ride the SAME event the client already handles
+    // for state — `race:update`. The client reducer (task 7.1) rebases on any
+    // keyframe arriving on that event, so replying there (via `socket.emit`, so
+    // only the requester gets it) needs no new client-side wiring. With the
+    // delta flag OFF `buildRaceKeyframePayload` returns the full trimmed
+    // snapshot, which the client simply replaces its state with — harmless.
+    //
+    // IDEMPOTENT (Req 4.8): a resync has NO side effects on Authoritative_State,
+    // gameplay, scoring, or timing — it only reads the match and advances the
+    // per-room broadcast version by one keyframe (via the shared keyframe
+    // builder), exactly as any other keyframe point does. Repeated resyncs are
+    // therefore safe: each simply replies with another current keyframe. A
+    // resync for an unknown/absent room, or from a socket not in a room, is a
+    // benign no-op (we never throw). The requester may only resync its OWN room
+    // — we look the match up by `socket.data.roomId` and confirm the player is
+    // actually present, mirroring the other handlers' guards.
+    socket.on("resync", () => {
+      const { roomId, userId: uid } = socket.data;
+
+      if (!roomId || !uid) {
+        return;
+      }
+
+      const match = matches.get(roomId);
+      if (!match || !match.players.has(uid)) {
+        logger.warn(
+          { roomId, userId: uid, hasMatch: Boolean(match) },
+          "Race resync ignored: match not found or socket not in the room",
+        );
+        return;
+      }
+
+      socket.emit("race:update", buildRaceKeyframePayload(match));
+
+      logger.info(
+        { roomId, userId: uid },
+        "Race resync: replied to requester with a fresh keyframe",
+      );
+    });
+
     socket.on("join", async (payload?: { code?: string }) => {
       const joinCode = payload?.code?.trim();
       logger.info(
@@ -429,7 +477,11 @@ export const registerRaceHandlers = (nsp: Namespace) => {
           const matchId = existingMatch.room.matchId;
           socket.data.roomId = matchId;
           socket.join(matchId);
-          socket.emit("join:ack", serializeRaceMatch(existingMatch));
+          // Reconnect gets a KEYFRAME: a complete base to rebase on
+          // (realtime-broadcast-scaling Req 3.2). Flag-off this is the full
+          // trimmed snapshot exactly as before; flag-on it is the stamped
+          // keyframe envelope carried on the same `join:ack` event.
+          socket.emit("join:ack", buildRaceKeyframePayload(existingMatch));
           logger.info(
             { matchId, userId, playerCount: existingMatch.players.size },
             "Player reconnected to race match",
@@ -538,9 +590,12 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       socket.data.roomId = matchId;
       socket.join(matchId);
 
-      // Acknowledge this joiner with the current snapshot (Req 10.1), then
-      // broadcast the updated lobby membership to everyone in the lobby (Req 3.6).
-      socket.emit("join:ack", serializeRaceMatch(match));
+      // Acknowledge this joiner with a KEYFRAME — a complete base to start from
+      // (Req 10.1, 3.2) — then broadcast the updated lobby membership to
+      // everyone in the lobby (Req 3.6). Flag-off the join payload is the full
+      // trimmed snapshot exactly as before; flag-on it is the keyframe envelope
+      // on the same `join:ack` event.
+      socket.emit("join:ack", buildRaceKeyframePayload(match));
       broadcastLobbyMembership(nsp, match);
 
       logger.info(

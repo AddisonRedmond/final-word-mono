@@ -8,6 +8,14 @@
     "declaration": true,
     "declarationMap": true,
     "verbatimModuleSyntax": true,
+    // Internal relative imports use the real `.ts` extension so bundlers that
+    // do not do `.js`->`.ts` extension aliasing (e.g. Turbopack, which consumes
+    // this package's source via the client's `@/shared/*` path alias) can
+    // resolve them. `tsc` rewrites them back to `.js` in the emitted dist so the
+    // Node ESM build the server consumes (shared/*.js) stays valid. Mirrors the
+    // `db` package, which solved the same Turbopack limitation the same way.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "strict": true,
     "skipLibCheck": true
   },

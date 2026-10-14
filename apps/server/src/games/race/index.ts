@@ -1,6 +1,7 @@
 import { RACE_CONFIG, raceConfigSchema } from "shared/race.js";
 import type { GameModule } from "../types.js";
 import { installSocketAuth } from "../../socket/auth.js";
+import { installSingleConnection } from "../../socket/single-connection.js";
 import logger from "../../utils/logger.js";
 import { registerRaceHandlers } from "./handlers.js";
 
@@ -14,7 +15,12 @@ import { registerRaceHandlers } from "./handlers.js";
  *      re-check here and bail out without attaching any handlers on failure.
  *   2. Installs the shared Supabase auth middleware on the `/race` namespace so
  *      unauthenticated sockets are rejected before any handler runs (Req 1.4).
- *   3. Attaches Race connection/event handlers on the `/race` namespace, which
+ *   3. Installs the single-active-connection guard on the `/race` namespace,
+ *      AFTER auth (it needs `socket.data.userId`). The guard shares one
+ *      cross-namespace registry with the default namespace, so a user cannot
+ *      hold a Battle Royale (`/`) socket and a Race (`/race`) socket at the same
+ *      time — a refresh into the other mode takes over the single slot instead.
+ *   4. Attaches Race connection/event handlers on the `/race` namespace, which
  *      keeps Race events and state isolated from Battle Royale and Duels
  *      (Req 1.3).
  */
@@ -33,6 +39,7 @@ const race: GameModule = {
 
     const nsp = io.of("/race");
     installSocketAuth(nsp);
+    installSingleConnection(nsp);
     registerRaceHandlers(nsp);
   },
 };

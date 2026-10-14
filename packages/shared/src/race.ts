@@ -44,6 +44,19 @@ export const raceConfigSchema = z
 		penaltyThresholdMs: z.number().int().positive(), // Req 2.4
 		debounceAmountMs: z.number().int().positive(), // Req 2.4
 		updateWindowMs: z.number().int().positive().default(250), // broadcast coalescing (Req 4.7)
+		// Forced-keyframe cadence (realtime-broadcast-scaling, Req 3.6). When a
+		// room has emitted this many deltas since its last keyframe, the next
+		// scheduled broadcast is a keyframe instead of a delta, bounding how far
+		// a client can drift from the Authoritative_State before a full rebase.
+		// Only consulted when `deltaBroadcastEnabled` is on; with the flag off
+		// every broadcast is already a full snapshot so the cadence is moot.
+		keyframeIntervalTicks: z.number().int().positive().default(20),
+		// Delta-broadcast rollout switch (realtime-broadcast-scaling, Req 5.5).
+		// OFF by default so the server emits full Trimmed_Snapshots exactly as
+		// before; flipping it on enables keyframe/delta broadcasting. Kept as a
+		// config flag so a diff/apply bug can be rolled back in production
+		// without reverting the trim or the telemetry.
+		deltaBroadcastEnabled: z.boolean().default(false),
 	})
 	.refine((c) => c.minLobbySize <= c.maxLobbySize, {
 		message: "minLobbySize must be <= maxLobbySize",
@@ -62,6 +75,19 @@ export const eliminationCount = (survivors: number, pct: number): number =>
 	survivors <= 1
 		? 0
 		: Math.min(survivors - 1, Math.max(1, Math.ceil(survivors * pct)));
+
+// Delta-broadcast rollout switch, read from the `DELTA_BROADCAST_ENABLED` env
+// var at module load and defaulting to ON so production runs keyframe/delta
+// broadcasting. Runtime KILL SWITCH: set `DELTA_BROADCAST_ENABLED=false` (or
+// `0`) in the server environment and restart to fall back to full
+// Trimmed_Snapshots — no code change or rebuild. Only an explicit `false`/`0`
+// disables it; absent or a typo stays ON (fails safe). Shared with Battle
+// Royale's `DELTA_BROADCAST_ENABLED` constant, which reads the SAME env var, so
+// one env flip governs both modes (Req 3.7, 5.5).
+const deltaBroadcastEnabledFromEnv = (): boolean => {
+	const raw = process.env.DELTA_BROADCAST_ENABLED?.trim().toLowerCase();
+	return raw !== "false" && raw !== "0";
+};
 
 // Validated default. Parsed at module load so an invalid default would throw
 // on import rather than silently ship a broken config. Tunable without code
@@ -95,4 +121,9 @@ export const RACE_CONFIG: RaceConfig = raceConfigSchema.parse({
 	penaltyThresholdMs: 300,
 	debounceAmountMs: 600,
 	updateWindowMs: 250,
+	// Force a full keyframe at least every 20 deltas (~5s at a 250ms window) so
+	// a client is never more than that far from a rebase point (Req 3.6).
+	keyframeIntervalTicks: 20,
+	// Env-driven rollout switch (default ON). See deltaBroadcastEnabledFromEnv.
+	deltaBroadcastEnabled: deltaBroadcastEnabledFromEnv(),
 });
