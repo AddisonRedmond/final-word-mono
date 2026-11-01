@@ -77,7 +77,7 @@ const OpponentTimer = memo(
         <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-200">
           <div
             ref={barRef}
-            className="h-full rounded-full bg-zinc-700"
+            className="h-full rounded-full bg-zinc-400"
             style={{ width: "100%" }}
           />
         </div>

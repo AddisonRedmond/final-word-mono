@@ -23,6 +23,7 @@ import { useKeyboardLayoutStore } from "@/state/keyboard-layout-store";
 import { toast } from "@/state/toast-store";
 import { api, type RouterOutputs } from "@/utils/api";
 import { isValidDuelWord } from "@/utils/duel";
+import { track } from "@/utils/posthog";
 
 type ActiveDuelData = RouterOutputs["duels"]["startOrResumeDuel"];
 
@@ -220,13 +221,16 @@ const Duels = () => {
   // made we're the initiator and drop straight into the new duel; otherwise
   // we've joined the queue to wait.
   const handleQuickDuel = async () => {
+    track("quick_duel_clicked");
     try {
       const result = await quickDuel.mutateAsync();
       if (result.status === "matched") {
+        track("quick_duel_matched");
         toast("Opponent found!", { variant: "success" });
         await refetchDuels();
         await handleStartDuel(result.duelId);
       } else {
+        track("quick_duel_queued");
         toast("Searching for an opponent…", { variant: "info" });
       }
       await refetchInQueue();

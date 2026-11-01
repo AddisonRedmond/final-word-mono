@@ -2,11 +2,14 @@ import type { AppType } from "next/app";
 import { Geist } from "next/font/google";
 import Head from "next/head";
 import Script from "next/script";
+import { useEffect } from "react";
 import { api } from "@/utils/api";
 import "@/styles/globals.css";
 import Background from "@/components/background/background";
 import DuelNotifications from "@/components/duel-notifications";
 import Toaster from "@/components/toaster";
+import { useAuthStore } from "@/state/auth-store";
+import { identifyUser, initAnalytics, resetAnalytics } from "@/utils/posthog";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/site";
 
 const geist = Geist({
@@ -14,6 +17,24 @@ const geist = Geist({
 });
 
 const MyApp: AppType = ({ Component, pageProps }) => {
+  const userId = useAuthStore((state) => state.user?.id);
+
+  // Initialize PostHog once on the client (no-op without a key, so dev/preview
+  // builds don't run analytics).
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  // Tie events to the signed-in user once auth resolves, and clear the identity
+  // on sign-out so a shared device doesn't attribute events to the wrong user.
+  useEffect(() => {
+    if (userId) {
+      identifyUser(userId);
+    } else {
+      resetAnalytics();
+    }
+  }, [userId]);
+
   return (
     <div className={geist.className}>
       <Head>
