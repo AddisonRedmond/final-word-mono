@@ -17,14 +17,25 @@ export const getRandomWord = (): string => {
 export const isValidDuelWord = (word: string): boolean =>
   word.length === WORD_LENGTH && validWords.has(word.toUpperCase());
 
+// Duel status colours, consolidated to a three-colour language (plus grey for
+// the not-yet-started case). The status keys are kept distinct so the derivation
+// logic and labels stay granular, but they map onto a small, legible palette:
+//   RED    — opt-out / non-finish end states (forfeit, declined)
+//   YELLOW — in progress (started)
+//   GREEN  — any played-to-an-end state (done/solved, lost — ran out of guesses)
+//   GREY   — invited but not yet accepted (pending)
 export const variants = {
+  // End states where the player did not play to a result: gave up or never
+  // joined. Both read as red.
   forfeit: "bg-red-500",
-  // A participant who played to the end but didn't solve the word (ran out of
-  // guesses). Distinct from `forfeit` (gave up) and `declined` (never started).
-  lost: "bg-orange-500",
-  started: "bg-yellow-500",
+  declined: "bg-red-500",
+  // Played to the end — solved or ran out of guesses. Reaching a game result is
+  // the "completed" outcome, so both read as green.
   done: "bg-green-500",
-  declined: "bg-stone-500",
+  lost: "bg-green-500",
+  // In progress.
+  started: "bg-yellow-500",
+  // Invited but has not accepted yet.
   pending: "bg-gray-400",
 } as const;
 

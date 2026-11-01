@@ -10,6 +10,7 @@ import {
   Max_Wait_Time,
   getRandomWord,
   handleAddBots,
+  randomInitialBotSeedCount,
   applyCorrectGuessReward,
   applyAttack,
   cleanupGame,
@@ -302,20 +303,36 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         if (MAX_PLAYERS > totalPlayersJoined) {
           const numberOfBotsToAdd = MAX_PLAYERS - totalPlayersJoined;
 
-          const { botsDisplayData, roomBotServerData } =
-            handleAddBots(numberOfBotsToAdd);
+          // The lobby may already hold SEEDED bots (added at creation so the
+          // room never looked empty). Offset the new bot ids past the existing
+          // ones so this top-up produces `botN..` rather than re-generating
+          // `bot0..` and clobbering the seeded bots (they're keyed by id in both
+          // game.players and serverOnlyBotData).
+          const existingBots = serverOnlyBotData.get(roomId) ?? {};
+          const existingBotCount = Object.keys(existingBots).length;
+
+          const { botsDisplayData, roomBotServerData } = handleAddBots(
+            numberOfBotsToAdd,
+            existingBotCount,
+          );
 
           logger.info(
             {
               roomId,
-              humansJoined: totalPlayersJoined,
+              humansJoined: totalPlayersJoined - existingBotCount,
+              seededBots: existingBotCount,
               botsAdded: numberOfBotsToAdd,
               maxPlayers: MAX_PLAYERS,
             },
             "Added bots to Battle Royale lobby: not enough humans joined to fill the field",
           );
 
-          serverOnlyBotData.set(roomId, roomBotServerData);
+          // Merge the new bots into the room's existing bot data rather than
+          // replacing it, so the seeded bots survive the top-up.
+          serverOnlyBotData.set(roomId, {
+            ...existingBots,
+            ...roomBotServerData,
+          });
 
           // Key bots in game.players by their botId (the Map key), NOT their
           // display name — runBots and the UUID-based bot detection look bots up
@@ -380,6 +397,25 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         roomServerOnlyData = newRoomServerOnlyData;
 
         serverOnlyData.set(roomId, newRoomServerOnlyData);
+
+        // Cold-start seeding: this is a brand-new lobby, so drop a random batch
+        // of bots in immediately (bot0..botN-1) so the roster looks alive the
+        // moment the player lands, instead of an empty room until the start
+        // timer fills it. These bots sit in the roster pre-start (the bot ticker
+        // only runs once the match starts); runStartTimer later tops the lobby
+        // up to MAX_PLAYERS, offsetting past these seeded ids so nothing
+        // collides.
+        const seedCount = randomInitialBotSeedCount();
+        const { botsDisplayData, roomBotServerData } =
+          handleAddBots(seedCount);
+        serverOnlyBotData.set(roomId, roomBotServerData);
+        botsDisplayData.forEach((bot, botId) => {
+          game.players.set(botId, bot);
+        });
+        logger.info(
+          { roomId, seededBots: seedCount },
+          "Seeded new Battle Royale lobby with bots so it doesn't look empty",
+        );
 
         const timers = roomServerOnlyData.timers;
 

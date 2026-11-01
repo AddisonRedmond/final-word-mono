@@ -5,11 +5,16 @@ type StatusBadgeProps = {
   label: string;
 };
 
+// Minimal status chip: a small colour dot (the status colour) next to a neutral
+// label, rather than a fully colour-filled pill. Keeps the three-colour status
+// language legible while staying unobtrusive in the list.
 const StatusBadge: React.FC<StatusBadgeProps> = ({ badgeType, label }) => {
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${variants[badgeType]}`}
-    >
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+      <span
+        aria-hidden="true"
+        className={`size-1.5 shrink-0 rounded-full ${variants[badgeType]}`}
+      />
       {label}
     </span>
   );

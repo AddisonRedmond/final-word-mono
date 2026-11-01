@@ -51,6 +51,13 @@ vi.mock("@/utils/api", () => ({
 				useQuery: () => ({ data: { isChampion: false } }),
 			},
 		},
+		// The duel card's Quick Duel button reads queue status to disable itself
+		// while matchmaking; default to not-queued so the button renders normally.
+		duels: {
+			isInDuelQueue: {
+				useQuery: () => ({ data: false }),
+			},
+		},
 	},
 }));
 
