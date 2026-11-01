@@ -4,7 +4,7 @@ packages:
 allowBuilds:
   '@firebase/util': true
   '@tsparticles/engine': true
-  core-js: set this to true or false
+  core-js: true
   esbuild: true
   protobufjs: true
   sharp: true
