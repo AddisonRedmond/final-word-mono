@@ -62,6 +62,39 @@ export const LOBBY_ARCHETYPES: readonly LobbyArchetype[] = [
 ] as const;
 
 /**
+ * Recover a lobby's difficulty archetype for a top-up batch. If bots are
+ * already present (e.g. a cold-start seed batch chose a band), return the
+ * archetype whose level range best covers the levels already in the lobby, so
+ * the top-up stays in the SAME band rather than re-rolling a conflicting one.
+ * With no bots present yet, roll a fresh archetype.
+ *
+ * Matching by observed level range (rather than threading the exact archetype
+ * object through room state) keeps `RaceBotServerData`/`RoomBotData` unchanged
+ * while still giving a seeded lobby one consistent feel.
+ */
+const getLobbyArchetype = (botData: {
+	[botId: string]: RaceBotServerData;
+}): LobbyArchetype => {
+	const levels = Object.values(botData).map((b) => b.level);
+	if (levels.length === 0) {
+		return rollLobbyArchetype();
+	}
+	const minLevel = Math.min(...levels);
+	const maxLevel = Math.max(...levels);
+	// Prefer the archetype whose band exactly matches the observed range; else
+	// the first archetype that fully contains it; else fall back to a fresh roll.
+	return (
+		LOBBY_ARCHETYPES.find(
+			(a) => a.minLevel === minLevel && a.maxLevel === maxLevel,
+		) ??
+		LOBBY_ARCHETYPES.find(
+			(a) => a.minLevel <= minLevel && a.maxLevel >= maxLevel,
+		) ??
+		rollLobbyArchetype()
+	);
+};
+
+/**
  * Pick one lobby archetype at random, weighted by each archetype's `weight`.
  * Called once per filled lobby so every bot in that game shares a difficulty
  * band.
@@ -158,32 +191,75 @@ export const fillLobbyWithBots = (
 	botData: { [botId: string]: RaceBotServerData },
 	config: RaceConfig,
 ): string[] => {
-	const currentPlayerCount = players.size;
-	const botsToAdd = Math.max(0, config.minLobbySize - currentPlayerCount);
+	const botsToAdd = Math.max(0, config.minLobbySize - players.size);
 	if (botsToAdd === 0) {
 		return [];
 	}
+	// Reuse the lobby's archetype if it was already chosen at seed time (see
+	// `seedLobbyWithBots`), so a seeded-then-filled lobby keeps ONE difficulty
+	// band instead of re-rolling a conflicting one for the top-up batch.
+	const archetype = getLobbyArchetype(botData);
+	return addBotsToLobby(players, botData, config, botsToAdd, archetype);
+};
+
+/**
+ * Cold-start seeding: drop a batch of bots into a BRAND-NEW lobby the moment
+ * it's created, so a player never stares at an empty room during the pre-start
+ * countdown. Unlike `fillLobbyWithBots` (which tops up to `minLobbySize` at
+ * start), this adds an explicit `count` immediately and rolls + remembers the
+ * lobby's difficulty archetype so the later start-time fill reuses it rather
+ * than choosing a second, conflicting band.
+ *
+ * Seeded bots are inert pre-start: their display `RacePlayer` is all-zero and
+ * the bot ticker only runs once a round begins, so nothing "ticks" in the
+ * roster while the lobby waits.
+ */
+export const seedLobbyWithBots = (
+	players: Map<string, RacePlayer>,
+	botData: { [botId: string]: RaceBotServerData },
+	config: RaceConfig,
+	count: number,
+): string[] => {
+	const capped = Math.min(count, Math.max(0, config.maxLobbySize - players.size));
+	if (capped <= 0) {
+		return [];
+	}
+	const archetype = rollLobbyArchetype();
+	return addBotsToLobby(players, botData, config, capped, archetype);
+};
+
+/**
+ * Shared core for both seed and fill: append `botsToAdd` bots to the lobby,
+ * keyed `bot${startIndex + i}` where `startIndex` is the count of bots already
+ * present — so a second batch never collides with (or overwrites) an earlier
+ * one. All bots in the batch are drawn from the given `archetype`.
+ */
+const addBotsToLobby = (
+	players: Map<string, RacePlayer>,
+	botData: { [botId: string]: RaceBotServerData },
+	config: RaceConfig,
+	botsToAdd: number,
+	archetype: LobbyArchetype,
+): string[] => {
+	// Offset past any bots already in the lobby (e.g. a prior seed batch) so ids
+	// stay unique across batches. Bots are the non-UUID keys.
+	const startIndex = Object.keys(botData).length;
 
 	// Seed bot words at the first round's length; the round lifecycle reassigns
 	// per-round words on begin. `rounds` is guaranteed non-empty by the schema.
 	const firstRoundLength = config.rounds[0]?.wordLength ?? 5;
 
-	// Decide ONCE for this game which difficulty archetype its bots are drawn
-	// from, so this lobby has a consistent feel (chill / mixed / sharp / elite)
-	// and games vary from easy to brutal rather than all clustering mid-curve.
-	const archetype = rollLobbyArchetype();
-
 	// Human-looking DISPLAY names, unique within this lobby, so the field reads
 	// like real people instead of "bot0", "bot1", … Reuses Battle Royale's name
 	// generator so the two modes behave identically. IMPORTANT: these are display
-	// names only — each bot is still KEYED `bot${i}` so the UUID-based bot
+	// names only — each bot is still KEYED `bot${n}` so the UUID-based bot
 	// detection in handlers/stats keeps distinguishing bots from real players.
 	const displayNames = generateBotNames(botsToAdd);
 
 	const addedBotIds: string[] = [];
 	const botLevels: number[] = [];
 	for (let i = 0; i < botsToAdd; i++) {
-		const botId = `bot${i}`;
+		const botId = `bot${startIndex + i}`;
 		players.set(botId, makeBotPlayer(displayNames[i] ?? botId));
 		const serverData = makeBotServerData(firstRoundLength, archetype);
 		botData[botId] = serverData;
@@ -201,7 +277,10 @@ export const fillLobbyWithBots = (
 			levelBand: `${archetype.minLevel}-${archetype.maxLevel}`,
 			bias: archetype.bias,
 			botLevelCounts: countLevels(botLevels),
-			humansJoined: currentPlayerCount,
+			// Non-bot participants = everyone present minus all bots (the prior
+			// `startIndex` bots plus the batch just added).
+			humansJoined: players.size - (startIndex + botsToAdd),
+			priorBots: startIndex,
 			botsAdded: botsToAdd,
 			minLobbySize: config.minLobbySize,
 		},
