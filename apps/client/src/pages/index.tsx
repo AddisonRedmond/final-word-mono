@@ -20,6 +20,7 @@ import { useAuthStore } from "@/state/auth-store";
 import { useGameSessionStore } from "@/state/game-session-store";
 import { useServerClockStore } from "@/state/server-clock-store";
 import { api } from "@/utils/api";
+import { track } from "@/utils/posthog";
 import { createClient } from "@/utils/supabase/client";
 
 export default function Home() {
@@ -78,6 +79,17 @@ export default function Home() {
 	useEffect(() => {
 		setMounted(true);
 	}, []);
+
+	// Funnel: a signed-in visitor reached the home menu (top of the activation
+	// funnel). Fire once per mount, only once the menu is actually shown (not
+	// during the loading/redirect states), so the count reflects real entries.
+	const indexViewTracked = useRef(false);
+	useEffect(() => {
+		if (isReady && !indexViewTracked.current) {
+			indexViewTracked.current = true;
+			track("index_viewed");
+		}
+	}, [isReady]);
 
 	useEffect(() => {
 		return () => {

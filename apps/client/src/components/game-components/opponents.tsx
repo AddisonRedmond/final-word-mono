@@ -196,7 +196,7 @@ const OpponentCard = memo(
           },
         }}
         onClick={() => onSelect(opponent.id)}
-        className={`flex cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg bg-zinc-100 p-1.5 shadow-md transition-shadow ${
+        className={`flex shadow-lg cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg border-zinc-100/25 bg-zinc-100/50 p-1.5  transition-shadow ${
           selected
             ? "border-emerald-400 bg-emerald-500/20 ring-2 ring-emerald-400"
             : ""
@@ -258,7 +258,7 @@ const OpponentCard = memo(
           {Array.from({ length: GUESS_LENGTH }, (_, index) => (
             <div
               key={index}
-              className="grid place-content-center rounded-sm bg-emerald-500 font-semibold text-white"
+              className="grid place-content-center rounded-sm bg-emerald-400 font-semibold text-white"
               style={{
                 width: revealedTileSize,
                 height: revealedTileSize,

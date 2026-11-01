@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useEffect, useMemo } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
 import { RACE_CONFIG } from "@/shared/race";
+import GameCenterPanel from "../game-components/game-center-panel";
 import EliminationView from "./race/elimination-view";
 import LobbyView from "./race/lobby-view";
 import type { RaceOpponent } from "./race/race-opponents";
@@ -187,9 +188,7 @@ const Race: React.FC<RaceProps> = ({
 				<div className="min-w-0 flex-1" />
 			)}
 
-			<div className="mx-5 flex flex-col items-center justify-center gap-3">
-				{renderCenter()}
-			</div>
+			<GameCenterPanel>{renderCenter()}</GameCenterPanel>
 
 			{showOpponents ? (
 				<RaceOpponents

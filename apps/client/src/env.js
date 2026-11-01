@@ -30,6 +30,13 @@ export const env = createEnv({
 		// Polar premium product id, exposed to the browser so the checkout button
 		// knows which product to purchase. Not a secret.
 		NEXT_PUBLIC_POLAR_PREMIUM_PRODUCT_ID: z.string(),
+		// PostHog product analytics. Optional so local dev / preview builds run
+		// without analytics configured — PostHog simply doesn't initialize when
+		// the key is absent (see utils/posthog.ts). The key is a PUBLIC project
+		// key (safe in the browser); the host is the ingestion endpoint (defaults
+		// to PostHog US cloud if unset).
+		NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+		NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 	},
 
 	runtimeEnv: {
@@ -45,6 +52,8 @@ export const env = createEnv({
 			process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 		NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
 		NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+		NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+		NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 	},
 	/**
 	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

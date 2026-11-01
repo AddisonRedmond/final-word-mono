@@ -22,6 +22,7 @@ import MatchTimer from "../game-components/match-timer";
 import BonusPreview from "../game-components/bonus-preview";
 import Winner from "../game-components/winner";
 import ShareCode from "../game-components/share-code";
+import GameCenterPanel from "../game-components/game-center-panel";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -219,7 +220,7 @@ const BattleRoyale = ({
         selectedId={target}
         onSelect={handleSelectOpponent}
       />
-      <div className="flex flex-col items-center gap-3 mx-5 justify-center">
+      <GameCenterPanel>
         {lobby?.room.isFinished &&
           lobby.room.winnerId === userId &&
           lobby.players[userId] && (
@@ -323,7 +324,7 @@ const BattleRoyale = ({
             <p className="rounded-md aspect-square p-1 bg-red-300">E</p>
           </button>
         </div>
-      </div>
+      </GameCenterPanel>
       <Opponents
         opponents={oddOpponents}
         selectedId={target}
