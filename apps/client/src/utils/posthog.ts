@@ -29,7 +29,8 @@ let initialized = false;
  * sites.
  */
 const isEnabled = (): boolean =>
-  typeof window !== "undefined" && Boolean(env.NEXT_PUBLIC_POSTHOG_KEY);
+  typeof window !== "undefined" &&
+  Boolean(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN);
 
 /**
  * Initialize PostHog once, on the client. Safe to call repeatedly (guarded).
@@ -44,7 +45,7 @@ export const initAnalytics = (): void => {
   }
   initialized = true;
 
-  posthog.init(env.NEXT_PUBLIC_POSTHOG_KEY as string, {
+  posthog.init(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN as string, {
     api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
     // Respect user privacy by default: don't autocapture every click/input, and
     // mask text in any session data. We rely on explicit `track` events plus
