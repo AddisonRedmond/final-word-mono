@@ -46,7 +46,15 @@ export const initAnalytics = (): void => {
   initialized = true;
 
   posthog.init(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN as string, {
+    // Ingestion host. In production this is our own reverse-proxy domain
+    // (PostHog-managed proxyhog CNAME, e.g. https://n.finalword.io) so events
+    // aren't dropped by ad/privacy blockers that block *.posthog.com. Falls back
+    // to PostHog US cloud when the env var is unset (e.g. local dev).
     api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+    // With a proxied `api_host`, point `ui_host` at the real PostHog app so the
+    // toolbar and in-app "view in PostHog" links resolve to the dashboard rather
+    // than the proxy domain.
+    ui_host: "https://us.posthog.com",
     // Respect user privacy by default: don't autocapture every click/input, and
     // mask text in any session data. We rely on explicit `track` events plus
     // pageviews, which keeps the data clean and the payload small.
