@@ -39,6 +39,22 @@ const initialTimer = 1.5 * 60 * 1000;
 // Lobby wait before a short room is bot-filled and started. Exported so the
 // join handler can refresh the window when a friend joins via share code.
 export const Max_Wait_Time = 30 * 1000; //Seconds
+
+// Cold-start seeding: a brand-new lobby is populated with a random number of
+// bots in this range THE MOMENT it's created, so a player who makes a fresh
+// lobby never stares at an empty room during the start countdown. The lobby is
+// still topped up to MAX_PLAYERS (and started) when the start timer fires; this
+// just makes the roster feel alive immediately. Range picked so the field looks
+// populated but not suspiciously full before the match starts.
+export const INITIAL_BOT_SEED_MIN = 10;
+export const INITIAL_BOT_SEED_MAX = 30;
+
+/** Random seed count in [INITIAL_BOT_SEED_MIN, INITIAL_BOT_SEED_MAX]. */
+export const randomInitialBotSeedCount = (): number =>
+	INITIAL_BOT_SEED_MIN +
+	Math.floor(
+		Math.random() * (INITIAL_BOT_SEED_MAX - INITIAL_BOT_SEED_MIN + 1),
+	);
 const Max_Life_Timer = 1.5 * 60 * 1000; //Seconds
 // §5.2a: cap applies to CEMENTED words only; pending words are an escapable
 // buffer and don't count. Re-exported under the old name so existing callers
@@ -316,7 +332,21 @@ export const cleanupGame = (
 	serverOnlyBotData.delete(roomId);
 };
 
-export const handleAddBots = (numberOfBotsToAdd: number) => {
+/**
+ * Build `numberOfBotsToAdd` bots (display data + server data) for a lobby.
+ *
+ * `startIndex` offsets the bot id/name numbering so a lobby can be populated in
+ * MORE THAN ONE call without id collisions: seeding a new lobby creates
+ * `bot0..botN-1`, and a later top-up at match start must pass `startIndex` equal
+ * to the number of bots already present so it produces `botN..` instead of
+ * re-generating `bot0..` and overwriting the seeded bots (bots are keyed by id
+ * in both `game.players` and `serverOnlyBotData`). Defaults to 0 for the simple
+ * single-call case.
+ */
+export const handleAddBots = (
+	numberOfBotsToAdd: number,
+	startIndex = 0,
+) => {
 	const getRandomLevel = (): 1 | 2 | 3 | 4 => {
 		// Average several uniform rolls to approximate a bell curve centered on level 3.
 		const rolls = 3;
@@ -333,16 +363,16 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
 
 	const roomBotServerData: { [botId: string]: BotServerData } = {};
 	const botsDisplayData = new Map<string, PlayerDisplay>();
-	const lifeExpiry = Date.now() + initialTimer;
 	// Human-looking display names, unique within this lobby. The bot's ID stays
 	// `bot${i}` (used everywhere to tell bots from real players); only the shown
 	// name changes so the field reads like real people.
 	const displayNames = generateBotNames(numberOfBotsToAdd);
 
 	for (let i = 0; i < numberOfBotsToAdd; i++) {
-		// Bot ID/key — NOT the display name. Must remain a non-UUID `bot${i}` so the
-		// UUID-based bot detection in handlers.ts / stats.ts keeps working.
-		const botId = `bot${i}`;
+		// Bot ID/key — NOT the display name. Must remain a non-UUID `bot${n}` so the
+		// UUID-based bot detection in handlers.ts / stats.ts keeps working. Offset
+		// by `startIndex` so multiple add-calls for the same lobby don't collide.
+		const botId = `bot${startIndex + i}`;
 
 		roomBotServerData[botId] = {
 			word: getRandomWord(),
@@ -356,7 +386,11 @@ export const handleAddBots = (numberOfBotsToAdd: number) => {
 
 		botsDisplayData.set(botId, {
 			name: displayNames[i] ?? botId,
-			life: lifeExpiry,
+			// Life starts UNARMED (0), matching how human players are seeded
+			// pre-start. `handleStartGame` arms every player's life at match start,
+			// so a bot's countdown must NOT already be ticking while the lobby is
+			// still waiting — otherwise seeded bots visibly count down pre-start.
+			life: 0,
 			isEliminated: false,
 			totalGuesses: 0,
 			correctGuesses: 0,

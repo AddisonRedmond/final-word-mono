@@ -1,5 +1,6 @@
 import { AnimatePresence } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Button from "@/components/button";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -50,6 +51,8 @@ const Duels = () => {
   const forfeitDuel = api.duels.forfeitDuel.useMutation();
   const acknowledgeDuel = api.duels.acknowledgeDuel.useMutation();
   const makeGuess = api.duels.handleDuelGuess.useMutation();
+  const quickDuel = api.duels.handleAddToDuelQueue.useMutation();
+  const leaveQueue = api.duels.leaveDuelQueue.useMutation();
 
   const utils = api.useUtils();
 
@@ -74,6 +77,14 @@ const Duels = () => {
   });
 
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const router = useRouter();
+
+  // Whether the user is currently waiting in the Quick Duel queue. Drives the
+  // button's "searching / cancel" state; refetched after queue actions.
+  const { data: isInQueue, refetch: refetchInQueue } =
+    api.duels.isInDuelQueue.useQuery(undefined, {
+      enabled: Boolean(currentUserId),
+    });
 
   // Keyboard Enter/Delete swap preference (persisted). Toggled from the duel
   // board modal header.
@@ -204,6 +215,61 @@ const Duels = () => {
     setActiveDuelData(result);
     setIsDueling(true);
   };
+
+  // Quick Duel: ask the server to pair us with waiting players. If a match is
+  // made we're the initiator and drop straight into the new duel; otherwise
+  // we've joined the queue to wait.
+  const handleQuickDuel = async () => {
+    try {
+      const result = await quickDuel.mutateAsync();
+      if (result.status === "matched") {
+        toast("Opponent found!", { variant: "success" });
+        await refetchDuels();
+        await handleStartDuel(result.duelId);
+      } else {
+        toast("Searching for an opponent…", { variant: "info" });
+      }
+      await refetchInQueue();
+    } catch (error) {
+      // Surface server gate messages (e.g. active-duel cap) rather than a
+      // silent reject.
+      toast(
+        error instanceof Error
+          ? error.message
+          : "Couldn't start a quick duel — please try again.",
+        { variant: "error" },
+      );
+    }
+  };
+
+  const handleCancelQueue = async () => {
+    await leaveQueue.mutateAsync();
+    await refetchInQueue();
+    toast("Left the quick duel queue", { variant: "info" });
+  };
+
+  // Deep-link entry from the home-screen Quick Duel button (`/duels?quick=1`).
+  // When we arrive with that flag, auto-start matchmaking once, then strip the
+  // param so a refresh or back-nav doesn't re-trigger it. The ref guards against
+  // React re-renders / strict-mode double-invoke firing it twice.
+  const quickDeepLinkFired = useRef(false);
+  useEffect(() => {
+    if (
+      !router.isReady ||
+      quickDeepLinkFired.current ||
+      router.query.quick !== "1" ||
+      !currentUserId
+    ) {
+      return;
+    }
+    quickDeepLinkFired.current = true;
+    // Remove the query param without a navigation/scroll so the URL is clean.
+    void router.replace("/duels", undefined, { shallow: true });
+    void handleQuickDuel();
+    // handleQuickDuel is a stable-enough closure for this one-shot effect; we
+    // intentionally depend only on the readiness signals that gate the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.quick, currentUserId]);
 
   const handleDuelGuess = async (guess: string) => {
     if (!activeDuelData) {
@@ -384,12 +450,13 @@ const Duels = () => {
       <Tile revealed={true} size="md" variant="correct" word="DUEL" />
 
       <div className="flex min-h-0 w-full max-w-2xl grow flex-col items-center justify-center gap-y-2 px-3 pb-10 sm:px-0">
+        {/* Consolidated three-colour status legend (plus grey "pending"):
+            green = finished (solved or out of guesses), yellow = in progress,
+            red = forfeited/declined, grey = not yet accepted. */}
         <div className="flex w-full flex-wrap gap-2">
-          <StatusBadge badgeType="started" label="Started" />
-          <StatusBadge badgeType="done" label="Done" />
-          <StatusBadge badgeType="lost" label="Lost" />
-          <StatusBadge badgeType="declined" label="Declined" />
-          <StatusBadge badgeType="forfeit" label="Forfeit" />
+          <StatusBadge badgeType="done" label="Finished" />
+          <StatusBadge badgeType="started" label="In Progress" />
+          <StatusBadge badgeType="forfeit" label="Forfeit / Declined" />
           <StatusBadge badgeType="pending" label="Pending" />
         </div>
 
@@ -406,26 +473,35 @@ const Duels = () => {
               >
                 {showArchived ? "Back to duels" : "Archived"}
               </Button>
-
-              {!showArchived && (
-                <Button
-                  disabled={isFetchingDuels}
-                  onClick={() => refetchDuels()}
-                  variant="blue"
-                >
-                  {isFetchingDuels ? (
-                    <span className="inline-block size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              
+              <div className="flex gap-2 border-l border-l-stone-200 pl-2">
+                {/* Quick Duel: while queued, show a searching state with a
+                    Cancel action; otherwise a button that joins matchmaking. */}
+                {!showArchived &&
+                  (isInQueue ? (
+                    <Button
+                      disabled={leaveQueue.isPending}
+                      onClick={() => void handleCancelQueue()}
+                      variant="yellow"
+                    >
+                      {leaveQueue.isPending ? "Cancelling…" : "Searching… Cancel"}
+                    </Button>
                   ) : (
-                    "Refresh"
-                  )}
-                </Button>
-              )}
+                    <Button
+                      disabled={quickDuel.isPending}
+                      onClick={() => void handleQuickDuel()}
+                      variant="blue"
+                    >
+                      {quickDuel.isPending ? "Finding…" : "Quick Duel"}
+                    </Button>
+                  ))}
 
-              {!showArchived && (
-                <Button onClick={() => setIsModalOpen(true)} variant="solid">
-                  New Duel
-                </Button>
-              )}
+                {!showArchived && (
+                  <Button onClick={() => setIsModalOpen(true)} variant="solid">
+                    New Duel
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 

@@ -21,11 +21,13 @@ import {
   startMatch,
   type StartMatchDeps,
 } from "./logic/race.js";
+import { seedLobbyWithBots } from "./logic/bots.js";
 import {
   applyGuess,
   calculateKeyboardMatches,
   mergeKeyboardMatches,
 } from "./logic/round.js";
+import { randomInitialBotSeedCount } from "../battle-royale/logic/battle-royale.js";
 import { persistLeaverAsLoss, persistRaceStats } from "./stats.js";
 import { config, matches, serverOnlyBotData, serverOnlyData } from "./state.js";
 
@@ -577,6 +579,31 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       if (!roomBotData) {
         roomBotData = {};
         serverOnlyBotData.set(matchId, roomBotData);
+      }
+
+      // Cold-start seeding: a brand-new, not-yet-started lobby with no bots gets
+      // a random 10–30 bots dropped in immediately so the roster never looks
+      // empty during the pre-start countdown. Guarded to a fresh lobby (no bots
+      // yet, still in `lobby` phase, and not a friend joining via share code) so
+      // we seed once, on creation. These bots are inert pre-start — the bot
+      // ticker only runs once a round begins — and the start-time fill tops the
+      // lobby up to minLobbySize, reusing this seed's difficulty band and
+      // offsetting ids so nothing collides.
+      if (
+        !joinedViaCode &&
+        match.room.phase === "lobby" &&
+        Object.keys(roomBotData).length === 0
+      ) {
+        const seeded = seedLobbyWithBots(
+          match.players,
+          roomBotData,
+          config,
+          randomInitialBotSeedCount(),
+        );
+        logger.info(
+          { matchId, seededBots: seeded.length },
+          "Seeded new race lobby with bots so it doesn't look empty",
+        );
       }
 
       // Add the joining player's display state (zeroed per-round + per-match

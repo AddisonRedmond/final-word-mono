@@ -437,6 +437,24 @@ export const seasonPlacements = pgTable(
   ],
 );
 
+export const duelQueue = pgTable(
+  "duel_queue",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  // One queue entry per user (the primary key enforces it). `createdAt` gives a
+  // FIFO ordering so Quick Duel pairs the longest-waiting players first.
+  (t) => [primaryKey({ columns: [t.userId] })],
+);
+
+export type DuelQueueEntry = typeof duelQueue.$inferSelect;
+export type NewDuelQueueEntry = typeof duelQueue.$inferInsert;
+
 export type Duel = typeof duels.$inferSelect;
 export type NewDuel = typeof duels.$inferInsert;
 
@@ -544,12 +562,7 @@ export const utcDayKey = (now: Date = new Date()): string =>
  * (NOT a pg enum) guarded by this union — so adding a mode (e.g. a future
  * "classic") is a one-line change here with NO database migration.
  */
-export const GAME_MODES = [
-  "battle_royale",
-  "race",
-  "duel",
-  "classic",
-] as const;
+export const GAME_MODES = ["battle_royale", "race", "duel", "classic"] as const;
 export type GameMode = (typeof GAME_MODES)[number];
 
 /**
@@ -657,9 +670,7 @@ export const matchPoints = (
   combatInput: number,
   config: ScoringConfig = SCORING_CONFIG,
 ): number => {
-  const tier = config.placementTiers.find(
-    (t) => placement <= t.maxPlacement,
-  );
+  const tier = config.placementTiers.find((t) => placement <= t.maxPlacement);
   const placementPoints = tier?.points ?? 0;
   const winBonus = placement === 1 ? config.winBonus : 0;
   const baseCombat = Math.min(
