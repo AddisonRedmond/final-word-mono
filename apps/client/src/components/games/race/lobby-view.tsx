@@ -14,6 +14,13 @@ type LobbyViewProps = {
 	/** Leave the lobby/match. */
 	onLeave: () => void;
 	/**
+	 * Optional warm-up word length. The live Race reads the first round's length
+	 * from `RACE_CONFIG`; the client-side practice mode uses 5-letter words that
+	 * don't match round 0's config, so it passes this so the warm-up board shows
+	 * the right number of tiles. Omitted everywhere else.
+	 */
+	wordLengthOverride?: number;
+	/**
 	 * v1 play-with-friends — this lobby's share code, shown so the player can
 	 * invite friends into the SAME race. Undefined if the room has no code.
 	 */
@@ -43,10 +50,12 @@ const LobbyView: React.FC<LobbyViewProps> = ({
 	onLeave,
 	shareCode,
 	joinNotice,
+	wordLengthOverride,
 }) => {
 	// Warm-up input length = the first round's word length (the length players
-	// will actually guess once the match starts).
-	const wordLength = RACE_CONFIG.rounds[0]?.wordLength ?? 5;
+	// will actually guess once the match starts), or an explicit override for
+	// practice mode.
+	const wordLength = wordLengthOverride ?? RACE_CONFIG.rounds[0]?.wordLength ?? 5;
 
 	const [guess, setGuess] = useState("");
 

@@ -71,11 +71,17 @@ const resolveVariant = (
   partialMatch?: string[],
   noMatch?: string[],
 ): KeyVariant => {
-  if (partialMatch?.includes(letter)) {
-    return "present";
-  }
+  // Precedence matters: a letter can be in MORE THAN ONE set (e.g. a letter
+  // first seen as `present` yellow, later confirmed `correct` green, still
+  // lingers in partialMatch). Resolve in strength order — correct (green) beats
+  // present (yellow) beats absent (grey) — so a confirmed-position letter never
+  // regresses to yellow. (Previously `present` was checked first, which made
+  // correct letters wrongly show yellow.)
   if (Object.values(fullMatch ?? {}).includes(letter)) {
     return "correct";
+  }
+  if (partialMatch?.includes(letter)) {
+    return "present";
   }
   if (noMatch?.includes(letter)) {
     return "absent";

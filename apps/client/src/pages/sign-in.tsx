@@ -1,7 +1,11 @@
 "use client";
 
+import { Zap } from "lucide-react";
 import Head from "next/head";
+import Link from "next/link";
 import Tile from "@/components/tile";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { track } from "@/utils/posthog";
 import { createClient } from "@/utils/supabase/client";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/utils/site";
 import type { NextPage } from "next/types";
@@ -31,6 +35,11 @@ const GAME_MODES = [
 ] as const;
 
 const SignIn: NextPage = () => {
+  // Practice is desktop/tablet-only for now, so only surface its CTA on those
+  // sizes. `!hydrated` hides it until the real viewport width is known (no
+  // flash of a mobile-unavailable link).
+  const { isDesktop, hydrated } = useIsDesktop();
+
   const handleOAuthSignIn = async (provider: "github" | "google") => {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
@@ -80,6 +89,22 @@ const SignIn: NextPage = () => {
             friend head-to-head, or jump into live Battle Royale and Race modes.
           </p>
         </header>
+
+        {/* Primary call to action for cold visitors: let them PLAY before being
+            asked to sign in. Links to the public, no-account practice race —
+            the highest-leverage conversion step for paid ad traffic. Shown only
+            on desktop/tablet, since practice isn't playable on mobile yet (ads
+            currently target those sizes too). */}
+        {hydrated && isDesktop && (
+          <Link
+            className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-4 font-bold text-white uppercase tracking-wider shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-400 active:scale-95 sm:max-w-sm"
+            href="/practice"
+            onClick={() => track("practice_cta_clicked")}
+          >
+            <Zap className="size-4" aria-hidden="true" />
+            PRACTICE! {"(NO ACCOUNT NEEDED)"}
+          </Link>
+        )}
 
         {/* Auth CTA, framed as a warm translucent panel so the sign-in action
           reads as the page's focal point rather than two loose buttons. */}

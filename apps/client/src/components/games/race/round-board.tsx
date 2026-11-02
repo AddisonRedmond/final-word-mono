@@ -25,6 +25,16 @@ type RoundBoardProps = {
 	onGuess: (guess: string) => void;
 	/** Leave the match. */
 	onLeave: () => void;
+	/**
+	 * Optional round-shape overrides. The live Race reads word length and the
+	 * qualifying count from `RACE_CONFIG.rounds[currentRoundIndex]`, which is
+	 * correct for the real game. The client-side PRACTICE mode runs a single
+	 * round with its own shape (5-letter words, qualify with 3) that doesn't
+	 * match any real config round, so it passes these to drive the board
+	 * directly. Omitted everywhere else — prod Race is unchanged.
+	 */
+	wordLengthOverride?: number;
+	qualifyingCountOverride?: number;
 };
 
 /**
@@ -59,6 +69,8 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 	lastAck,
 	onGuess,
 	onLeave,
+	wordLengthOverride,
+	qualifyingCountOverride,
 }) => {
 	const player = match.players[userId];
 	const roundIndex = match.room.currentRoundIndex;
@@ -66,14 +78,17 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 
 	const lastFeedback = lastAck?.perLetter;
 
-	// Fall back to the length of the last graded feedback if the config is ever
-	// out of range, so the input length still matches the server's word.
+	// Prefer explicit overrides (practice mode), then the live config, then the
+	// length of the last graded feedback if the config is ever out of range, so
+	// the input length still matches the current word.
 	const wordLength =
+		wordLengthOverride ??
 		roundConfig?.wordLength ??
 		lastFeedback?.length ??
 		player?.lastFeedback?.length ??
 		5;
-	const qualifyingCount = roundConfig?.qualifyingCount ?? 1;
+	const qualifyingCount =
+		qualifyingCountOverride ?? roundConfig?.qualifyingCount ?? 1;
 	const completedWords = player?.completedWords ?? 0;
 	const isEliminated = player?.isEliminated ?? false;
 	// Once qualified this round the player is safe and waiting — input is locked

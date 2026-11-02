@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Bot, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { ClientRacePlayer } from "@/types/race.types";
@@ -20,6 +20,13 @@ type RaceOpponentsProps = {
 	opponents: RaceOpponent[];
 	/** Words needed to qualify this round; drives the progress bar. */
 	qualifyingCount: number;
+	/**
+	 * Render a robot icon instead of each opponent's initials. Used by the
+	 * client-side PRACTICE mode, where every opponent is a bot and showing a
+	 * robot makes that honest (vs. the live game, which shows real players'
+	 * initials). Defaults to initials.
+	 */
+	showBotIcon?: boolean;
 };
 
 type ContainerSize = {
@@ -38,7 +45,7 @@ type ContainerSize = {
  * targeting.
  */
 const RaceOpponents = memo(
-	({ opponents, qualifyingCount }: RaceOpponentsProps) => {
+	({ opponents, qualifyingCount, showBotIcon = false }: RaceOpponentsProps) => {
 		const ref = useRef<HTMLDivElement>(null);
 
 		const active = useMemo(
@@ -133,9 +140,16 @@ const RaceOpponents = memo(
 									transition={{ duration: 0.25, ease: "easeOut" }}
 								>
 									<div className="flex w-full items-center justify-between gap-x-1">
-										<span className="font-semibold text-[9px] leading-none">
-											{getInitials(opponent.name)}
-										</span>
+										{showBotIcon ? (
+											<Bot
+												aria-label="Bot opponent"
+												className="size-3.5 text-stone-500"
+											/>
+										) : (
+											<span className="font-semibold text-[9px] leading-none">
+												{getInitials(opponent.name)}
+											</span>
+										)}
 										{opponent.qualified && (
 											<span className="grid size-4 place-content-center rounded-full bg-emerald-500 text-white">
 												<Check className="size-3" />
