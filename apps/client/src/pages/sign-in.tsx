@@ -3,6 +3,7 @@
 import { Zap } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import Tile from "@/components/tile";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { track } from "@/utils/posthog";
@@ -39,6 +40,19 @@ const SignIn: NextPage = () => {
   // sizes. `!hydrated` hides it until the real viewport width is known (no
   // flash of a mobile-unavailable link).
   const { isDesktop, hydrated } = useIsDesktop();
+  const router = useRouter();
+
+  // The "Ways to play" cards double as practice on-ramps: clicking any mode
+  // launches the no-account practice race (the lowest-friction conversion step
+  // for paid tablet/desktop traffic). We route all three to the same /practice
+  // flow and tag the click with the mode so the PostHog funnel shows which card
+  // framing pulls clicks. Only wired up where practice is actually playable
+  // (desktop/tablet); on mobile the cards stay as plain descriptive content.
+  const canPractice = hydrated && isDesktop;
+  const launchPracticeFromCard = (mode: string) => {
+    track("practice_cta_clicked", { source: "mode_card", mode });
+    void router.push("/practice");
+  };
 
   const handleOAuthSignIn = async (provider: "github" | "google") => {
     const supabase = createClient();
@@ -99,7 +113,9 @@ const SignIn: NextPage = () => {
           <Link
             className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-4 font-bold text-white uppercase tracking-wider shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-400 active:scale-95 sm:max-w-sm"
             href="/practice"
-            onClick={() => track("practice_cta_clicked")}
+            onClick={() =>
+              track("practice_cta_clicked", { source: "primary_button" })
+            }
           >
             <Zap className="size-4" aria-hidden="true" />
             PRACTICE! {"(NO ACCOUNT NEEDED)"}
@@ -176,25 +192,58 @@ const SignIn: NextPage = () => {
             Ways to play
           </h2>
           <ul className="mt-3 flex flex-col gap-3">
-            {GAME_MODES.map((mode) => (
-              <li
-                key={mode.name}
-                className="flex items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 text-left shadow-sm backdrop-blur-sm transition hover:border-emerald-300/70 hover:shadow-md"
-              >
-                <span
-                  aria-hidden="true"
-                  className="grid size-9 shrink-0 place-content-center rounded-md border border-emerald-600 bg-emerald-500 font-black text-lg text-white shadow-sm"
-                >
-                  {mode.name.charAt(0)}
-                </span>
-                <div>
-                  <h3 className="font-bold text-sm text-stone-800">
-                    {mode.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-stone-600">{mode.blurb}</p>
-                </div>
-              </li>
-            ))}
+            {GAME_MODES.map((mode) => {
+              // Shared visual content — the tile badge + the full (SEO-relevant)
+              // blurb. Kept identical whether the card is interactive or not, so
+              // crawlers and screen readers always read the same copy.
+              const content = (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="grid size-9 shrink-0 place-content-center rounded-md border border-emerald-600 bg-emerald-500 font-black text-lg text-white shadow-sm"
+                  >
+                    {mode.name.charAt(0)}
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-sm text-stone-800">
+                      {mode.name}
+                    </h3>
+                    <p className="mt-1 text-sm text-stone-600">{mode.blurb}</p>
+                    {canPractice && (
+                      <span
+                        aria-hidden="true"
+                        className="mt-2 inline-flex items-center gap-1 font-bold text-emerald-600 text-xs uppercase tracking-wider"
+                      >
+                        <Zap className="size-3" /> Give it a try →
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+
+              return (
+                <li key={mode.name}>
+                  {canPractice ? (
+                    // Interactive on-ramp: the whole card launches practice.
+                    <button
+                      type="button"
+                      onClick={() => launchPracticeFromCard(mode.name)}
+                      aria-label={`Try ${mode.name} — play a free practice round, no account needed`}
+                      className="flex w-full items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 text-left shadow-sm backdrop-blur-sm transition hover:border-emerald-300/70 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-[0.99]"
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    // Non-interactive (e.g. mobile, where practice isn't
+                    // playable yet): plain descriptive content, no button
+                    // affordance so it doesn't read as a dead click.
+                    <div className="flex items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 text-left shadow-sm backdrop-blur-sm">
+                      {content}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       </main>
