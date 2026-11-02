@@ -1,7 +1,8 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+	LIFETIME_SCOPE,
 	type PlayerModeStats,
 	playerModeStats,
 	profiles,
@@ -88,6 +89,43 @@ const attachNames = async (
  */
 export const leaderboardRouter = createTRPCRouter({
 	/**
+	 * The list of seasons the season selector should offer, newest first.
+	 *
+	 * Derived live from the data rather than a hard-coded window: every distinct
+	 * seasonal `scope` ("YYYY-MM") present in `player_mode_stats` for a scored
+	 * mode is a selectable season (R3.3). The current UTC month is always
+	 * included even if no games have been recorded yet, so the board never opens
+	 * on a season that isn't in the list. `lifetime` is excluded — it is not a
+	 * season.
+	 */
+	seasons: protectedProcedure.query(async ({ ctx }) => {
+		const currentSeason = seasonKey();
+
+		const rows = await ctx.db
+			.selectDistinct({ scope: playerModeStats.scope })
+			.from(playerModeStats)
+			.where(
+				and(
+					inArray(playerModeStats.mode, [...SCORED_MODES]),
+					sql`${playerModeStats.scope} <> ${LIFETIME_SCOPE}`,
+				),
+			)
+			.orderBy(desc(playerModeStats.scope));
+
+		// Merge in the current season (it may have no rows yet) and dedupe,
+		// keeping newest-first order.
+		const seasons = new Set<string>([currentSeason]);
+		for (const row of rows) {
+			seasons.add(row.scope);
+		}
+
+		return {
+			currentSeason,
+			seasons: [...seasons].sort((a, b) => b.localeCompare(a)),
+		};
+	}),
+
+	/**
 	 * A ranked page for `mode` in a season.
 	 *
 	 *   - **Current season** (default, or when `season` equals the current UTC
@@ -115,9 +153,25 @@ export const leaderboardRouter = createTRPCRouter({
 			// per-mode-per-season and already filtered to scored modes, so the field
 			// is bounded and ranking in-process keeps the ordering identical to
 			// archival (one comparator, no SQL/JS drift).
-			const ranked = isCurrentSeason
-				? await rankCurrentSeason(ctx.db, mode, season)
-				: await rankArchivedSeason(ctx.db, mode, season);
+			//
+			// Past seasons read from the `season_placements` snapshot — but only if
+			// that season was actually archived. A season that has rolled over
+			// without being archived (e.g. archival hasn't run yet) still has its
+			// live aggregates in `player_mode_stats`, so we fall back to ranking
+			// those. Without this, a past-but-unarchived month shows an empty board
+			// even though it has recorded players.
+			let archived = false;
+			let ranked: RankedRow[];
+			if (isCurrentSeason) {
+				ranked = await rankCurrentSeason(ctx.db, mode, season);
+			} else {
+				ranked = await rankArchivedSeason(ctx.db, mode, season);
+				archived = ranked.length > 0;
+				if (!archived) {
+					// Not archived yet — rank the retained seasonal aggregates live.
+					ranked = await rankCurrentSeason(ctx.db, mode, season);
+				}
+			}
 
 			const totalQualified = ranked.length;
 			const start = page * pageSize;
@@ -149,6 +203,10 @@ export const leaderboardRouter = createTRPCRouter({
 				mode,
 				season,
 				isCurrentSeason,
+				// True only when the board was served from the archived snapshot. A
+				// past season that hasn't been archived is served live, so this is
+				// false even though it isn't the current season.
+				isArchived: archived,
 				page,
 				pageSize,
 				totalQualified,

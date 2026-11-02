@@ -18,25 +18,9 @@ const MODE_LABELS: Record<ScoredMode, string> = {
 	race: "Race",
 };
 
-/**
- * How many past UTC months (in addition to the current one) the season selector
- * offers. The leaderboard router resolves the current season live and reads
- * archived seasons from the snapshot table, so a bounded recent-month list is a
- * reasonable, migration-free way to let players browse history (R3.3).
- */
-const PAST_SEASONS_SHOWN = 11;
-
 /** The ranking metric is Season_Points, so an empty board reads as "no games yet". */
 const EMPTY_BOARD_COPY =
 	"No qualifying games this season yet. Play a scored match to appear here.";
-
-/** Shift a "YYYY-MM" season key by `monthsBack` whole UTC months. */
-const shiftSeason = (key: string, monthsBack: number): string => {
-	const [year, month] = key.split("-").map(Number);
-	// Build a UTC date on the 1st so month arithmetic never rolls day-of-month.
-	const d = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1 - monthsBack, 1));
-	return d.toISOString().slice(0, 7);
-};
 
 /** Render "2026-10" as "October 2026" for the season selector. */
 const formatSeason = (key: string): string => {
@@ -64,19 +48,22 @@ const Leaderboard: React.FC = () => {
 	const currentSeason = useMemo(() => seasonKey(), []);
 	const [season, setSeason] = useState<string>(currentSeason);
 
-	// Current season + a bounded window of recent past months to browse.
-	const seasonOptions = useMemo(() => {
-		const options: string[] = [];
-		for (let i = 0; i <= PAST_SEASONS_SHOWN; i++) {
-			options.push(shiftSeason(currentSeason, i));
-		}
-		return options;
-	}, [currentSeason]);
-
 	// The board procedure is guest-protected and requires a session, so only a
 	// resolved user may query it. Signed-out visitors still reach the page —
 	// they get a sign-in prompt instead (R3.1).
 	const canQuery = authResolved && user !== null;
+
+	// The season selector is driven live from the months actually recorded in
+	// player_mode_stats (one option per recorded month), instead of a hard-coded
+	// window. The current season is always included (R3.3).
+	const { data: seasonsData } = api.leaderboard.seasons.useQuery(undefined, {
+		enabled: canQuery,
+		staleTime: 60_000,
+	});
+	const seasonOptions = useMemo(
+		() => seasonsData?.seasons ?? [currentSeason],
+		[seasonsData, currentSeason],
+	);
 
 	// Premium gates the expanded columns (avg placement, best match points). The
 	// core ranking stays visible to everyone (R3.7).
@@ -276,7 +263,9 @@ const Leaderboard: React.FC = () => {
 									{board.totalQualified === 1 ? "" : "s"} ·{" "}
 									{board.isCurrentSeason
 										? "live current season"
-										: "archived season"}
+										: board.isArchived
+											? "archived season"
+											: "past season"}
 								</p>
 							)}
 						</>

@@ -35,6 +35,11 @@ vi.mock("@/utils/api", () => ({
 		},
 		leaderboard: {
 			board: { useQuery: () => boardQuery() },
+			seasons: {
+				useQuery: () => ({
+					data: { currentSeason: "2026-01", seasons: ["2026-01"] },
+				}),
+			},
 		},
 	},
 }));
@@ -217,7 +222,7 @@ describe("/leaderboard page states (R3.4, R3.7)", () => {
 		expect(screen.getByText("Points")).toBeDefined();
 		// ...expanded premium columns gated out.
 		expect(screen.queryByText("Avg Place")).toBeNull();
-		expect(screen.queryByText("Best Match")).toBeNull();
+		expect(screen.queryByText("Best Match PTS")).toBeNull();
 		// And an upgrade nudge is offered.
 		expect(screen.getByRole("link", { name: "Upgrade" })).toBeDefined();
 	});
@@ -237,7 +242,7 @@ describe("/leaderboard page states (R3.4, R3.7)", () => {
 		render(<Leaderboard />);
 
 		expect(screen.getByText("Avg Place")).toBeDefined();
-		expect(screen.getByText("Best Match")).toBeDefined();
+		expect(screen.getByText("Best Match PTS")).toBeDefined();
 	});
 
 	it("prompts a signed-out visitor to sign in instead of showing ranked data (R3.1)", () => {
