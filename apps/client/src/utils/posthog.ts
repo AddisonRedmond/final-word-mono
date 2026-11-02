@@ -19,7 +19,13 @@ export type AnalyticsEvent =
   | "duel_created"
   | "duel_completed"
   | "realtime_game_started"
-  | "realtime_game_finished";
+  | "realtime_game_finished"
+  // Public practice mode (no-account "try it" experience for ad traffic).
+  | "practice_cta_clicked" // clicked "play free" (e.g. from sign-in)
+  | "practice_viewed"
+  | "practice_started"
+  | "practice_completed"
+  | "practice_signin_clicked"; // clicked sign-in FROM practice
 
 let initialized = false;
 
