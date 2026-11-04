@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
+import { track } from "@/utils/posthog";
 import { RACE_CONFIG } from "@/shared/race";
 import GameCenterPanel from "../game-components/game-center-panel";
 import EliminationView from "./race/elimination-view";
@@ -69,6 +70,40 @@ const Race: React.FC<RaceProps> = ({
 			onLeave();
 		}
 	}, [joinError, onJoinError, onLeave]);
+
+	// Analytics guards so each funnel event fires at most once per match.
+	const firstGuessTracked = useRef(false);
+	const startedTracked = useRef(false);
+	const finishedTracked = useRef(false);
+
+	// Engagement: wrap `sendGuess` so the player's first guess of the match is
+	// recorded once (tagged `race`), then delegate to the real sender.
+	const handleGuess = useCallback(
+		(guess: string) => {
+			if (!firstGuessTracked.current) {
+				firstGuessTracked.current = true;
+				track("first_guess_submitted", { mode: "race" });
+			}
+			sendGuess(guess);
+		},
+		[sendGuess],
+	);
+
+	// Funnel: the match began (first time the round phase is seen) / ended.
+	const phase = match?.room.phase;
+	useEffect(() => {
+		if (phase === "round" && !startedTracked.current) {
+			startedTracked.current = true;
+			track("realtime_game_started", { mode: "race" });
+		}
+		if (phase === "finished" && !finishedTracked.current) {
+			finishedTracked.current = true;
+			track("realtime_game_finished", {
+				mode: "race",
+				won: match?.room.winnerId === userId,
+			});
+		}
+	}, [phase, match?.room.winnerId, userId]);
 
 	// Split the non-self roster into two flanking columns, matching Battle
 	// Royale's even/odd split.
@@ -142,7 +177,7 @@ const Race: React.FC<RaceProps> = ({
 					<RoundBoard
 						lastAck={lastAck}
 						match={match}
-						onGuess={sendGuess}
+						onGuess={handleGuess}
 						onLeave={leave}
 						userId={userId}
 					/>

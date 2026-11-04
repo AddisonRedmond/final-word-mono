@@ -12,14 +12,24 @@ import { env } from "@/env";
  * question it unlocks, not "just in case".
  */
 export type AnalyticsEvent =
+  // Top of funnel: a visitor reached the public landing page (/sign-in). This
+  // is the denominator for the whole activation funnel — without it we can't
+  // compute "what % of arrivals click to play". Fired on every landing view
+  // (signed-out), not just the first.
+  | "landing_viewed"
   | "index_viewed"
+  // Engagement: the player submitted their FIRST guess in a game. This is the
+  // line between "a game started" and "a human actually tried" — fired once per
+  // game, tagged with `{ mode }`, across every mode. The started -> first-guess
+  // drop is the "started but never played" cohort.
+  | "first_guess_submitted"
   | "quick_duel_clicked"
   | "quick_duel_queued"
   | "quick_duel_matched"
   | "duel_created"
   | "duel_completed"
-  | "realtime_game_started"
-  | "realtime_game_finished"
+  | "realtime_game_started" // a realtime match (BR/Race) actually began
+  | "realtime_game_finished" // a realtime match ended
   // Public practice mode (no-account "try it" experience for ad traffic).
   | "practice_cta_clicked" // clicked "play free" (e.g. from sign-in)
   | "practice_viewed"

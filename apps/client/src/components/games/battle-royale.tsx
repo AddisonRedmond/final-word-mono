@@ -2,10 +2,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type RefObject,
 } from "react";
 import type { Socket } from "socket.io-client";
+import { track } from "@/utils/posthog";
 import CountDownTimer from "../game-components/timer";
 import type { ClientGame, TargetMode } from "@/types/battle-royale.types.ts";
 import { useBattleRoyaleSocket } from "@/hooks/useBattleRoyaleSocket";
@@ -64,6 +66,11 @@ const BattleRoyale = ({
   const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
   const [scope, animate] = useAnimate();
+  // Analytics guards so each funnel event fires at most once per match: the
+  // player's first valid guess, and the game's start/finish transitions.
+  const firstGuessTracked = useRef(false);
+  const startedTracked = useRef(false);
+  const finishedTracked = useRef(false);
   useBattleRoyaleSocket({
     socketRef,
     setLobby,
@@ -104,6 +111,14 @@ const BattleRoyale = ({
       return;
     }
 
+    // Engagement: record the player's FIRST valid guess of this match (once).
+    // Fired here, past the validity/eliminated guards, so it means a real
+    // attempt was sent — the signal that separates "played" from "idled".
+    if (!firstGuessTracked.current) {
+      firstGuessTracked.current = true;
+      track("first_guess_submitted", { mode: "battle_royale" });
+    }
+
     // Always send the concrete resolved opponent UUID (never a policy string)
     // so the server hits exactly who the UI is highlighting.
     br.sendGuess({ guess, target, socketRef });
@@ -128,6 +143,25 @@ const BattleRoyale = ({
     setTargetMode("player");
     setTarget(id);
   }, []);
+
+  // Funnel: a realtime match actually began / ended. Each fires once per match,
+  // guarded by a ref, driven by the authoritative room flags from the server.
+  useEffect(() => {
+    if (lobby?.room.isStarted && !startedTracked.current) {
+      startedTracked.current = true;
+      track("realtime_game_started", { mode: "battle_royale" });
+    }
+  }, [lobby?.room.isStarted]);
+
+  useEffect(() => {
+    if (lobby?.room.isFinished && !finishedTracked.current) {
+      finishedTracked.current = true;
+      track("realtime_game_finished", {
+        mode: "battle_royale",
+        won: lobby.room.winnerId === userId,
+      });
+    }
+  }, [lobby?.room.isFinished, lobby?.room.winnerId, userId]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

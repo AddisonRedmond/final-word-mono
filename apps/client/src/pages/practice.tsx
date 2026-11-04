@@ -101,6 +101,18 @@ const Practice: React.FC = () => {
     void router.push("/sign-in");
   };
 
+  // Engagement: record the first guess of the practice game once (tagged
+  // `practice`), so practice sits in the same started -> first-guess funnel as
+  // the real modes. Delegates to the engine's sender.
+  const firstGuessTracked = useRef(false);
+  const handleGuess = (guessWord: string) => {
+    if (!firstGuessTracked.current) {
+      firstGuessTracked.current = true;
+      track("first_guess_submitted", { mode: "practice" });
+    }
+    sendGuess(guessWord);
+  };
+
   // On mobile (below the desktop breakpoint) practice isn't playable yet, so
   // show a friendly notice with a sign-in fallback instead of a broken board —
   // this also catches someone opening the `/practice` URL directly on a phone.
@@ -191,7 +203,7 @@ const Practice: React.FC = () => {
               <RoundBoard
                 lastAck={lastAck}
                 match={match}
-                onGuess={sendGuess}
+                onGuess={handleGuess}
                 onLeave={endNow}
                 qualifyingCountOverride={WORDS_TO_QUALIFY}
                 userId={PLAYER_ID}

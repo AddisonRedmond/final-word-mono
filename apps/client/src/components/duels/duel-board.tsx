@@ -9,6 +9,7 @@ import {
   type KeyboardState,
   type MatchResult,
 } from "@/utils/duel";
+import { track } from "@/utils/posthog";
 
 import DuelGuess from "./duel-guess";
 import DuelResult from "./duel-result";
@@ -55,6 +56,8 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   const [guess, setGuess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  // Analytics: fire `first_guess_submitted` once for this duel board.
+  const firstGuessTracked = useRef(false);
   const [scope, animate] = useAnimate();
 
   // Persisted preference for which side Enter/Delete sit on in the keyboard.
@@ -93,6 +96,13 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
     if (!isValidDuelWord(guess)) {
       animate(scope.current, { x: [-10, 10, -10, 10, 0] });
       return;
+    }
+
+    // Engagement: record the first valid guess of this duel once, past the
+    // validity guard so it means a real attempt was made.
+    if (!firstGuessTracked.current) {
+      firstGuessTracked.current = true;
+      track("first_guess_submitted", { mode: "duel" });
     }
 
     isSubmittingRef.current = true;

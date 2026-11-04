@@ -4,6 +4,7 @@ import { Zap } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useEffect } from "react";
 import Tile from "@/components/tile";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { track } from "@/utils/posthog";
@@ -53,6 +54,14 @@ const SignIn: NextPage = () => {
     track("practice_cta_clicked", { source: "mode_card", mode });
     void router.push("/practice");
   };
+
+  // Top-of-funnel anchor: record that a visitor reached the landing page. This
+  // is the denominator for the activation funnel (arrivals -> clicks to play).
+  // Fired once per mount; PostHog also captures the automatic pageview, but an
+  // explicit named event lets us build a clean funnel keyed to our own steps.
+  useEffect(() => {
+    track("landing_viewed");
+  }, []);
 
   const handleOAuthSignIn = async (provider: "github" | "google") => {
     const supabase = createClient();
