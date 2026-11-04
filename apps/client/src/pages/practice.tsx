@@ -123,6 +123,7 @@ const Practice: React.FC = () => {
       <>
         <Head>
           <title>{`Practice — ${SITE_NAME}`}</title>
+          <link href="/favicon_v2.png" rel="icon" />
         </Head>
         <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
           <p className="text-5xl" aria-hidden="true">
@@ -155,6 +156,7 @@ const Practice: React.FC = () => {
           content="Try Final Word free — no account needed. Race to guess five-letter words against a field of bots, then sign in to play real opponents."
           name="description"
         />
+        <link href="/favicon_v2.png" rel="icon" />
       </Head>
 
       <motion.main
