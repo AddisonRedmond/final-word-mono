@@ -3,17 +3,23 @@ import { motion } from "motion/react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentType,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import GameCenterPanel from "@/components/game-components/game-center-panel";
 import LobbyView from "@/components/games/race/lobby-view";
 import type { RaceOpponent } from "@/components/games/race/race-opponents";
+import PracticeTutorial, {
+  useShouldShowTutorial,
+} from "@/components/games/race/practice-tutorial";
 import RaceOpponents from "@/components/games/race/race-opponents";
 import RoundBoard from "@/components/games/race/round-board";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
-import {
-  type PracticeOutcome,
-  usePracticeRace,
-} from "@/hooks/usePracticeRace";
+import { type PracticeOutcome, usePracticeRace } from "@/hooks/usePracticeRace";
 import { track } from "@/utils/posthog";
 import { SITE_NAME } from "@/utils/site";
 
@@ -39,8 +45,22 @@ const Practice: React.FC = () => {
   // notice on mobile until a mobile layout is built. Hooks still run
   // unconditionally (rules of hooks); only the RENDER branches on size.
   const { isDesktop, hydrated } = useIsDesktop();
+
+  // First-visit "how to play" coach-marks. `tutorialOpen` is owned here so the
+  // overlay can be auto-opened on a first visit AND replayed via the "How to
+  // play" button. While it's open the game is PAUSED (see `usePracticeRace`
+  // below) so the countdown and bots don't run behind the tutorial.
+  const autoShowTutorial = useShouldShowTutorial();
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [guessMade, setGuessMade] = useState(false);
+  useEffect(() => {
+    if (autoShowTutorial) {
+      setTutorialOpen(true);
+    }
+  }, [autoShowTutorial]);
+
   const { match, lastAck, result, outcome, sendGuess, restart, endNow } =
-    usePracticeRace();
+    usePracticeRace(tutorialOpen);
 
   // Lazy-load the same fireworks library the real Winner overlay uses, only
   // when the player actually wins — keeps it out of the initial bundle for a
@@ -110,6 +130,10 @@ const Practice: React.FC = () => {
       firstGuessTracked.current = true;
       track("first_guess_submitted", { mode: "practice" });
     }
+    // Let the tutorial auto-advance its guess/colors steps once a real guess
+    // lands. `RoundBoard` only calls this for guesses that already passed the
+    // client-side spell-check, so this is a genuine valid attempt.
+    setGuessMade(true);
     sendGuess(guessWord);
   };
 
@@ -165,16 +189,38 @@ const Practice: React.FC = () => {
         initial={{ scale: 0.98, opacity: 0 }}
       >
         <div className="flex items-center justify-between px-4 py-3">
-          <p className="font-bold text-stone-700 text-sm uppercase tracking-widest">
-            Practice Race
-          </p>
-          <Link
-            className="rounded-md bg-stone-800 px-3 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-stone-700"
-            href="/sign-in"
-            onClick={() => track("practice_signin_clicked")}
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-x-3">
+            <Link  href={"/"}>
+              <button className="flex gap-x-1 cursor-pointer">
+                <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
+                  F
+                </span>
+                <span className="size-8 p-1 rounded-md bg-yellow-400 grid place-content-center font-semibold">
+                  W
+                </span>
+              </button>
+            </Link>
+            <p className="font-bold text-stone-700 text-sm uppercase tracking-widest">
+              Practice Race
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-md border border-stone-300 px-3 py-1.5 font-semibold text-stone-600 text-xs transition-colors hover:bg-stone-100"
+              onClick={() => setTutorialOpen(true)}
+              type="button"
+            >
+              How to play
+            </button>
+            <Link
+              className="rounded-md bg-stone-800 px-3 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-stone-700"
+              href="/sign-in"
+              onClick={() => track("practice_signin_clicked")}
+            >
+              Sign in
+            </Link>
+          </div>
         </div>
 
         <div className="flex min-h-0 w-full grow py-5">
@@ -220,6 +266,12 @@ const Practice: React.FC = () => {
             showBotIcon
           />
         </div>
+
+        <PracticeTutorial
+          guessMade={guessMade}
+          onClose={() => setTutorialOpen(false)}
+          open={tutorialOpen}
+        />
       </motion.main>
     </>
   );

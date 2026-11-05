@@ -79,14 +79,16 @@ const Navbar = () => {
   return (
     <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-30 bg-white/50">
       {/* Logo */}
-      <div className="flex gap-x-1">
-        <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
-          F
-        </span>
-        <span className="size-8 p-1 rounded-md bg-yellow-400 grid place-content-center font-semibold">
-          W
-        </span>
-      </div>
+      <Link className="cursor-pointer" href={"/sign-in"}>
+        <button className="flex gap-x-1 cursor-pointer">
+          <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
+            F
+          </span>
+          <span className="size-8 p-1 rounded-md bg-yellow-400 grid place-content-center font-semibold">
+            W
+          </span>
+        </button>
+      </Link>
 
       {/* Desktop nav links + profile (collapses into the hamburger below sm) */}
       <div className="hidden items-center gap-x-3 sm:flex">
@@ -259,9 +261,7 @@ const Navbar = () => {
                   href="/"
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                    router.pathname === "/"
-                      ? "text-green-700"
-                      : "text-gray-700"
+                    router.pathname === "/" ? "text-green-700" : "text-gray-700"
                   }`}
                 >
                   <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">

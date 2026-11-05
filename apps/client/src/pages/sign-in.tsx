@@ -1,10 +1,11 @@
 "use client";
 
-import { Zap } from "lucide-react";
+import { Info, Zap } from "lucide-react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import PracticeTutorial from "@/components/games/race/practice-tutorial";
 import Tile from "@/components/tile";
 import { useIsDesktop } from "@/hooks/useMediaQuery";
 import { track } from "@/utils/posthog";
@@ -42,6 +43,11 @@ const SignIn: NextPage = () => {
   // flash of a mobile-unavailable link).
   const { isDesktop, hydrated } = useIsDesktop();
   const router = useRouter();
+
+  // "How to play" rules preview. Reuses the practice tutorial overlay. Passing
+  // `persistSeen={false}` means previewing the rules here does NOT suppress the
+  // first-visit auto-tour on `/practice`.
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   // The "Ways to play" cards double as practice on-ramps: clicking any mode
   // launches the no-account practice race (the lowest-friction conversion step
@@ -119,17 +125,39 @@ const SignIn: NextPage = () => {
             on desktop/tablet, since practice isn't playable on mobile yet (ads
             currently target those sizes too). */}
         {hydrated && isDesktop && (
-          <Link
-            className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-4 font-bold text-white uppercase tracking-wider shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-400 active:scale-95 sm:max-w-sm"
-            href="/practice"
-            onClick={() =>
-              track("practice_cta_clicked", { source: "primary_button" })
-            }
-          >
-            <Zap className="size-4" aria-hidden="true" />
-            PRACTICE! {"(NO ACCOUNT NEEDED)"}
-          </Link>
+          <div>
+            <Link
+              className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-4 font-bold text-white uppercase tracking-wider shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-400 active:scale-95 sm:max-w-sm"
+              href="/practice"
+              onClick={() =>
+                track("practice_cta_clicked", { source: "primary_button" })
+              }
+            >
+              <Zap className="size-4" aria-hidden="true" />
+              PRACTICE! {"(NO ACCOUNT NEEDED)"}
+            </Link>
+          </div>
         )}
+
+        {/* Rules preview — shown on every size (the rules are useful even where
+            practice isn't playable yet). Opens the same coach-mark tutorial the
+            practice page uses, but with persistSeen={false} so previewing here
+            doesn't suppress a first-time visitor's auto-tour on /practice. */}
+        <button
+          className="-mt-4 flex items-center gap-1.5 font-semibold text-sm text-stone-500 underline-offset-4 transition-colors hover:text-stone-700 hover:underline"
+          onClick={() => setRulesOpen(true)}
+          type="button"
+        >
+          <Info aria-hidden="true" className="size-4" />
+          How to play
+        </button>
+
+        <PracticeTutorial
+          guessMade={false}
+          onClose={() => setRulesOpen(false)}
+          open={rulesOpen}
+          persistSeen={false}
+        />
 
         {/* Auth CTA, framed as a warm translucent panel so the sign-in action
           reads as the page's focal point rather than two loose buttons. */}

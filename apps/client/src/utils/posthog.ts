@@ -12,30 +12,37 @@ import { env } from "@/env";
  * question it unlocks, not "just in case".
  */
 export type AnalyticsEvent =
-  // Top of funnel: a visitor reached the public landing page (/sign-in). This
-  // is the denominator for the whole activation funnel — without it we can't
-  // compute "what % of arrivals click to play". Fired on every landing view
-  // (signed-out), not just the first.
-  | "landing_viewed"
-  | "index_viewed"
-  // Engagement: the player submitted their FIRST guess in a game. This is the
-  // line between "a game started" and "a human actually tried" — fired once per
-  // game, tagged with `{ mode }`, across every mode. The started -> first-guess
-  // drop is the "started but never played" cohort.
-  | "first_guess_submitted"
-  | "quick_duel_clicked"
-  | "quick_duel_queued"
-  | "quick_duel_matched"
-  | "duel_created"
-  | "duel_completed"
-  | "realtime_game_started" // a realtime match (BR/Race) actually began
-  | "realtime_game_finished" // a realtime match ended
-  // Public practice mode (no-account "try it" experience for ad traffic).
-  | "practice_cta_clicked" // clicked "play free" (e.g. from sign-in)
-  | "practice_viewed"
-  | "practice_started"
-  | "practice_completed"
-  | "practice_signin_clicked"; // clicked sign-in FROM practice
+	// Top of funnel: a visitor reached the public landing page (/sign-in). This
+	// is the denominator for the whole activation funnel — without it we can't
+	// compute "what % of arrivals click to play". Fired on every landing view
+	// (signed-out), not just the first.
+	| "landing_viewed"
+	| "index_viewed"
+	// Engagement: the player submitted their FIRST guess in a game. This is the
+	// line between "a game started" and "a human actually tried" — fired once per
+	// game, tagged with `{ mode }`, across every mode. The started -> first-guess
+	// drop is the "started but never played" cohort.
+	| "first_guess_submitted"
+	| "quick_duel_clicked"
+	| "quick_duel_queued"
+	| "quick_duel_matched"
+	| "duel_created"
+	| "duel_completed"
+	| "realtime_game_started" // a realtime match (BR/Race) actually began
+	| "realtime_game_finished" // a realtime match ended
+	// Public practice mode (no-account "try it" experience for ad traffic).
+	| "practice_cta_clicked" // clicked "play free" (e.g. from sign-in)
+	| "practice_viewed"
+	| "practice_started"
+	| "practice_completed"
+	| "practice_signin_clicked" // clicked sign-in FROM practice
+	// Practice onboarding: the first-visit "how to play" coach-marks. Together
+	// these answer whether the tutorial is understood (completed) or bailed on
+	// (skipped), and which step loses people (`tutorial_step_viewed` with `step`).
+	| "practice_tutorial_started"
+	| "practice_tutorial_step_viewed"
+	| "practice_tutorial_completed"
+	| "practice_tutorial_skipped";
 
 let initialized = false;
 
@@ -45,8 +52,8 @@ let initialized = false;
  * sites.
  */
 const isEnabled = (): boolean =>
-  typeof window !== "undefined" &&
-  Boolean(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN);
+	typeof window !== "undefined" &&
+	Boolean(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN);
 
 /**
  * Initialize PostHog once, on the client. Safe to call repeatedly (guarded).
@@ -56,28 +63,28 @@ const isEnabled = (): boolean =>
  * automatically; we add explicit funnel events on top via `track`.
  */
 export const initAnalytics = (): void => {
-  if (initialized || !isEnabled()) {
-    return;
-  }
-  initialized = true;
+	if (initialized || !isEnabled()) {
+		return;
+	}
+	initialized = true;
 
-  posthog.init(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN as string, {
-    // Ingestion host. In production this is our own reverse-proxy domain
-    // (PostHog-managed proxyhog CNAME, e.g. https://n.finalword.io) so events
-    // aren't dropped by ad/privacy blockers that block *.posthog.com. Falls back
-    // to PostHog US cloud when the env var is unset (e.g. local dev).
-    api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
-    // With a proxied `api_host`, point `ui_host` at the real PostHog app so the
-    // toolbar and in-app "view in PostHog" links resolve to the dashboard rather
-    // than the proxy domain.
-    ui_host: "https://us.posthog.com",
-    // Respect user privacy by default: don't autocapture every click/input, and
-    // mask text in any session data. We rely on explicit `track` events plus
-    // pageviews, which keeps the data clean and the payload small.
-    autocapture: false,
-    capture_pageview: true,
-    persistence: "localStorage+cookie",
-  });
+	posthog.init(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN as string, {
+		// Ingestion host. In production this is our own reverse-proxy domain
+		// (PostHog-managed proxyhog CNAME, e.g. https://n.finalword.io) so events
+		// aren't dropped by ad/privacy blockers that block *.posthog.com. Falls back
+		// to PostHog US cloud when the env var is unset (e.g. local dev).
+		api_host: env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+		// With a proxied `api_host`, point `ui_host` at the real PostHog app so the
+		// toolbar and in-app "view in PostHog" links resolve to the dashboard rather
+		// than the proxy domain.
+		ui_host: "https://us.posthog.com",
+		// Respect user privacy by default: don't autocapture every click/input, and
+		// mask text in any session data. We rely on explicit `track` events plus
+		// pageviews, which keeps the data clean and the payload small.
+		autocapture: false,
+		capture_pageview: true,
+		persistence: "localStorage+cookie",
+	});
 };
 
 /**
@@ -85,18 +92,18 @@ export const initAnalytics = (): void => {
  * No-op when analytics is disabled.
  */
 export const identifyUser = (userId: string): void => {
-  if (!isEnabled()) {
-    return;
-  }
-  posthog.identify(userId);
+	if (!isEnabled()) {
+		return;
+	}
+	posthog.identify(userId);
 };
 
 /** Clear the identified user (call on sign-out). No-op when disabled. */
 export const resetAnalytics = (): void => {
-  if (!isEnabled()) {
-    return;
-  }
-  posthog.reset();
+	if (!isEnabled()) {
+		return;
+	}
+	posthog.reset();
 };
 
 /**
@@ -104,15 +111,15 @@ export const resetAnalytics = (): void => {
  * failed analytics call can never throw into gameplay or UI code.
  */
 export const track = (
-  event: AnalyticsEvent,
-  properties?: Record<string, unknown>,
+	event: AnalyticsEvent,
+	properties?: Record<string, unknown>,
 ): void => {
-  if (!isEnabled()) {
-    return;
-  }
-  try {
-    posthog.capture(event, properties);
-  } catch {
-    // Analytics must never break the app — swallow any capture error.
-  }
+	if (!isEnabled()) {
+		return;
+	}
+	try {
+		posthog.capture(event, properties);
+	} catch {
+		// Analytics must never break the app — swallow any capture error.
+	}
 };

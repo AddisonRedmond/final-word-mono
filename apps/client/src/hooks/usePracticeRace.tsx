@@ -228,7 +228,14 @@ const makeBots = (now: number): PracticeBot[] =>
 		};
 	});
 
-export const usePracticeRace = (): UsePracticeRaceResult => {
+export const usePracticeRace = (
+	// While true, the game is held in its lobby: the countdown does not run and
+	// bots don't move. Used to pause the start while the first-visit tutorial is
+	// open, so the clock (and the field) only begin once the player closes it.
+	// Flipping back to false re-arms a FRESH countdown from that moment, so the
+	// player always gets the full lobby + round time after reading the tutorial.
+	paused = false,
+): UsePracticeRaceResult => {
 	// Player state.
 	const [playerCompleted, setPlayerCompleted] = useState(0);
 	const [playerQualified, setPlayerQualified] = useState(false);
@@ -293,14 +300,37 @@ export const usePracticeRace = (): UsePracticeRaceResult => {
 		setBots(makeBots(roundStart));
 	}, []);
 
-	// Flip lobby → round when the countdown elapses. Re-armed on restart via the
-	// `lobbyDeadline` dependency.
+	// When the game is unpaused (tutorial closed), re-arm a FRESH countdown from
+	// now so the player gets the full lobby + round time — the clock shouldn't
+	// have been ticking behind the tutorial. Tracks the previous `paused` value
+	// so this only fires on the true→false edge, not on every render. Does
+	// nothing once the game has finished.
+	const wasPausedRef = useRef(paused);
 	useEffect(() => {
+		const justResumed = wasPausedRef.current && !paused;
+		wasPausedRef.current = paused;
+		if (!justResumed || finishedRef.current) {
+			return;
+		}
+		const roundStart = Date.now() + LOBBY_MS;
+		roundStartRef.current = roundStart;
+		setLobbyDeadline(roundStart);
+		setRoundEndsAt(roundStart + ROUND_MS);
+		setBots(makeBots(roundStart));
+	}, [paused]);
+
+	// Flip lobby → round when the countdown elapses. Held while `paused` (the
+	// timer stays in lobby and bots don't move). Re-armed on restart / unpause
+	// via the `lobbyDeadline` dependency.
+	useEffect(() => {
+		if (paused) {
+			return;
+		}
 		setPhase("lobby");
 		const delay = Math.max(0, lobbyDeadline - Date.now());
 		const timer = setTimeout(() => setPhase("round"), delay);
 		return () => clearTimeout(timer);
-	}, [lobbyDeadline]);
+	}, [lobbyDeadline, paused]);
 
 	// Finish the game: rank the field (bots + player) by completed words, record
 	// the outcome, and emit a MatchResult. `reason` distinguishes a real win
