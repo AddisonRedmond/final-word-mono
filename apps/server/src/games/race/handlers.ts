@@ -331,6 +331,9 @@ export const registerRaceHandlers = (nsp: Namespace) => {
       serverData.revealedLetters = mergedMatches.revealedLetters;
       serverData.partialMatches = mergedMatches.partialMatches;
       serverData.noMatch = mergedMatches.noMatch;
+      // Mirror the found positions onto the display player so opponents can see
+      // this player's reveal progress (copied so later mutation can't alias).
+      player.revealedLetters = { ...mergedMatches.revealedLetters };
 
       // Merge the returned fields back onto the display player and store the
       // (possibly new) assigned word server-side.
@@ -376,6 +379,7 @@ export const registerRaceHandlers = (nsp: Namespace) => {
         serverData.hintPositions = [];
         player.correctPositionsFound = 0;
         player.hintRevealed = undefined;
+        player.revealedLetters = undefined;
       }
 
       // Acknowledge with per-letter feedback (Req 10.6) plus the accumulated

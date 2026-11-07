@@ -47,6 +47,7 @@ const EXPECTED_PLAYER_KEYS = [
   "placement",
   "revealedWord",
   "hintRevealed",
+  "revealedLetters",
   "lastFeedback",
 ].sort();
 
@@ -76,6 +77,7 @@ const makeFullPlayer = (name: string): RacePlayer => ({
   placement: 2,
   revealedWord: "APPLE",
   hintRevealed: { 0: "A" },
+  revealedLetters: { 1: "P" },
   lastFeedback: [{ index: 0, letter: "A", state: "correct" }],
   // dropped Non_UI_Fields
   isBot: true,

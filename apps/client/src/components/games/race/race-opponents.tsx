@@ -6,6 +6,7 @@ import {
 	GAP,
 	getInitials,
 	getRaceCardHeight,
+	getRaceRevealTileSize,
 	getRaceWidthForHeight,
 	MAX_RACE_OPPONENT_WIDTH,
 } from "@/utils/opponents";
@@ -20,6 +21,8 @@ type RaceOpponentsProps = {
 	opponents: RaceOpponent[];
 	/** Words needed to qualify this round; drives the progress bar. */
 	qualifyingCount: number;
+	/** Letters in the current word; sets how many reveal tiles each card shows. */
+	wordLength?: number;
 	/**
 	 * Render a robot icon instead of each opponent's initials. Used by the
 	 * client-side PRACTICE mode, where every opponent is a bot and showing a
@@ -45,7 +48,12 @@ type ContainerSize = {
  * targeting.
  */
 const RaceOpponents = memo(
-	({ opponents, qualifyingCount, showBotIcon = false }: RaceOpponentsProps) => {
+	({
+		opponents,
+		qualifyingCount,
+		wordLength = 5,
+		showBotIcon = false,
+	}: RaceOpponentsProps) => {
 		const ref = useRef<HTMLDivElement>(null);
 
 		const active = useMemo(
@@ -124,6 +132,14 @@ const RaceOpponents = memo(
 								opponent.completedWords / denominator,
 							);
 
+							// Found letters = the helper's free reveals plus the opponent's
+							// own correct positions on their current word.
+							const revealed = {
+								...(opponent.hintRevealed ?? {}),
+								...(opponent.revealedLetters ?? {}),
+							};
+							const tileSize = getRaceRevealTileSize(cardWidth || 100, wordLength);
+
 							return (
 								<motion.div
 									animate={{ opacity: 1, scale: 1 }}
@@ -155,6 +171,31 @@ const RaceOpponents = memo(
 												<Check className="size-3" />
 											</span>
 										)}
+									</div>
+
+									<div
+										aria-label="Letters found in current word"
+										className="flex gap-x-0.5"
+										role="img"
+									>
+										{Array.from({ length: wordLength }, (_, index) => {
+											const letter = revealed[index];
+											return (
+												<div
+													className={`grid place-content-center rounded-sm font-semibold text-white ${
+														letter ? "bg-emerald-400" : "bg-stone-300"
+													}`}
+													key={index}
+													style={{
+														width: tileSize,
+														height: tileSize,
+														fontSize: tileSize * 0.65,
+													}}
+												>
+													{letter ?? " "}
+												</div>
+											);
+										})}
 									</div>
 
 									<div className="w-full rounded-full bg-zinc-200/70 p-0.5">

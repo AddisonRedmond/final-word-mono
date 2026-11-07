@@ -76,7 +76,7 @@ export const MAX_RACE_OPPONENT_WIDTH = 150;
  * the Race height formula so a card at full width is never taller than this —
  * keeps the explicit height cap and the width cap consistent.
  */
-export const MAX_RACE_OPPONENT_HEIGHT = 96;
+export const MAX_RACE_OPPONENT_HEIGHT = 116;
 
 // Fixed vertical space inside a Race card, independent of width: p-2 padding,
 // the initials row, the progress bar, the count row, and the gap-y-1.5 gaps
@@ -86,12 +86,26 @@ const RACE_CARD_PADDING = 16; // p-2 top+bottom
 const RACE_INITIALS_ROW = 16; // initials / qualified tick row
 const RACE_PROGRESS_ROW = 12; // progress bar incl. its p-0.5 track
 const RACE_COUNT_ROW = 14; // "x / N" text row
-const RACE_ROW_GAP_TOTAL = 12; // two gap-y-1.5 gaps (6px each)
+const RACE_REVEAL_ROW = 16; // row of reveal tiles (opponent's found letters)
+const RACE_ROW_GAP_TOTAL = 18; // three gap-y-1.5 gaps (6px each)
+
+/** Edge length of a Race reveal tile for a card of the given width. */
+export const RACE_REVEAL_TILE_MAX = RACE_REVEAL_ROW;
+export const getRaceRevealTileSize = (width: number, letters = GUESS_LENGTH) =>
+	Math.max(
+		6,
+		Math.min(
+			RACE_REVEAL_TILE_MAX,
+			// card width minus p-2 padding and the 2px gaps between tiles
+			(width - RACE_CARD_PADDING - (letters - 1) * 2) / letters,
+		),
+	);
 const RACE_FIXED_CARD_HEIGHT =
 	RACE_CARD_PADDING +
 	RACE_INITIALS_ROW +
 	RACE_PROGRESS_ROW +
 	RACE_COUNT_ROW +
+	RACE_REVEAL_ROW +
 	RACE_ROW_GAP_TOTAL;
 
 // Gentle width coupling so wider cards get a little taller and keep their

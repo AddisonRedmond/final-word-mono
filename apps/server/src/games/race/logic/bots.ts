@@ -377,6 +377,36 @@ const rollBotCorrect = (
 	return Math.random() * 100 < correctChance;
 };
 
+// Chance a bot's wrong guess still lands a new green letter. Real players
+// usually find a letter or two per guess; this keeps bot cards moving without
+// every miss revealing something.
+const BOT_REVEAL_CHANCE = 0.65;
+
+/**
+ * Simulate a wrong guess uncovering one more position of the bot's word, so
+ * opponents see bots make visible progress. Never reveals the final unfound
+ * position (the word is only "solved" via the correct-guess roll). Returns
+ * `true` when a new letter was revealed.
+ */
+const revealBotLetter = (bot: RaceBotServerData): boolean => {
+	if (Math.random() >= BOT_REVEAL_CHANCE) {
+		return false;
+	}
+	const revealed = bot.revealedLetters ?? {};
+	const hidden: number[] = [];
+	for (let index = 0; index < bot.word.length; index++) {
+		if (revealed[index] === undefined) {
+			hidden.push(index);
+		}
+	}
+	if (hidden.length <= 1) {
+		return false;
+	}
+	const pick = hidden[Math.floor(Math.random() * hidden.length)] as number;
+	bot.revealedLetters = { ...revealed, [pick]: bot.word[pick] as string };
+	return true;
+};
+
 /**
  * Advance a single bot's independent word progress for one tick, purely with
  * respect to timing: given the bot's server-side simulation record and the
@@ -412,6 +442,7 @@ export const tickBot = (
 	bot.guessTimeStamp = now + getBotThinkTime(bot.level, wordLength);
 
 	if (!correct) {
+		revealBotLetter(bot);
 		return false;
 	}
 
@@ -420,6 +451,7 @@ export const tickBot = (
 	// display player; this ticker only advances the bot's own progress.
 	bot.botCompletedWords += 1;
 	bot.word = getRandomWord(wordLength);
+	bot.revealedLetters = {};
 	return true;
 };
 
@@ -442,6 +474,7 @@ export const startBotTicker = (
 	getWordLength: () => number,
 	onBotProgress: (botId: string) => void,
 	now: () => number = Date.now,
+	onBotReveal?: (botId: string) => void,
 ): NodeJS.Timeout => {
 	logger.info(
 		{ botCount: Object.keys(botData).length },
@@ -458,9 +491,14 @@ export const startBotTicker = (
 				continue;
 			}
 
+			const revealedBefore = Object.keys(bot.revealedLetters ?? {}).length;
 			const completed = tickBot(bot, currentTime, wordLength);
 			if (completed) {
 				onBotProgress(botId);
+			} else if (
+				Object.keys(bot.revealedLetters ?? {}).length > revealedBefore
+			) {
+				onBotReveal?.(botId);
 			}
 		}
 	}, BOT_TICK_MS);

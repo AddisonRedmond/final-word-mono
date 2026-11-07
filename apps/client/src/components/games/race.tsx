@@ -75,6 +75,8 @@ const Race: React.FC<RaceProps> = ({
 	const firstGuessTracked = useRef(false);
 	const startedTracked = useRef(false);
 	const finishedTracked = useRef(false);
+	const guessCount = useRef(0);
+	const guessStartedAt = useRef(Date.now());
 
 	// Engagement: wrap `sendGuess` so the player's first guess of the match is
 	// recorded once (tagged `race`), then delegate to the real sender.
@@ -84,6 +86,14 @@ const Race: React.FC<RaceProps> = ({
 				firstGuessTracked.current = true;
 				track("first_guess_submitted", { mode: "race" });
 			}
+			guessCount.current += 1;
+			track("guess_submitted", {
+				mode: "race",
+				guess_number: guessCount.current,
+				seconds_since_start: Math.round(
+					(Date.now() - guessStartedAt.current) / 1000,
+				),
+			});
 			sendGuess(guess);
 		},
 		[sendGuess],
@@ -128,6 +138,10 @@ const Race: React.FC<RaceProps> = ({
 
 		return { evenOpponents, oddOpponents };
 	}, [match?.players, userId]);
+
+	const wordLength = match
+		? (RACE_CONFIG.rounds[match.room.currentRoundIndex]?.wordLength ?? 5)
+		: 5;
 
 	const qualifyingCount = match
 		? (RACE_CONFIG.rounds[match.room.currentRoundIndex]?.qualifyingCount ?? 1)
@@ -218,6 +232,7 @@ const Race: React.FC<RaceProps> = ({
 				<RaceOpponents
 					opponents={evenOpponents}
 					qualifyingCount={qualifyingCount}
+					wordLength={wordLength}
 				/>
 			) : (
 				<div className="min-w-0 flex-1" />
@@ -229,6 +244,7 @@ const Race: React.FC<RaceProps> = ({
 				<RaceOpponents
 					opponents={oddOpponents}
 					qualifyingCount={qualifyingCount}
+					wordLength={wordLength}
 				/>
 			) : (
 				<div className="min-w-0 flex-1" />

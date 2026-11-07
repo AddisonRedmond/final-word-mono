@@ -23,6 +23,16 @@ export type AnalyticsEvent =
 	// game, tagged with `{ mode }`, across every mode. The started -> first-guess
 	// drop is the "started but never played" cohort.
 	| "first_guess_submitted"
+	// Every valid guess, tagged `{ mode, guess_number, seconds_since_start }`.
+	// Shows how far people get and how fast, beyond the first guess.
+	| "guess_submitted"
+	// A guess rejected by the client spell-check (`{ mode, word }`). A spike on
+	// real words means the dictionary is frustrating people.
+	| "invalid_word_rejected"
+	// Clicked a leave / forfeit control mid-game (`{ mode }`).
+	| "give_up_clicked"
+	// Left the practice page without finishing (`{ seconds_on_page, guesses }`).
+	| "practice_abandoned"
 	| "quick_duel_clicked"
 	| "quick_duel_queued"
 	| "quick_duel_matched"

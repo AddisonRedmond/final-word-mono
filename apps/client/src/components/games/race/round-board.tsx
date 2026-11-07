@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GuessAck } from "@/hooks/useRaceSocket";
 import { eliminationCount, RACE_CONFIG } from "@/shared/race";
 import type { ClientRaceMatch } from "@/types/race.types";
+import { track } from "@/utils/posthog";
 import { isValidGuess } from "@/utils/race";
 import GuessTiles, { type TileSlot } from "../../game-components/guess-tiles";
 import Keyboard from "../../game-components/keyboard";
@@ -25,6 +26,8 @@ type RoundBoardProps = {
 	onGuess: (guess: string) => void;
 	/** Leave the match. */
 	onLeave: () => void;
+	/** Analytics tag for events fired by this board (defaults to `race`). */
+	analyticsMode?: "race" | "practice";
 	/**
 	 * Optional round-shape overrides. The live Race reads word length and the
 	 * qualifying count from `RACE_CONFIG.rounds[currentRoundIndex]`, which is
@@ -69,6 +72,7 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 	lastAck,
 	onGuess,
 	onLeave,
+	analyticsMode = "race",
 	wordLengthOverride,
 	qualifyingCountOverride,
 }) => {
@@ -221,6 +225,7 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 		// (wrong length or not in the round's dictionary) shakes the board and is
 		// kept so the player can fix it — it is NOT sent or cleared.
 		if (!isValidGuess(guess, wordLength)) {
+			track("invalid_word_rejected", { mode: analyticsMode, word: guess });
 			animate(scope.current, { x: [-10, 10, -10, 10, 0] });
 			return;
 		}
@@ -229,7 +234,7 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 		// Auto-clear on a valid submit so the player never has to delete the
 		// previous word (matches Battle Royale).
 		setGuess("");
-	}, [animate, guess, inputLocked, onGuess, scope, wordLength]);
+	}, [analyticsMode, animate, guess, inputLocked, onGuess, scope, wordLength]);
 
 	useEffect(() => {
 		const onKeyDown = (e: KeyboardEvent) => {
@@ -357,7 +362,10 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 			<div className="flex gap-2">
 				<button
 					className="flex cursor-pointer gap-x-0.5 rounded-md p-2 font-semibold text-xs shadow-lg"
-					onClick={onLeave}
+					onClick={() => {
+						track("give_up_clicked", { mode: analyticsMode });
+						onLeave();
+					}}
 					type="button"
 				>
 					<p className="aspect-square rounded-md bg-red-300 p-1">L</p>

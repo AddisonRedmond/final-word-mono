@@ -65,10 +65,27 @@ type PracticeBot = {
 	// Per-word pace window for this bot (min/max ms between word completions).
 	paceMin: number;
 	paceMax: number;
+	// Cosmetic "reveal index" simulation so opponent cards show visible progress
+	// between completions, like real players' green letters. `word` is the bot's
+	// current secret, `revealOrder` the shuffled positions it uncovers, and
+	// `wordStartAt` when it began the word (to pace reveals up to completion).
+	word: string;
+	revealOrder: number[];
+	wordStartAt: number;
+	revealedLetters: Record<number, string>;
 };
 
 const randInt = (min: number, max: number): number =>
 	Math.floor(Math.random() * (max - min + 1)) + min;
+
+const shuffledPositions = (): number[] => {
+	const indexes = Array.from({ length: WORD_LENGTH }, (_, index) => index);
+	for (let i = indexes.length - 1; i > 0; i -= 1) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[indexes[i], indexes[j]] = [indexes[j] as number, indexes[i] as number];
+	}
+	return indexes;
+};
 
 const randomSecret = (): string => {
 	const list = FIVE_LETTER_GUESS_WORDS;
@@ -225,6 +242,10 @@ const makeBots = (now: number): PracticeBot[] =>
 			paceMin,
 			paceMax,
 			nextCompleteAt: now + randInt(paceMin, paceMax),
+			word: randomSecret(),
+			revealOrder: shuffledPositions(),
+			wordStartAt: now,
+			revealedLetters: {},
 		};
 	});
 
@@ -392,8 +413,30 @@ export const usePracticeRace = (
 			setBots((current) => {
 				let changed = false;
 				const next = current.map((bot) => {
-					if (bot.qualified || now < bot.nextCompleteAt) {
+					if (bot.qualified) {
 						return bot;
+					}
+					if (now < bot.nextCompleteAt) {
+						// Still on its word: uncover letters evenly across the time it
+						// will take, never the last one (that's the completion).
+						const total = bot.nextCompleteAt - bot.wordStartAt;
+						const progress = Math.min(
+							1,
+							Math.max(0, (now - bot.wordStartAt) / Math.max(1, total)),
+						);
+						const target = Math.min(
+							WORD_LENGTH - 1,
+							Math.floor(progress * WORD_LENGTH),
+						);
+						if (target <= Object.keys(bot.revealedLetters).length) {
+							return bot;
+						}
+						changed = true;
+						const revealedLetters: Record<number, string> = {};
+						for (const position of bot.revealOrder.slice(0, target)) {
+							revealedLetters[position] = bot.word[position] as string;
+						}
+						return { ...bot, revealedLetters };
 					}
 					changed = true;
 					const completedWords = bot.completedWords + 1;
@@ -403,6 +446,10 @@ export const usePracticeRace = (
 						completedWords,
 						qualified,
 						nextCompleteAt: now + randInt(bot.paceMin, bot.paceMax),
+						word: randomSecret(),
+						revealOrder: shuffledPositions(),
+						wordStartAt: now,
+						revealedLetters: {},
 					};
 				});
 				if (!changed) {
@@ -500,6 +547,7 @@ export const usePracticeRace = (
 				qualified: bot.qualified,
 				totalGuesses: 0,
 				correctGuesses: bot.completedWords,
+				revealedLetters: bot.revealedLetters,
 			};
 		}
 

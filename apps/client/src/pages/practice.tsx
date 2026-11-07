@@ -90,6 +90,34 @@ const Practice: React.FC = () => {
     track("practice_started");
   }, []);
 
+  // Abandonment: if the visitor leaves (tab close, navigation) before a result
+  // lands, record how long they stayed and how many guesses they made. Refs keep
+  // the listener current without re-subscribing on every render.
+  const pageOpenedAt = useRef(Date.now());
+  const guessCount = useRef(0);
+  const finishedRef = useRef(false);
+  const abandonedTracked = useRef(false);
+  useEffect(() => {
+    finishedRef.current = Boolean(result);
+  }, [result]);
+  useEffect(() => {
+    const reportAbandon = () => {
+      if (finishedRef.current || abandonedTracked.current) {
+        return;
+      }
+      abandonedTracked.current = true;
+      track("practice_abandoned", {
+        seconds_on_page: Math.round((Date.now() - pageOpenedAt.current) / 1000),
+        guesses: guessCount.current,
+      });
+    };
+    window.addEventListener("pagehide", reportAbandon);
+    return () => {
+      window.removeEventListener("pagehide", reportAbandon);
+      reportAbandon();
+    };
+  }, []);
+
   const completedTracked = useRef(false);
   useEffect(() => {
     if (result && !completedTracked.current) {
@@ -126,6 +154,14 @@ const Practice: React.FC = () => {
   // the real modes. Delegates to the engine's sender.
   const firstGuessTracked = useRef(false);
   const handleGuess = (guessWord: string) => {
+    guessCount.current += 1;
+    track("guess_submitted", {
+      mode: "practice",
+      guess_number: guessCount.current,
+      seconds_since_start: Math.round(
+        (Date.now() - pageOpenedAt.current) / 1000,
+      ),
+    });
     if (!firstGuessTracked.current) {
       firstGuessTracked.current = true;
       track("first_guess_submitted", { mode: "practice" });
@@ -228,6 +264,7 @@ const Practice: React.FC = () => {
             opponents={evenOpponents}
             qualifyingCount={WORDS_TO_QUALIFY}
             showBotIcon
+            wordLength={5}
           />
 
           <GameCenterPanel>
@@ -252,6 +289,7 @@ const Practice: React.FC = () => {
                 lastAck={lastAck}
                 match={match}
                 onGuess={handleGuess}
+                analyticsMode="practice"
                 onLeave={endNow}
                 qualifyingCountOverride={WORDS_TO_QUALIFY}
                 userId={PLAYER_ID}
@@ -264,6 +302,7 @@ const Practice: React.FC = () => {
             opponents={oddOpponents}
             qualifyingCount={WORDS_TO_QUALIFY}
             showBotIcon
+            wordLength={5}
           />
         </div>
 

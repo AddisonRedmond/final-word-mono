@@ -58,6 +58,8 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
   const isSubmittingRef = useRef(false);
   // Analytics: fire `first_guess_submitted` once for this duel board.
   const firstGuessTracked = useRef(false);
+  const guessCount = useRef(0);
+  const boardOpenedAt = useRef(Date.now());
   const [scope, animate] = useAnimate();
 
   // Persisted preference for which side Enter/Delete sit on in the keyboard.
@@ -94,6 +96,7 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
     // so an invalid spelling shakes the guess row instead of being silently
     // rejected server-side. Mirrors the Battle Royale invalid-guess shake.
     if (!isValidDuelWord(guess)) {
+      track("invalid_word_rejected", { mode: "duel", word: guess });
       animate(scope.current, { x: [-10, 10, -10, 10, 0] });
       return;
     }
@@ -104,6 +107,15 @@ const DuelBoard: React.FC<DuelBoardProps> = ({
       firstGuessTracked.current = true;
       track("first_guess_submitted", { mode: "duel" });
     }
+
+    guessCount.current += 1;
+    track("guess_submitted", {
+      mode: "duel",
+      guess_number: guessCount.current,
+      seconds_since_start: Math.round(
+        (Date.now() - boardOpenedAt.current) / 1000,
+      ),
+    });
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);

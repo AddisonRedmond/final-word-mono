@@ -325,8 +325,11 @@ const Duels = () => {
 
   // Opened by the ribbon's Forfeit/Decline buttons; the actual mutation runs
   // only once the user confirms in the dialog.
-  const requestForfeit = (duelId: string) =>
+  const requestForfeit = (duelId: string) => {
+    track("give_up_clicked", { mode: "duel" });
     setPendingConfirm({ type: "forfeit", duelId });
+  };
+
   const requestDecline = (duelId: string) =>
     setPendingConfirm({ type: "decline", duelId });
 

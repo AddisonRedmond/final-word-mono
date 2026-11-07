@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
 	EliminatedEvent,
 	GuessAck,
@@ -12,6 +12,9 @@ import type {
 	LetterFeedback,
 	RacePhase,
 } from "@/types/race.types";
+// Analytics pulls in validated env vars that are absent under test; stub it.
+vi.mock("@/utils/posthog", () => ({ track: vi.fn() }));
+
 import EliminationView from "./elimination-view";
 import LobbyView from "./lobby-view";
 import ResultView from "./result-view";

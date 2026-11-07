@@ -493,6 +493,7 @@ export const beginRound = (
 		// new word) starts with no revealed hints and a zeroed found-position count.
 		player.correctPositionsFound = 0;
 		player.hintRevealed = undefined;
+		player.revealedLetters = undefined;
 
 		const word = draw(round.wordLength);
 
@@ -512,6 +513,7 @@ export const beginRound = (
 			botData[playerId].word = word;
 			botData[playerId].botCompletedWords = 0;
 			botData[playerId].botGuesses = 0;
+			botData[playerId].revealedLetters = {};
 			botData[playerId].guessTimeStamp = undefined;
 		}
 	}
@@ -575,6 +577,18 @@ export const beginRound = (
 					checkEarlyRoundEnd(match, nsp, config, deps);
 				},
 				deps.now,
+				(botId) => {
+					// A bot found another letter of its current word: mirror it onto its
+					// display player so opponent cards show its progress. Eliminated bots
+					// take no part, so ignore them (see the progress callback above).
+					const botPlayer = match.players.get(botId);
+					const simulated = botData[botId];
+					if (!botPlayer || botPlayer.isEliminated || !simulated) {
+						return;
+					}
+					botPlayer.revealedLetters = { ...(simulated.revealedLetters ?? {}) };
+					emitRaceUpdate(nsp, match);
+				},
 			);
 		}
 	}
@@ -771,6 +785,8 @@ const mirrorBotProgress = (
 	bot.totalGuesses += 1;
 	bot.correctGuesses += 1;
 	bot.correctLetters += wordLength;
+	// Solved its word: a fresh word starts with nothing revealed.
+	bot.revealedLetters = undefined;
 
 	if (!bot.qualified && bot.completedWords >= qualifyingCount) {
 		bot.qualified = true;

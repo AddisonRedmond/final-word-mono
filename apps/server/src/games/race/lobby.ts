@@ -54,6 +54,7 @@ const projectRacePlayer = (player: RacePlayer): ClientRacePlayer => ({
   placement: player.placement,
   revealedWord: player.revealedWord,
   hintRevealed: player.hintRevealed,
+  revealedLetters: player.revealedLetters,
   lastFeedback: player.lastFeedback,
 });
 

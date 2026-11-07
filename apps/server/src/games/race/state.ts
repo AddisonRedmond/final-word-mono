@@ -61,6 +61,8 @@ export type RaceBotServerData = {
   botCompletedWords: number;
   /** Guesses the bot has made this round. */
   botGuesses: number;
+  /** Simulated reveal progress on the current word (index -> letter). */
+  revealedLetters?: Record<number, string>;
 };
 
 /** Map of roomId → botId (`bot0`, `bot1`, …) → bot simulation state. */

@@ -45,6 +45,12 @@ export type RacePlayer = {
   // Reset when a new word is assigned. These are server-provided assists and
   // deliberately do NOT count toward the final-round "most letters" tie-break.
   hintRevealed?: Record<number, string>;
+  // Positions (index -> letter) of this player's CURRENT word that their OWN
+  // guesses have graded `correct` so far. Display-safe progress shown on the
+  // opponent cards ("reveal index", like Battle Royale's revealed_letters).
+  // Every player races a different word, so this gives no one an edge. Reset
+  // when a new word is assigned or a round begins.
+  revealedLetters?: Record<number, string>;
   // latest grading feedback for the client
   lastFeedback?: LetterFeedback[];
   // Server-side bookkeeping: set once this player's aggregate stats have been
@@ -117,6 +123,7 @@ export type RacePlayerUIFields =
   | "placement"
   | "revealedWord"
   | "hintRevealed"
+  | "revealedLetters"
   | "lastFeedback";
 export type ClientRacePlayer = Pick<RacePlayer, RacePlayerUIFields>;
 
@@ -163,6 +170,7 @@ const RACE_PLAYER_UI_FIELDS = [
   "placement",
   "revealedWord",
   "hintRevealed",
+  "revealedLetters",
   "lastFeedback",
 ] as const satisfies readonly RacePlayerUIFields[] satisfies readonly (keyof RacePlayer)[];
 
