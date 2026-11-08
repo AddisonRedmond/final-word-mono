@@ -52,7 +52,35 @@ export type AnalyticsEvent =
 	| "practice_tutorial_started"
 	| "practice_tutorial_step_viewed"
 	| "practice_tutorial_completed"
-	| "practice_tutorial_skipped";
+	| "practice_tutorial_skipped"
+	// PWA install funnel. banner_shown -> help_opened / prompt_result ->
+	// installed answers "does the install nudge work, and on which platform".
+	// `pwa_launched` fires once per session when the game is opened FROM the
+	// home screen (standalone), which measures real installed-app usage.
+	| "pwa_install_banner_shown" // { platform }
+	| "pwa_install_banner_dismissed" // { platform }
+	| "pwa_install_help_opened" // { platform, source: "banner" | "navbar" }
+	| "pwa_install_prompt_result" // { platform, outcome: "accepted" | "dismissed" }
+	| "pwa_installed" // { platform } browser confirmed the install
+	| "pwa_launched"; // { platform }
+
+/**
+ * Attach properties to EVERY subsequent event (PostHog "super properties").
+ * Used for `display_mode` so any metric — retention, games played — can be
+ * broken down by installed-app vs browser. No-op when analytics is disabled.
+ */
+export const setAnalyticsContext = (
+	properties: Record<string, unknown>,
+): void => {
+	if (!isEnabled()) {
+		return;
+	}
+	try {
+		posthog.register(properties);
+	} catch {
+		// Analytics must never break the app.
+	}
+};
 
 let initialized = false;
 

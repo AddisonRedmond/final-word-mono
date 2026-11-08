@@ -1,9 +1,10 @@
-import { ChartColumn, Home, LifeBuoy, Trophy, Users } from "lucide-react";
+import { ChartColumn, Download, Home, LifeBuoy, Trophy, Users } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SUPPORT_EMAIL } from "@/constants";
 import { useAuthStore } from "@/state/auth-store";
+import { usePwaInstallStore } from "@/state/pwa-install-store";
 import { AnimatePresence, motion } from "motion/react";
 
 const Navbar = () => {
@@ -20,6 +21,9 @@ const Navbar = () => {
   const profileEmail = useAuthStore((state) => state.profileEmail);
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const signOut = useAuthStore((state) => state.signOut);
+  // "Install app" entry is hidden once the game is running installed.
+  const isStandalone = usePwaInstallStore((state) => state.isStandalone);
+  const openInstallHelp = usePwaInstallStore((state) => state.openHelp);
 
   useEffect(() => {
     initializeAuth();
@@ -182,6 +186,19 @@ const Navbar = () => {
                   >
                     Roadmap
                   </Link>
+                  {!isStandalone && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openInstallHelp("navbar");
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                    >
+                      <Download aria-hidden="true" size={14} />
+                      Install app
+                    </button>
+                  )}
                   {/* Profile / manage subscription. */}
                   <Link
                     href="/profile"
@@ -333,6 +350,22 @@ const Navbar = () => {
                   </span>
                   Roadmap
                 </Link>
+
+                {!isStandalone && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      openInstallHelp("navbar");
+                    }}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
+                  >
+                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 text-white">
+                      <Download aria-hidden="true" size={13} />
+                    </span>
+                    Install app
+                  </button>
+                )}
 
                 {/* Profile / manage subscription. */}
                 <Link

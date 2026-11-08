@@ -8,7 +8,7 @@ const Toaster: React.FC = () => {
 	const dismiss = useToastStore((state) => state.dismiss);
 
 	return (
-		<div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-end gap-2 px-4 sm:inset-x-auto sm:right-4">
+		<div className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 px-4 sm:inset-x-auto sm:right-4">
 			<LazyMotion features={domAnimation} strict>
 				<AnimatePresence initial={false}>
 					{toasts.map((toast) => (
