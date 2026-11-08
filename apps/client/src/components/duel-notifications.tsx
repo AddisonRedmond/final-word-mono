@@ -37,6 +37,15 @@ const DuelNotifications: React.FC = () => {
 
 	const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
+	const { data: opponentNames } = api.duels.duelOpponentNames.useQuery(
+		undefined,
+		{ enabled: Boolean(currentUserId) },
+	);
+	const opponentNamesRef = useRef(opponentNames);
+	useEffect(() => {
+		opponentNamesRef.current = opponentNames;
+	}, [opponentNames]);
+
 	// Keep the friends list in a ref so name resolution doesn't force the event
 	// handler (and thus the realtime subscription) to be recreated.
 	const friendsRef = useRef(friends);
@@ -51,6 +60,8 @@ const DuelNotifications: React.FC = () => {
 			}
 			return (
 				friendsRef.current?.find((friend) => friend.id === userId)?.name ??
+				opponentNamesRef.current?.find((person) => person.id === userId)
+					?.name ??
 				"Your opponent"
 			);
 		},

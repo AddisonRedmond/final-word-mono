@@ -130,6 +130,18 @@ const Duels = () => {
     onEvent: handleRealtimeEvent,
   });
 
+  // Names for every duel opponent, including non-friends (Quick Duel matches
+  // etc.). Used only for LABELS; inviting still uses the real friends list.
+  const { data: opponentNames } = api.duels.duelOpponentNames.useQuery();
+
+  // A new duel (e.g. a fresh Quick Duel match) can bring a new opponent, so
+  // refetch names whenever the set of duels changes.
+  const duelIdsKey = duelIds.join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refetch only when the duel set changes
+  useEffect(() => {
+    void utils.duels.duelOpponentNames.invalidate();
+  }, [duelIdsKey]);
+
   const friends: Friend[] = (data ?? [])
     .filter((friend) => friend.status === "accepted")
     .map((friend) => ({
@@ -138,6 +150,22 @@ const Duels = () => {
       email: friend.email ?? "",
       status: friend.status,
     }));
+
+  // Friends first, then any other duel opponents the friends list lacks.
+  const nameDirectory: Friend[] = [
+    ...friends,
+    ...(opponentNames ?? [])
+      .filter(
+        (person) =>
+          person.name && !friends.some((friend) => friend.id === person.id),
+      )
+      .map((person) => ({
+        id: person.id,
+        name: person.name as string,
+        email: "",
+        status: "accepted" as const,
+      })),
+  ];
 
   /*
    * While a board is open, keep its participant list in sync with realtime so
@@ -443,12 +471,13 @@ const Duels = () => {
         return {
           id: userId,
           name:
-            friends.find((friend) => friend.id === userId)?.name ?? "Unknown",
+            nameDirectory.find((person) => person.id === userId)?.name ??
+            "Unknown",
           status,
           guesses: participant?.guesses ?? [],
         };
       });
-  }, [activeDuelData, currentUserId, participantsByDuel, friends]);
+  }, [activeDuelData, currentUserId, participantsByDuel, nameDirectory]);
 
   return (
     <div className="flex h-dvh flex-col items-center gap-y-2 overflow-hidden">
@@ -527,7 +556,7 @@ const Duels = () => {
                   <ArchivedDuelRow
                     currentUserId={currentUserId!}
                     duel={duel}
-                    friends={friends}
+                    friends={nameDirectory}
                     isLoading={isLoadingResult}
                     key={duel.id}
                     onViewResult={(id) => void handleViewArchivedResult(id)}
@@ -551,7 +580,7 @@ const Duels = () => {
                 <DuelRibbon
                   currentUserId={currentUserId!}
                   duel={duel}
-                  friends={friends}
+                  friends={nameDirectory}
                   handleArchive={handleArchiveDuel}
                   handleDeclineDuel={requestDecline}
                   handleForfeit={requestForfeit}

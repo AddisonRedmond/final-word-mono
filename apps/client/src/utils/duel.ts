@@ -77,6 +77,57 @@ export const haveAllDuelParticipantsFinished = (
   });
 };
 
+/** How long a duel may stay open before it is finalized automatically. */
+export const DUEL_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+/** The moment a duel created at `createdAt` expires. */
+export const duelDeadline = (createdAt: Date): Date =>
+  new Date(createdAt.getTime() + DUEL_EXPIRY_MS);
+
+/**
+ * Plans how to close out an EXPIRED duel without waiting on anyone, so partial
+ * games resolve instead of hanging. Pure (no DB) so the rules sit next to
+ * `determineDuelWinner` and `haveAllDuelParticipantsFinished`.
+ *
+ *   - Invited but never responded (no row): recorded as declined.
+ *   - Already declined, or already finished/forfeited: left alone.
+ *   - Accepted but unfinished: the game is ended at the deadline with
+ *     `success = false` (any solve would already have set endTime). If they never
+ *     opened the board and made no guesses it counts as a forfeit; if they
+ *     started, it is a normal loss (ran out of time) so their effort still counts.
+ *
+ * Anyone who already solved keeps their result, so the usual winner rules then
+ * apply: a solver beats non-solvers, and if nobody solved the duel is a draw.
+ */
+export const planExpiredDuel = (
+  participantIds: string[],
+  rows: DuelParticipant[],
+): {
+  declinedUserIds: string[];
+  timedOut: { userId: string; forfeited: boolean }[];
+} => {
+  const declinedUserIds: string[] = [];
+  const timedOut: { userId: string; forfeited: boolean }[] = [];
+
+  for (const userId of participantIds) {
+    const row = rows.find((participant) => participant.userId === userId);
+
+    if (!row) {
+      declinedUserIds.push(userId);
+      continue;
+    }
+    if (row.accepted === false || row.endTime !== null) {
+      continue;
+    }
+    timedOut.push({
+      userId,
+      forfeited: row.startTime === null && row.guesses.length === 0,
+    });
+  }
+
+  return { declinedUserIds, timedOut };
+};
+
 export type MatchResult = {
   fullMatches: Record<number, string>;
   partialMatches: string[];

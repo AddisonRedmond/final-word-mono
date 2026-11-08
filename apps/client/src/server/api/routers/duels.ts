@@ -6,6 +6,7 @@ import {
   eq,
   exists,
   inArray,
+  lt,
   not,
   or,
 } from "drizzle-orm";
@@ -31,10 +32,13 @@ import { type DbOrTransaction, upsertModeStats } from "@/db/stats";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
   determineDuelWinner,
+  DUEL_EXPIRY_MS,
+  duelDeadline,
   getRandomWord,
   haveAllDuelParticipantsFinished,
   isValidDuelWord,
   MAX_GUESSES,
+  planExpiredDuel,
 } from "@/utils/duel";
 import { buildDuelResponse } from "@/utils/duel-response";
 
@@ -139,6 +143,144 @@ export const persistDuelCompletion = async (
       { userId, mode: "duel", scope: season, outcome },
       completedAt,
     );
+  }
+};
+
+/**
+ * Finalizes ONE duel that has been open longer than DUEL_EXPIRY_MS so it never
+ * hangs waiting on someone who stopped playing. Reuses the exact completion
+ * path (`determineDuelWinner` + `persistDuelCompletion`), so results and stats
+ * can't drift from a normally-completed duel.
+ *
+ * Runs in a single transaction under a row lock and re-checks `completed`, so
+ * two people opening the page at once finalize it exactly once. Returns whether
+ * this call completed the duel.
+ *
+ * Players who solved keep their result; unfinished starters are ended as a loss
+ * and players who never started forfeit (see `planExpiredDuel`). If nobody
+ * solved, the duel is a draw. The completion time is the deadline
+ * (createdAt + 24h) so stats land in the month the duel actually expired, unless
+ * that month is already over, in which case "now" is used so a finished
+ * season's numbers aren't rewritten.
+ */
+export const expireStaleDuel = async (
+  db: DbOrTransaction & {
+    transaction: <T>(fn: (tx: DbOrTransaction) => Promise<T>) => Promise<T>;
+  },
+  duelId: string,
+  now: Date = new Date(),
+): Promise<boolean> =>
+  db.transaction(async (tx) => {
+    const [duel] = await tx
+      .select()
+      .from(duels)
+      .where(eq(duels.id, duelId))
+      .for("update");
+
+    if (!duel || duel.completed) {
+      return false;
+    }
+
+    const deadline = duelDeadline(duel.createdAt);
+    if (deadline.getTime() > now.getTime()) {
+      return false;
+    }
+
+    const existing = await tx
+      .select()
+      .from(duelParticipants)
+      .where(eq(duelParticipants.duelId, duelId));
+
+    const { declinedUserIds, timedOut } = planExpiredDuel(
+      duel.participants,
+      existing,
+    );
+
+    if (declinedUserIds.length > 0) {
+      await tx
+        .insert(duelParticipants)
+        .values(
+          declinedUserIds.map((userId) => ({
+            duelId,
+            userId,
+            accepted: false,
+          })),
+        )
+        .onConflictDoNothing();
+    }
+
+    for (const { userId, forfeited } of timedOut) {
+      await tx
+        .update(duelParticipants)
+        .set({ endTime: deadline, success: false, forfeited })
+        .where(
+          and(
+            eq(duelParticipants.duelId, duelId),
+            eq(duelParticipants.userId, userId),
+          ),
+        );
+    }
+
+    const participants = await tx
+      .select()
+      .from(duelParticipants)
+      .where(eq(duelParticipants.duelId, duelId));
+
+    // Only people who actually finished a game compete for the win; declined
+    // or never-joined players must not force a draw.
+    const winner = determineDuelWinner(
+      participants.filter((participant) => participant.endTime !== null),
+    );
+    const completedAt =
+      seasonKey(deadline) === seasonKey(now) ? deadline : now;
+
+    await tx
+      .update(duels)
+      .set({ completed: true, winner })
+      .where(eq(duels.id, duelId));
+
+    await persistDuelCompletion(tx, {
+      duelId,
+      winner,
+      participants,
+      completedAt,
+    });
+
+    return true;
+  });
+
+/**
+ * Finalizes every expired, still-open duel the user is in. Failures are logged
+ * and swallowed per duel so a problem with one never breaks loading the list.
+ */
+const expireStaleDuelsForUser = async (
+  db: Parameters<typeof expireStaleDuel>[0],
+  userId: string,
+): Promise<void> => {
+  const cutoff = new Date(Date.now() - DUEL_EXPIRY_MS);
+  const stale = await db
+    .select({ id: duels.id })
+    .from(duels)
+    .where(
+      and(
+        arrayContains(duels.participants, [userId]),
+        eq(duels.completed, false),
+        lt(duels.createdAt, cutoff),
+      ),
+    );
+
+  for (const { id } of stale) {
+    try {
+      await expireStaleDuel(db, id);
+    } catch (error) {
+      console.error(
+        "Failed to expire stale duel",
+        JSON.stringify({
+          duelId: id,
+          err: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
   }
 };
 
@@ -271,6 +413,10 @@ export const duelsRouter = createTRPCRouter({
   allDuels: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
 
+    // Close out any duels that have sat open past the expiry window first, so
+    // the list below shows them as finished instead of hanging.
+    await expireStaleDuelsForUser(ctx.db, userId);
+
     const declinedDuel = ctx.db
       .select({ duelId: duelParticipants.duelId })
       .from(duelParticipants)
@@ -312,6 +458,37 @@ export const duelsRouter = createTRPCRouter({
           not(exists(acknowledgedCompletedDuel)),
         ),
       );
+  }),
+
+  /*
+   * Display names for everyone the current user shares a duel with (active or
+   * archived), friend or not. Duels can include non-friends (Quick Duel
+   * matches, since-removed friends, pending requests), so the accepted-friends
+   * list alone can't name every opponent. Returns ONLY `{ id, name }` (never
+   * email) and only for users who actually share a duel with the caller.
+   */
+  duelOpponentNames: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+
+    const rows = await ctx.db
+      .select({ participants: duels.participants })
+      .from(duels)
+      .where(arrayContains(duels.participants, [userId]));
+
+    const otherIds = [
+      ...new Set(
+        rows.flatMap((row) => row.participants).filter((id) => id !== userId),
+      ),
+    ];
+
+    if (otherIds.length === 0) {
+      return [];
+    }
+
+    return ctx.db
+      .select({ id: profiles.id, name: profiles.name })
+      .from(profiles)
+      .where(inArray(profiles.id, otherIds));
   }),
 
   /*
@@ -649,6 +826,10 @@ export const duelsRouter = createTRPCRouter({
     .input(z.string().uuid())
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
+
+      // The list may be stale: if this duel has expired, finalize it now so the
+      // normal "already completed" handling below applies.
+      await expireStaleDuel(ctx.db, input).catch(() => false);
 
       const [duel] = await ctx.db
         .select()
