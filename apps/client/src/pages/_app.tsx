@@ -7,6 +7,7 @@ import { api } from "@/utils/api";
 import "@/styles/globals.css";
 import Background from "@/components/background/background";
 import DuelNotifications from "@/components/duel-notifications";
+import PwaInstall from "@/components/pwa-install";
 import Toaster from "@/components/toaster";
 import { useAuthStore } from "@/state/auth-store";
 import { identifyUser, initAnalytics, resetAnalytics } from "@/utils/posthog";
@@ -23,6 +24,19 @@ const MyApp: AppType = ({ Component, pageProps }) => {
   // builds don't run analytics).
   useEffect(() => {
     initAnalytics();
+  }, []);
+
+  // Register the PWA service worker in production only. In dev it would serve
+  // stale assets and fight with HMR.
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === "production" &&
+      "serviceWorker" in navigator
+    ) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Non-fatal: the app works fine without the service worker.
+      });
+    }
   }, []);
 
   // Tie events to the signed-in user once auth resolves, and clear the identity
@@ -74,6 +88,7 @@ const MyApp: AppType = ({ Component, pageProps }) => {
       <Background />
       <Toaster />
       <DuelNotifications />
+      <PwaInstall />
       <Component {...pageProps} />
     </div>
   );

@@ -12,6 +12,16 @@ export default function Document() {
           name="keywords"
           content="Final Word, multiplayer word game, word game, Wordle, word puzzle, online word game, duel word game"
         />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#101612" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Final Word" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black"
+        />
         {isDevelopment && (
           <Script
             src="//unpkg.com/react-scan/dist/auto.global.js"

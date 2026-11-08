@@ -90,7 +90,7 @@ const Friends: React.FC = () => {
       <Head>
         <title>Friends · Final Word</title>
       </Head>
-      <main className="flex flex-col h-screen">
+      <main className="flex flex-col h-dvh">
         <Navbar />
 
         <div className="flex min-h-0 flex-col grow items-center justify-start pt-10 px-4 pb-6 gap-y-5">
