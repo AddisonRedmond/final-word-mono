@@ -191,13 +191,13 @@ const PracticeTutorial: React.FC<PracticeTutorialProps> = ({
 			{open && current && (
 				<motion.div
 					animate={{ opacity: 1 }}
-					className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 px-6 backdrop-blur-sm"
+					className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 px-6 backdrop-blur-sm"
 					exit={{ opacity: 0 }}
 					initial={{ opacity: 0 }}
 				>
 					<motion.div
 						animate={{ scale: 1, y: 0, opacity: 1 }}
-						className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl"
+						className="w-full max-w-sm rounded-2xl bg-panel p-6 text-center shadow-2xl"
 						exit={{ scale: 0.95, opacity: 0 }}
 						initial={{ scale: 0.95, y: 8, opacity: 0 }}
 						key={step}
@@ -223,7 +223,7 @@ const PracticeTutorial: React.FC<PracticeTutorialProps> = ({
 						</div>
 
 						<button
-							className="mt-5 w-full rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-white uppercase tracking-wider transition-colors hover:bg-emerald-400"
+							className="mt-5 w-full rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-ink uppercase tracking-wider transition-colors hover:bg-emerald-400"
 							onClick={handlePrimary}
 							type="button"
 						>

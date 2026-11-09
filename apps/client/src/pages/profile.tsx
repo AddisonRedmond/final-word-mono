@@ -125,7 +125,7 @@ const FEATURE_ROWS: FeatureRow[] = [
 const PlanComparison: React.FC<{ currentIsPremium: boolean }> = ({
 	currentIsPremium,
 }) => (
-	<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+	<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 		<h2 className="mb-3 font-mono text-sm uppercase tracking-widest">
 			Free vs Premium
 		</h2>
@@ -178,7 +178,7 @@ const PlanComparison: React.FC<{ currentIsPremium: boolean }> = ({
 				</tbody>
 			</table>
 		</div>
-		<p className="mt-3 text-[11px] text-gray-400">★ marks your current plan.</p>
+		<p className="mt-3 text-[11px] text-gray-500">★ marks your current plan.</p>
 	</section>
 );
 
@@ -257,7 +257,7 @@ const DisplayNameSection: React.FC<{ canQuery: boolean }> = ({ canQuery }) => {
 	};
 
 	return (
-		<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+		<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 			<h2 className="mb-1 font-mono text-sm uppercase tracking-widest">
 				Display name
 			</h2>
@@ -267,12 +267,12 @@ const DisplayNameSection: React.FC<{ canQuery: boolean }> = ({ canQuery }) => {
 			</p>
 
 			{isLoading ? (
-				<p className="py-2 text-gray-400 text-sm">Loading…</p>
+				<p className="py-2 text-gray-500 text-sm">Loading…</p>
 			) : (
 				<form className="flex flex-col gap-2" onSubmit={handleSubmit}>
 					<input
 						aria-label="Display name"
-						className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-gray-800 text-sm outline-none transition-colors focus:border-green-400 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+						className="w-full rounded-md border border-gray-200 bg-panel px-3 py-2 text-gray-800 text-sm outline-none transition-colors focus:border-green-400 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
 						disabled={!canChange || mutation.isPending}
 						maxLength={DISPLAY_NAME.maxLength}
 						onChange={(e) => {
@@ -296,7 +296,7 @@ const DisplayNameSection: React.FC<{ canQuery: boolean }> = ({ canQuery }) => {
 					{/* Once-per-year notice. When gated, show the next-eligible date;
 					    otherwise set expectations before they change it. */}
 					{canChange ? (
-						<p className="text-[11px] text-gray-400">
+						<p className="text-[11px] text-gray-500">
 							Heads up: you can only change your name once per year.
 						</p>
 					) : (
@@ -308,7 +308,7 @@ const DisplayNameSection: React.FC<{ canQuery: boolean }> = ({ canQuery }) => {
 
 					<div>
 						<button
-							className="rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+							className="rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
 							disabled={!canSubmit}
 							type="submit"
 						>
@@ -420,7 +420,7 @@ const Profile: React.FC = () => {
 										</p>
 										<div className="mt-2 flex flex-wrap items-center gap-2">
 											<button
-												className="rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:opacity-60"
+												className="rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:opacity-60"
 												disabled={syncMutation.isPending}
 												onClick={() => syncMutation.mutate()}
 												type="button"
@@ -445,7 +445,7 @@ const Profile: React.FC = () => {
 								))}
 
 							{/* Account */}
-							<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+							<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 								<h2 className="mb-1 font-mono text-sm uppercase tracking-widest">
 									Account
 								</h2>
@@ -459,7 +459,7 @@ const Profile: React.FC = () => {
 							<DisplayNameSection canQuery={canQuery} />
 
 							{/* Subscription */}
-							<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+							<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 								<div className="mb-1 flex items-center justify-between">
 									<h2 className="font-mono text-sm uppercase tracking-widest">
 										Subscription
@@ -474,7 +474,7 @@ const Profile: React.FC = () => {
 								</div>
 
 								{billingLoading ? (
-									<p className="py-3 text-gray-400 text-sm">Loading…</p>
+									<p className="py-3 text-gray-500 text-sm">Loading…</p>
 								) : (
 									<div className="divide-y divide-gray-100">
 										<Row label="Plan">{isPremium ? "Premium" : "Free"}</Row>
@@ -534,7 +534,7 @@ const Profile: React.FC = () => {
 										</a>
 									) : (
 										<a
-											className="inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+											className="inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
 											href="/api/polar/checkout"
 										>
 											Upgrade to premium
@@ -558,7 +558,7 @@ const Profile: React.FC = () => {
 							<PlanComparison currentIsPremium={isPremium} />
 
 							{/* Support */}
-							<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+							<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 								<h2 className="mb-1 font-mono text-sm uppercase tracking-widest">
 									Support
 								</h2>
@@ -572,7 +572,7 @@ const Profile: React.FC = () => {
 								>
 									Contact support
 								</a>
-								<p className="mt-2 text-[11px] text-gray-400">
+								<p className="mt-2 text-[11px] text-gray-500">
 									{SUPPORT_EMAIL}
 								</p>
 							</section>

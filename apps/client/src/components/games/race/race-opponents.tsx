@@ -1,3 +1,4 @@
+import { flatTileClasses } from "@/utils/letter-states";
 import { Bot, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -167,7 +168,7 @@ const RaceOpponents = memo(
 											</span>
 										)}
 										{opponent.qualified && (
-											<span className="grid size-4 place-content-center rounded-full bg-emerald-500 text-white">
+											<span className="grid size-4 place-content-center rounded-full bg-emerald-500 text-ink">
 												<Check className="size-3" />
 											</span>
 										)}
@@ -182,8 +183,8 @@ const RaceOpponents = memo(
 											const letter = revealed[index];
 											return (
 												<div
-													className={`grid place-content-center rounded-sm font-semibold text-white ${
-														letter ? "bg-emerald-400" : "bg-stone-300"
+													className={`grid place-content-center rounded-sm font-semibold ${
+														letter ? flatTileClasses.correct : flatTileClasses.default
 													}`}
 													key={index}
 													style={{

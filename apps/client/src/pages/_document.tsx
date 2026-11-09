@@ -13,7 +13,7 @@ export default function Document() {
           content="Final Word, multiplayer word game, word game, Wordle, word puzzle, online word game, duel word game"
         />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="theme-color" content="#101612" />
+        <meta name="theme-color" content="#0B0B10" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -110,7 +110,7 @@ export default function Roadmap({
 							<Tile revealed={true} size="md" variant="correct" word="FINAL" />
 							<Tile revealed={true} size="sm" variant="present" word="WORD" />
 						</div>
-						<article className="rounded-2xl border border-amber-200/60 bg-white/70 p-6 shadow-sm backdrop-blur-sm sm:p-8">
+						<article className="rounded-2xl border border-amber-200/60 bg-panel/70 p-6 shadow-sm backdrop-blur-sm sm:p-8">
 							<ReactMarkdown
 								components={markdownComponents}
 								remarkPlugins={[remarkGfm]}

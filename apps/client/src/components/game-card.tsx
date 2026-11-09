@@ -8,6 +8,8 @@ type GameCardProps = {
 	title: string;
 	badge?: string;
 	badgeVariant?: "green" | "yellow" | "gray";
+	/** Colour identity of the mode: drives the card's glow and hover edge. */
+	accent?: "lime" | "hot" | "ice" | "sun";
 	tiles?: {
 		word: string;
 		variant: "correct" | "present" | "absent" | "default";
@@ -30,31 +32,45 @@ const GameCard: React.FC<GameCardProps> = ({
 	title,
 	badge,
 	badgeVariant = "green",
+	accent = "lime",
 	tiles,
 	rules,
 	children,
 }) => {
 	const badgeColors = {
-		green: "bg-green-400",
-		yellow: "bg-yellow-400",
-		gray: "bg-gray-400",
+		green: "bg-hot text-white",
+		yellow: "bg-sun text-ink",
+		gray: "bg-ice text-ink",
 	};
+	// Per-mode glow colour (RGB so it can be used at several alphas) and the
+	// hover ring colour.
+	const accents = {
+		lime: { rgb: "182,255,46", ring: "hover:ring-lime/60" },
+		hot: { rgb: "255,61,129", ring: "hover:ring-hot/60" },
+		ice: { rgb: "110,231,255", ring: "hover:ring-ice/60" },
+		sun: { rgb: "255,214,10", ring: "hover:ring-sun/60" },
+	}[accent];
 	const [isOpen, setIsOpen] = useState(false);
 	return (
 		// Outer wrapper is NOT clipped so the badge can poke outside the card
 		// (`-top-1 -right-1`). The inner wrapper owns `overflow-hidden` so the
 		// slide-up Join Game panel (an `absolute inset-0` child) is clipped to the
 		// card bounds without also clipping the badge.
-		<div className="relative h-56 w-full max-w-xs font-mono">
+		<div className="group relative min-h-56 w-full max-w-xs">
 			{badge && (
 				<span
-					className={`absolute -top-1 -right-1 z-20 ${badgeColors[badgeVariant]} rounded-sm px-1.5 py-0.5 font-semibold text-[9px] text-white uppercase tracking-widest`}
+					className={`absolute -top-2 -right-2 z-20 ${badgeColors[badgeVariant]} -rotate-3 rounded-md px-2 py-0.5 font-display text-[10px] uppercase tracking-widest shadow-lg`}
 				>
 					{badge}
 				</span>
 			)}
 
-			<div className="relative h-full w-full overflow-hidden rounded-lg bg-stone-500/10 p-5 shadow-xl backdrop-blur-lg transition-all hover:border-green-400 active:scale-[0.98]">
+			<div
+				className={`relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-panel/80 p-5 shadow-2xl ring-2 ring-transparent backdrop-blur-xl transition-all duration-200 group-hover:-translate-y-1 ${accents.ring}`}
+				style={{
+					backgroundImage: `radial-gradient(18rem 10rem at 100% 0%, rgba(${accents.rgb},0.22), transparent 70%)`,
+				}}
+			>
 				{tiles && (
 					<div className="mb-3.5 flex gap-1.5">
 						{tiles.map((tile, i) => (
@@ -69,12 +85,13 @@ const GameCard: React.FC<GameCardProps> = ({
 					</div>
 				)}
 
-				<h2 className="m-0 mb-1.5 flex items-center gap-x-2 text-lg uppercase tracking-wide">
+				<h2 className="m-0 mb-1.5 flex items-center gap-x-2 text-xl uppercase leading-none tracking-tight">
 					{title}
 					{rules && (
 						<span>
 							<button
 								aria-label={`How to play ${title}`}
+								className="cursor-pointer text-gray-500 transition-colors hover:text-white"
 								onClick={() => setIsOpen(true)}
 								type="button"
 							>
@@ -83,9 +100,7 @@ const GameCard: React.FC<GameCardProps> = ({
 						</span>
 					)}
 				</h2>
-				<p className="m-0 mb-4 text-[11px] text-gray-400 leading-relaxed">
-					{desc}
-				</p>
+				<p className="m-0 mb-4 text-gray-600 text-xs leading-relaxed">{desc}</p>
 
 				{children}
 				{rules?.({ isOpen, setIsOpen })}

@@ -25,6 +25,7 @@ import BonusPreview from "../game-components/bonus-preview";
 import Winner from "../game-components/winner";
 import ShareCode from "../game-components/share-code";
 import GameCenterPanel from "../game-components/game-center-panel";
+import LeaveButton from "@/components/leave-button";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -278,9 +279,7 @@ const BattleRoyale = ({
             {/* v1 play-with-friends — show this room's share code before the
                 match starts so a player can invite friends into the SAME game.
                 A friend enters it via "Join Game" on the home screen. */}
-            {lobby?.room.shareCode && (
-              <ShareCode code={lobby.room.shareCode} />
-            )}
+            {lobby?.room.shareCode && <ShareCode code={lobby.room.shareCode} />}
             {/* Fallback notice: the player tried a friend's code but it was
                 missing/started/full, so they were placed in a fresh game. */}
             {joinNotice === "room-unavailable" && (
@@ -310,22 +309,24 @@ const BattleRoyale = ({
         )}
 
         <div ref={scope}>
-          <GuessContainer
-            fullMatches={lobby?.players[userId]?.revealed_letters}
-            guess={guess}
-            queue={lobby?.players[userId]?.display_queue}
-            attackQueueView={lobby?.players[userId]?.attackQueueView}
-            cementAt={lobby?.players[userId]?.attackCementAt}
-            currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
-            attackerInitials={
-              lobby?.players[userId]?.currentWordIsAttack
-                ? br.getInitials(
-                    lobby.players[userId]?.currentWordAttackerName ??
-                      lobby.players[userId]?.lastAttackerName,
-                  )
-                : undefined
-            }
-          />
+          {!lobby?.players[userId]?.isEliminated && (
+            <GuessContainer
+              fullMatches={lobby?.players[userId]?.revealed_letters}
+              guess={guess}
+              queue={lobby?.players[userId]?.display_queue}
+              attackQueueView={lobby?.players[userId]?.attackQueueView}
+              cementAt={lobby?.players[userId]?.attackCementAt}
+              currentWordGuesses={lobby?.players[userId]?.currentWordGuesses}
+              attackerInitials={
+                lobby?.players[userId]?.currentWordIsAttack
+                  ? br.getInitials(
+                      lobby.players[userId]?.currentWordAttackerName ??
+                        lobby.players[userId]?.lastAttackerName,
+                    )
+                  : undefined
+              }
+            />
+          )}
         </div>
 
         {!lobby?.players[userId]?.isEliminated && (
@@ -346,18 +347,7 @@ const BattleRoyale = ({
             noMatch={lobby?.players[userId]?.noMatch}
           />
         )}
-        <div className="flex gap-2">
-          <button
-            onClick={() => br.leave(socketRef)}
-            className="p-2 cursor-pointer rounded-md shadow-lg flex text-xs gap-x-0.5 font-semibold"
-          >
-            <p className="rounded-md aspect-square  p-1 bg-red-300">L</p>
-            <p className=" rounded-md aspect-square p-1 bg-red-300">E</p>
-            <p className=" rounded-md aspect-square p-1 bg-red-300">A</p>
-            <p className="rounded-md aspect-square p-1 bg-red-300">V</p>
-            <p className="rounded-md aspect-square p-1 bg-red-300">E</p>
-          </button>
-        </div>
+        <LeaveButton onClick={() => br.leave(socketRef)} />
       </GameCenterPanel>
       <Opponents
         opponents={oddOpponents}

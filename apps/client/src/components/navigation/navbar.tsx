@@ -81,14 +81,14 @@ const Navbar = () => {
     : "?";
 
   return (
-    <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-30 bg-white/50">
+    <div className="w-full h-14 p-4 flex justify-between items-center sticky top-0 z-30 border-b border-white/5 bg-ink/70 backdrop-blur-md">
       {/* Logo */}
       <Link className="cursor-pointer" href={"/sign-in"}>
         <button className="flex gap-x-1 cursor-pointer">
-          <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
+          <span className="keycap size-8 p-1 rounded-lg bg-green-400 text-ink -rotate-6 grid place-content-center font-display [--keycap-edge:var(--color-lime-edge)]">
             F
           </span>
-          <span className="size-8 p-1 rounded-md bg-yellow-400 grid place-content-center font-semibold">
+          <span className="keycap size-8 p-1 rounded-lg bg-yellow-400 text-ink rotate-3 grid place-content-center font-display [--keycap-edge:var(--color-sun-edge)]">
             W
           </span>
         </button>
@@ -98,7 +98,7 @@ const Navbar = () => {
       <div className="hidden items-center gap-x-3 sm:flex">
         <Link
           href="/"
-          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 font-display text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
             router.pathname === "/"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -109,7 +109,7 @@ const Navbar = () => {
         </Link>
         <Link
           href="/friends"
-          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 font-display text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
             router.pathname === "/friends"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -120,7 +120,7 @@ const Navbar = () => {
         </Link>
         <Link
           href="/stats"
-          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 font-display text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
             router.pathname === "/stats"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -132,7 +132,7 @@ const Navbar = () => {
         {/* Leaderboard link visible to everyone. */}
         <Link
           href="/leaderboard"
-          className={`flex items-center gap-x-1.5 text-sm font-medium px-3 py-1.5 rounded-md border transition-colors ${
+          className={`flex items-center gap-x-1.5 font-display text-xs uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-colors ${
             router.pathname === "/leaderboard"
               ? "border-green-400 bg-green-50 text-green-700"
               : "border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -147,7 +147,7 @@ const Navbar = () => {
           <button
             type="button"
             onClick={() => setMenuOpen((o) => !o)}
-            className="size-8 rounded-md bg-amber-400 grid place-content-center text-xs font-bold text-white hover:bg-amber-300 active:scale-95 transition-all select-none"
+            className="size-8 rounded-md bg-amber-400 grid place-content-center text-xs font-bold text-ink hover:bg-amber-300 active:scale-95 transition-all select-none"
             aria-label="Open profile menu"
             aria-expanded={menuOpen}
           >
@@ -161,7 +161,7 @@ const Navbar = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -4 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 mt-2 w-52 rounded-lg border border-gray-200/80 bg-white/90 backdrop-blur-lg shadow-xl z-50 overflow-hidden font-mono"
+                className="absolute right-0 mt-2 w-52 rounded-lg border border-gray-200/80 bg-panel/90 backdrop-blur-lg shadow-xl z-50 overflow-hidden font-mono"
               >
                 {/* User info */}
                 <div className="px-4 py-3 border-b border-gray-100">
@@ -240,16 +240,16 @@ const Navbar = () => {
         <button
           type="button"
           onClick={() => setMobileMenuOpen((o) => !o)}
-          className="grid size-9 place-content-center rounded-md bg-green-400 font-bold text-white transition-all select-none hover:bg-green-300 active:scale-95"
+          className="grid size-9 place-content-center rounded-md bg-green-400 font-bold text-ink transition-all select-none hover:bg-green-300 active:scale-95"
           aria-label="Open menu"
           aria-expanded={mobileMenuOpen}
         >
           {/* Three stacked tiles evoke both a hamburger icon and the game's
               tile rows. */}
           <span className="flex flex-col gap-[3px]">
-            <span className="block h-[3px] w-4 rounded-full bg-white" />
-            <span className="block h-[3px] w-4 rounded-full bg-white" />
-            <span className="block h-[3px] w-4 rounded-full bg-white" />
+            <span className="block h-[3px] w-4 rounded-full bg-ink" />
+            <span className="block h-[3px] w-4 rounded-full bg-ink" />
+            <span className="block h-[3px] w-4 rounded-full bg-ink" />
           </span>
         </button>
 
@@ -260,7 +260,7 @@ const Navbar = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ duration: 0.12 }}
-              className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200/80 bg-white/90 font-mono shadow-xl backdrop-blur-lg"
+              className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-lg border border-gray-200/80 bg-panel/90 font-mono shadow-xl backdrop-blur-lg"
             >
               {/* User info */}
               <div className="border-gray-100 border-b px-4 py-3">
@@ -281,7 +281,7 @@ const Navbar = () => {
                     router.pathname === "/" ? "text-green-700" : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-ink">
                     H
                   </span>
                   Home
@@ -296,7 +296,7 @@ const Navbar = () => {
                       : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-ink">
                     F
                   </span>
                   Friends
@@ -311,7 +311,7 @@ const Navbar = () => {
                       : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-ink">
                     S
                   </span>
                   Stats
@@ -327,7 +327,7 @@ const Navbar = () => {
                       : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-ink">
                     L
                   </span>
                   Leaderboard
@@ -345,7 +345,7 @@ const Navbar = () => {
                       : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-ink">
                     R
                   </span>
                   Roadmap
@@ -360,7 +360,7 @@ const Navbar = () => {
                     }}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-gray-700 text-sm transition-colors hover:bg-gray-100"
                   >
-                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 text-white">
+                    <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 text-ink">
                       <Download aria-hidden="true" size={13} />
                     </span>
                     Install app
@@ -377,7 +377,7 @@ const Navbar = () => {
                       : "text-gray-700"
                   }`}
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-ink">
                     P
                   </span>
                   Profile
@@ -390,7 +390,7 @@ const Navbar = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 text-sm transition-colors hover:bg-gray-100"
                 >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-amber-400 text-white">
+                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-amber-400 text-ink">
                     <LifeBuoy aria-hidden="true" size={13} />
                   </span>
                   Contact support

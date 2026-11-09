@@ -17,7 +17,7 @@ type GameCenterPanelProps = {
  */
 const GameCenterPanel = ({ children, className = "" }: GameCenterPanelProps) => (
   <div
-    className={`mx-5 flex flex-col items-center justify-center gap-3 rounded-xl border border-white bg-zinc-100/10 px-2 shadow-xl ${className}`}
+    className={`mx-5 flex flex-col items-center justify-center gap-3 rounded-xl border border-zinc-400 bg-zinc-100/75 px-2 shadow-xl ${className}`}
   >
     {children}
   </div>

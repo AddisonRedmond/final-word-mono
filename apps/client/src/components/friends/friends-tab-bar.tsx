@@ -48,7 +48,7 @@ export const FriendsTabBar = ({
           >
             {label}
             {showBadge && (
-              <span className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-amber-400 grid place-content-center text-[9px] font-bold text-white">
+              <span className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-amber-400 grid place-content-center text-[9px] font-bold text-ink">
                 {pendingCount}
               </span>
             )}
@@ -74,7 +74,7 @@ export const FriendsTabBar = ({
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && onSearchClose()}
             placeholder="search by email…"
-            className="w-full text-[11px] px-2.5 py-1.5 rounded-md border border-gray-200 bg-white/70 backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400/60 focus:border-green-400 transition"
+            className="w-full text-[11px] px-2.5 py-1.5 rounded-md border border-gray-200 bg-panel/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400/60 focus:border-green-400 transition"
           />
         </motion.div>
 

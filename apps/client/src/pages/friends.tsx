@@ -156,7 +156,7 @@ const Friends: React.FC = () => {
                         label="Incoming requests"
                         variant="amber"
                       />
-                      <span className="size-4 rounded-full bg-amber-400 grid place-content-center text-[9px] font-bold text-white -mt-3">
+                      <span className="size-4 rounded-full bg-amber-400 grid place-content-center text-[9px] font-bold text-ink -mt-3">
                         {incoming.length}
                       </span>
                     </div>

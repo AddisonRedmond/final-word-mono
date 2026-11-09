@@ -6,7 +6,7 @@ import { api } from "@/utils/api";
 
 const PlayButton = () => (
   <Link href="/duels">
-    <button className="flex items-center gap-2 w-full justify-center bg-green-400 hover:bg-green-300 active:scale-95 transition-all rounded-md py-2 text-white text-xs font-bold uppercase tracking-widest">
+    <button className="keycap cursor-pointer flex items-center gap-2 w-full justify-center bg-lime hover:bg-green-300 [--keycap-edge:var(--color-lime-edge)] rounded-xl py-2.5 text-ink text-xs font-display uppercase tracking-widest">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
@@ -62,7 +62,7 @@ const QuickDuelButton = () => {
 
   return (
     <Link href="/duels?quick=1">
-      <button className="flex items-center gap-2 w-full justify-center bg-blue-400 hover:bg-blue-300 active:scale-95 transition-all rounded-md py-2 text-white text-xs font-bold uppercase tracking-widest">
+      <button className="cursor-pointer keycap flex items-center gap-2 w-full justify-center bg-ice hover:brightness-110 [--keycap-edge:var(--color-ice-edge)] rounded-xl py-2.5 text-ink text-xs font-display uppercase tracking-widest">
         <Zap className="w-3 h-3" aria-hidden="true" />
         Quick Duel
       </button>
@@ -76,6 +76,7 @@ const DuelCard: React.FC = () => {
       title="Head to head"
       badge="1v1+"
       badgeVariant="gray"
+      accent="lime"
       tiles={[
         { word: "D", variant: "correct" },
         { word: "U", variant: "present" },

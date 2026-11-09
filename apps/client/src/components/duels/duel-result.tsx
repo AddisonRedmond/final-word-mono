@@ -206,17 +206,21 @@ const DuelResult: React.FC<DuelResultProps> = ({
     // below its content height so `overflow-y-auto` actually engages; on desktop
     // the modal is auto-height so there's nothing to scroll. `mx-auto` keeps the
     // capped-width card centred.
-    <div className="mx-auto flex min-h-0 w-full max-w-md grow flex-col space-y-4 overflow-y-auto rounded-2xl bg-white p-4 text-center shadow-xl sm:p-6">
+    <div className="mx-auto flex min-h-0 w-full max-w-md grow flex-col space-y-4 overflow-y-auto rounded-2xl border border-white/10 bg-panel/90 p-4 text-center shadow-xl sm:p-6">
       <p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
         Duel result
       </p>
-      <h2 className="font-bold text-2xl text-stone-800">
+      <h2
+        className={`text-4xl uppercase leading-none tracking-tight ${
+          currentParticipant?.success ? "text-lime" : "text-hot"
+        }`}
+      >
         {currentParticipant?.success ? "Solved!" : "Not solved"}
       </h2>
       <div className="space-y-1 text-sm text-stone-600">
         <p>
           Word:
-          <span className="font-bold tracking-widest">
+          <span className="ml-2 inline-block rounded-md bg-lime px-2 py-0.5 font-display text-ink tracking-widest">
             {duelData.secretWord ?? "—"}
           </span>
         </p>
@@ -287,7 +291,7 @@ const DuelResult: React.FC<DuelResultProps> = ({
       </div>
       <div className="flex justify-center gap-2">
         <button
-          className="rounded-md bg-stone-800 px-4 py-2 font-semibold text-sm text-white"
+          className="keycap cursor-pointer rounded-xl bg-gray-300 px-4 py-2 font-display text-sm text-white uppercase tracking-wider"
           onClick={onClose}
           type="button"
         >
@@ -298,7 +302,7 @@ const DuelResult: React.FC<DuelResultProps> = ({
         {duel.completed && (
           <button
             aria-busy={isRematching}
-            className="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="keycap cursor-pointer rounded-xl bg-lime px-4 py-2 font-display text-ink text-sm uppercase tracking-wider [--keycap-edge:var(--color-lime-edge)] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isRematching}
             onClick={() => void handleRematch()}
             type="button"
@@ -308,7 +312,7 @@ const DuelResult: React.FC<DuelResultProps> = ({
         )}
         {duel.completed && onArchive && (
           <button
-            className="rounded-md bg-emerald-600 px-4 py-2 font-semibold text-sm text-white"
+            className="keycap cursor-pointer rounded-xl bg-amber-400 px-4 py-2 font-display text-ink text-sm uppercase tracking-wider [--keycap-edge:var(--color-sun-edge)]"
             onClick={onArchive}
             type="button"
           >

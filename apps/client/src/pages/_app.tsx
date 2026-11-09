@@ -1,5 +1,5 @@
 import type { AppType } from "next/app";
-import { Geist } from "next/font/google";
+import { Archivo_Black, Geist } from "next/font/google";
 import Head from "next/head";
 import Script from "next/script";
 import { useEffect } from "react";
@@ -8,6 +8,7 @@ import "@/styles/globals.css";
 import Background from "@/components/background/background";
 import DuelNotifications from "@/components/duel-notifications";
 import PwaInstall from "@/components/pwa-install";
+import TabBar from "@/components/navigation/tab-bar";
 import Toaster from "@/components/toaster";
 import { useAuthStore } from "@/state/auth-store";
 import { identifyUser, initAnalytics, resetAnalytics } from "@/utils/posthog";
@@ -16,6 +17,16 @@ import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/site";
 const geist = Geist({
   subsets: ["latin"],
 });
+
+// Chunky display face for tiles, headings and buttons ("Arena" theme).
+const archivo = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+});
+
+// Expose both families as :root variables (not just a wrapper className) so
+// portaled UI mounted on <body> (modals, dialogs) gets them too.
+const FONT_VARS = `:root{--font-geist-sans:${geist.style.fontFamily};--font-archivo-black:${archivo.style.fontFamily};}`;
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   const userId = useAuthStore((state) => state.user?.id);
@@ -52,6 +63,7 @@ const MyApp: AppType = ({ Component, pageProps }) => {
   return (
     <div className={geist.className}>
       <Head>
+        <style dangerouslySetInnerHTML={{ __html: FONT_VARS }} />
         <meta
           content="width=device-width, initial-scale=1, viewport-fit=cover"
           name="viewport"
@@ -89,6 +101,7 @@ const MyApp: AppType = ({ Component, pageProps }) => {
       <Toaster />
       <DuelNotifications />
       <PwaInstall />
+      <TabBar />
       <Component {...pageProps} />
     </div>
   );

@@ -1,3 +1,4 @@
+import { flatTileClasses } from "@/utils/letter-states";
 import type { PlayerDisplay } from "@/types/battle-royale.types";
 import OpponentTimer from "./opponent-timer";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -239,7 +240,7 @@ const OpponentCard = memo(
                 {Array.from({ length: GUESS_LENGTH }, (_, index) => (
                   <div
                     key={index}
-                    className="grid place-content-center rounded-sm bg-stone-300 font-semibold text-stone-700"
+                    className={`grid place-content-center rounded-sm font-semibold ${flatTileClasses.default}`}
                     style={{
                       width: hopperTileSize,
                       height: hopperTileSize,
@@ -258,7 +259,7 @@ const OpponentCard = memo(
           {Array.from({ length: GUESS_LENGTH }, (_, index) => (
             <div
               key={index}
-              className="grid place-content-center rounded-sm bg-emerald-400 font-semibold text-white"
+              className={`grid place-content-center rounded-sm font-semibold ${flatTileClasses.correct}`}
               style={{
                 width: revealedTileSize,
                 height: revealedTileSize,

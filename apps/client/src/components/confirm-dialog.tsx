@@ -88,7 +88,7 @@ const ConfirmDialog = ({
 				transition={{ duration: 0.2, ease: "easeOut" }}
 				aria-modal="true"
 				role="alertdialog"
-				className="relative w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 text-center shadow-xl"
+				className="relative w-full max-w-sm rounded-lg border border-gray-200 bg-panel p-6 text-center shadow-xl"
 			>
 				<div className="mb-4 flex justify-center">
 					<Tile revealed={true} size="sm" variant="present" word={tileWord} />

@@ -32,7 +32,7 @@ const ActiveCountDownTimer = ({
         <p className="text-lg">{timerTitle}</p>
         <SlotTile
           letters={`${Math.max(totalSeconds, 0).toString().padStart(2, "0")}`}
-          tileClassName="aspect-square w-[7vh] bg-zinc-800 text-[6vh] text-white"
+          tileClassName="aspect-square w-[7vh] bg-graphite text-[6vh] text-white"
         />
       </div>
     </div>

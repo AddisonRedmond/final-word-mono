@@ -64,12 +64,12 @@ export const AddFriendForm = ({
               setSuccessMessage(null);
             }}
             placeholder="friend@example.com"
-            className="flex-1 min-w-0 text-sm px-3 py-2 rounded-md border border-gray-200 bg-white/70 backdrop-blur-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400/60 focus:border-green-400 transition"
+            className="flex-1 min-w-0 text-sm px-3 py-2 rounded-md border border-gray-200 bg-panel/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-400/60 focus:border-green-400 transition"
           />
           <button
             type="submit"
             disabled={isSubmitting}
-            className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-md bg-green-400 hover:bg-green-300 text-white active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-md bg-green-400 hover:bg-green-300 text-ink active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Sending…" : "Send"}
           </button>

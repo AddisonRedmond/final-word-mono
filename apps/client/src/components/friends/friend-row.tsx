@@ -23,7 +23,7 @@ export const FriendRow = ({ friend, children }: FriendRowProps) => {
       exit={{ opacity: 0, scale: 0.96 }}
       className="flex items-center gap-3 py-2.5 px-3 rounded-md hover:bg-stone-500/10 transition-colors"
     >
-      <div className="size-8 rounded-md bg-amber-400 grid place-content-center text-xs font-bold text-white shrink-0 select-none">
+      <div className="size-8 rounded-md bg-amber-400 grid place-content-center text-xs font-bold text-ink shrink-0 select-none">
         {initials}
       </div>
       <div className="flex-1 min-w-0">

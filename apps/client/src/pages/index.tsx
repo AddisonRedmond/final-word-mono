@@ -300,7 +300,7 @@ export default function Home() {
 								    overflows a phone. The scale lives on this inner wrapper, not
 								    the motion.div above, so it doesn't fight Framer Motion's
 								    animated transform. */}
-								<div className="flex scale-[0.68] flex-col items-center gap-y-2 sm:scale-100">
+								<div className="flex  scale-[0.68] flex-col items-center gap-y-2 sm:scale-100">
 									<Tile
 										revealed={true}
 										size={isPlaying ? "sm" : "lg"}
@@ -314,6 +314,12 @@ export default function Home() {
 										word="WORD"
 									/>
 								</div>
+								{/* Arena tagline: small, wide-tracked display type under the
+								    hero tiles. Hidden once a game is mounted (this block only
+								    renders on the menu). */}
+								<p className="mt-1 font-display text-[11px] text-gray-600 uppercase tracking-[0.3em]">
+									Guess it first. Win the argument.
+								</p>
 							</motion.div>
 						)}
 					</AnimatePresence>
@@ -377,7 +383,7 @@ export default function Home() {
 														<RaceCard handlePlay={handlePlayRace} />
 													</>
 												) : (
-													<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm">
+													<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-panel/80 p-4 text-center shadow-sm backdrop-blur-sm">
 														<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
 															Desktop only
 														</p>

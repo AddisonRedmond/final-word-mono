@@ -496,7 +496,7 @@ const Duels = () => {
           <StatusBadge badgeType="pending" label="Pending" />
         </div>
 
-        <div className="flex min-h-0 w-full grow flex-col overflow-hidden rounded-md bg-white p-2 shadow-lg outline outline-stone-200">
+        <div className="flex min-h-0 w-full grow flex-col overflow-hidden rounded-md bg-panel p-2 shadow-lg outline outline-stone-200">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-lg">
               {showArchived ? "ARCHIVED DUELS" : "DUELS"}
@@ -547,7 +547,7 @@ const Duels = () => {
             {showArchived ? (
               isLoadingArchived || isFetchingArchived ? (
                 <div className="flex h-32 items-center justify-center">
-                  <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
+                  <p className="font-semibold text-gray-500 text-xs uppercase tracking-widest">
                     Loading archived duels...
                   </p>
                 </div>
@@ -564,14 +564,14 @@ const Duels = () => {
                 ))
               ) : (
                 <div className="flex h-32 items-center justify-center">
-                  <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
+                  <p className="font-semibold text-gray-500 text-xs uppercase tracking-widest">
                     No archived duels
                   </p>
                 </div>
               )
             ) : isLoadingDuels ? (
               <div className="flex h-32 items-center justify-center">
-                <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
+                <p className="font-semibold text-gray-500 text-xs uppercase tracking-widest">
                   Loading duels...
                 </p>
               </div>
@@ -591,7 +591,7 @@ const Duels = () => {
               ))
             ) : (
               <div className="flex h-32 items-center justify-center">
-                <p className="font-semibold text-gray-400 text-xs uppercase tracking-widest">
+                <p className="font-semibold text-gray-500 text-xs uppercase tracking-widest">
                   No duels
                 </p>
               </div>

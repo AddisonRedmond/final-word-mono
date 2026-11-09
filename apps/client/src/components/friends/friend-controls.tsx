@@ -32,7 +32,7 @@ export const FriendControls = ({
             <button
               type="button"
               onClick={() => onAccept(friend.id)}
-              className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded bg-green-400 text-white hover:bg-green-300 transition-colors"
+              className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded bg-green-400 text-ink hover:bg-green-300 transition-colors"
             >
               Accept
             </button>

@@ -11,7 +11,7 @@ type BattleRoyalCardProps = {
 const PlayButton: React.FC<{ onPlay: () => void }> = ({ onPlay }) => {
 	return (
 		<button
-			className="cursor-pointer flex w-full items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-white text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+			className="keycap cursor-pointer flex w-full items-center justify-center gap-2 rounded-xl bg-lime py-2.5 font-display text-ink text-xs uppercase tracking-widest [--keycap-edge:var(--color-lime-edge)] hover:bg-green-300"
 			// Wrap so the click event isn't forwarded as the `code` argument.
 			onClick={() => onPlay()}
 		>
@@ -33,6 +33,7 @@ const BattleRoyalCard: React.FC<BattleRoyalCardProps> = ({ handlePlay }) => {
 		<GameCard
 			badge="Live"
 			badgeVariant="green"
+			accent="hot"
 			desc="100 players. Last solver standing wins."
 			tiles={[
 				{ word: "B", variant: "correct" },

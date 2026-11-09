@@ -92,7 +92,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
 
         <div className="relative z-10 flex h-full w-full items-center justify-center">
           <motion.div
-            className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-yellow-200/70 bg-zinc-950/90 text-white shadow-2xl"
+            className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-yellow-200/70 bg-ink/90 text-white shadow-2xl"
             initial={{
               scale: 0.8,
               opacity: 0,
@@ -109,14 +109,14 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
               damping: 15,
             }}
           >
-            <div className="border-b border-white/15 bg-yellow-300 px-6 py-3 text-center text-sm font-black tracking-[0.2em] text-zinc-950">
+            <div className="border-b border-white/15 bg-yellow-300 px-6 py-3 text-center text-sm font-display tracking-[0.2em] text-zinc-950">
               VICTORY
             </div>
             <div className="px-6 py-7 text-center">
-              <p className="text-sm font-medium uppercase tracking-[0.16em] text-zinc-400">
+              <p className="text-sm font-medium uppercase tracking-[0.16em] text-zinc-500">
                 You had the FINAL WORD
               </p>
-              <h2 className="mt-2 wrap-break-word text-4xl font-black tracking-wide text-yellow-300">
+              <h2 className="mt-2 wrap-break-word text-4xl font-display tracking-wide text-yellow-300">
                 {userData.name}
               </h2>
               <div className="mt-7 grid grid-cols-3 divide-x divide-white/15 border-y border-white/15 py-4">
@@ -124,7 +124,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
                   <p className="text-xl font-bold tabular-nums">
                     {survivalTime}
                   </p>
-                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-400">
+                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">
                     Survived
                   </p>
                 </div>
@@ -132,7 +132,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
                   <p className="text-xl font-bold tabular-nums">
                     {userData.totalGuesses}
                   </p>
-                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-400">
+                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">
                     Guesses
                   </p>
                 </div>
@@ -140,7 +140,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
                   <p className="text-xl font-bold tabular-nums text-emerald-300">
                     {userData.correctGuesses}
                   </p>
-                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-400">
+                  <p className="mt-1 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">
                     Correct
                   </p>
                 </div>
@@ -148,7 +148,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
               {typeof userData.points === "number" && (
                 <p className="mt-4 text-sm font-semibold text-zinc-300">
                   Points earned{" "}
-                  <span className="font-black tabular-nums tracking-wider text-amber-300">
+                  <span className="font-display tabular-nums tracking-wider text-amber-300">
                     +{userData.points}
                   </span>
                 </p>
@@ -156,7 +156,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
               <button
                 type="button"
                 onClick={handleLeave}
-                className="mt-7 w-full rounded-md bg-yellow-300 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-zinc-950 transition-colors hover:bg-yellow-200"
+                className="keycap mt-7 w-full cursor-pointer rounded-xl bg-sun px-4 py-2.5 font-display text-sm text-ink uppercase tracking-wider [--keycap-edge:var(--color-sun-edge)] transition-[filter] hover:brightness-110"
               >
                 Leave
               </button>
