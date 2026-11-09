@@ -226,12 +226,12 @@ const Practice: React.FC = () => {
       >
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-x-3">
-            <Link  href={"/"}>
+            <Link href={"/"}>
               <button className="flex gap-x-1 cursor-pointer">
-                <span className="size-8 p-1 rounded-md bg-green-400 grid place-content-center font-semibold">
+                <span className="keycap size-8 p-1 rounded-lg bg-green-400 text-ink -rotate-6 grid place-content-center font-display [--keycap-edge:var(--color-lime-edge)]">
                   F
                 </span>
-                <span className="size-8 p-1 rounded-md bg-yellow-400 grid place-content-center font-semibold">
+                <span className="keycap size-8 p-1 rounded-lg bg-yellow-400 text-ink rotate-3 grid place-content-center font-display [--keycap-edge:var(--color-sun-edge)]">
                   W
                 </span>
               </button>

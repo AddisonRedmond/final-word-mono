@@ -287,51 +287,7 @@ const Navbar = () => {
                   Home
                 </Link>
 
-                <Link
-                  href="/friends"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                    router.pathname === "/friends"
-                      ? "text-green-700"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-ink">
-                    F
-                  </span>
-                  Friends
-                </Link>
-
-                <Link
-                  href="/stats"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                    router.pathname === "/stats"
-                      ? "text-green-700"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-yellow-400 font-bold text-[11px] text-ink">
-                    S
-                  </span>
-                  Stats
-                </Link>
-
-                {/* Leaderboard tile visible to everyone. */}
-                <Link
-                  href="/leaderboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-gray-100 ${
-                    router.pathname === "/leaderboard"
-                      ? "text-green-700"
-                      : "text-gray-700"
-                  }`}
-                >
-                  <span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-ink">
-                    L
-                  </span>
-                  Leaderboard
-                </Link>
+            
 
                 {/* Roadmap tile visible to everyone (including guests) — the
                     public "what's coming" page. Kept in the burger menu for

@@ -134,7 +134,7 @@ const SignIn: NextPage = () => {
               }
             >
               <Zap className="size-4" aria-hidden="true" />
-              PRACTICE! {"(NO ACCOUNT NEEDED)"}
+              PRACTICE! <span className="text-xs">{"(NO ACCOUNT NEEDED)"}</span>
             </Link>
           </div>
         )}
