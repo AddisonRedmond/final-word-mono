@@ -121,7 +121,7 @@ const Leaderboard: React.FC = () => {
 								your placement against other players.
 							</p>
 							<Link
-								className="mt-3 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+								className="mt-3 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
 								href="/sign-in"
 							>
 								Sign in
@@ -136,7 +136,7 @@ const Leaderboard: React.FC = () => {
 										Mode
 									</span>
 									<select
-										className="rounded-md border border-gray-200 bg-white/80 px-3 py-1.5 text-gray-800 text-sm shadow-sm transition-colors hover:bg-gray-50 focus:border-green-400 focus:outline-none"
+										className="rounded-md border border-gray-200 bg-panel/80 px-3 py-1.5 text-gray-800 text-sm shadow-sm transition-colors hover:bg-gray-50 focus:border-green-400 focus:outline-none"
 										onChange={(e) => setMode(e.target.value as ScoredMode)}
 										value={mode}
 									>
@@ -153,7 +153,7 @@ const Leaderboard: React.FC = () => {
 										Season
 									</span>
 									<select
-										className="rounded-md border border-gray-200 bg-white/80 px-3 py-1.5 text-gray-800 text-sm shadow-sm transition-colors hover:bg-gray-50 focus:border-green-400 focus:outline-none"
+										className="rounded-md border border-gray-200 bg-panel/80 px-3 py-1.5 text-gray-800 text-sm shadow-sm transition-colors hover:bg-gray-50 focus:border-green-400 focus:outline-none"
 										onChange={(e) => setSeason(e.target.value)}
 										value={season}
 									>
@@ -167,7 +167,7 @@ const Leaderboard: React.FC = () => {
 								</label>
 
 								{!isPremium && (
-									<p className="ml-auto text-[11px] text-gray-400">
+									<p className="ml-auto text-[11px] text-gray-500">
 										<Link
 											className="font-semibold text-green-600 underline"
 											href="/profile"
@@ -180,9 +180,9 @@ const Leaderboard: React.FC = () => {
 							</section>
 
 							{/* Ranked table / states */}
-							<section className="overflow-hidden rounded-lg border border-gray-200/80 bg-white/80 shadow-sm backdrop-blur-sm">
+							<section className="overflow-hidden rounded-lg border border-gray-200/80 bg-panel/80 shadow-sm backdrop-blur-sm">
 								{!canQuery || isLoading ? (
-									<p className="px-5 py-8 text-center text-gray-400 text-sm">
+									<p className="px-5 py-8 text-center text-gray-500 text-sm">
 										Loading…
 									</p>
 								) : isError ? (
@@ -258,7 +258,7 @@ const Leaderboard: React.FC = () => {
 							</section>
 
 							{board && board.totalQualified > 0 && (
-								<p className="text-[11px] text-gray-400">
+								<p className="text-[11px] text-gray-500">
 									{board.totalQualified} ranked player
 									{board.totalQualified === 1 ? "" : "s"} ·{" "}
 									{board.isCurrentSeason
@@ -302,7 +302,7 @@ const Row: React.FC<{
 		<td className="px-4 py-2.5 text-left text-gray-800">
 			<span className="font-medium">{entry.name ?? "Player"}</span>
 			{entry.isCurrentUser && (
-				<span className="ml-2 rounded-sm bg-green-400 px-1.5 py-0.5 font-semibold text-[9px] text-white uppercase tracking-widest">
+				<span className="ml-2 rounded-sm bg-green-400 px-1.5 py-0.5 font-semibold text-[9px] text-ink uppercase tracking-widest">
 					You
 				</span>
 			)}

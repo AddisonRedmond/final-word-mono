@@ -5,6 +5,7 @@ import GuessTiles, { type TileSlot } from "../../game-components/guess-tiles";
 import Keyboard from "../../game-components/keyboard";
 import ShareCode from "../../game-components/share-code";
 import CountDownTimer from "../../game-components/timer";
+import LeaveButton from "@/components/leave-button";
 
 type LobbyViewProps = {
 	/** Current lobby snapshot from the Race socket. */
@@ -119,19 +120,7 @@ const LobbyView: React.FC<LobbyViewProps> = ({
 			    the Enter key is disabled — guessing only begins when the match does. */}
 			<Keyboard onBackspace={handleBackspace} onLetter={handleLetter} />
 
-			<div className="flex gap-2">
-				<button
-					className="flex cursor-pointer gap-x-0.5 rounded-md p-2 font-semibold text-xs shadow-lg"
-					onClick={onLeave}
-					type="button"
-				>
-					<p className="aspect-square rounded-md bg-red-300 p-1">L</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">E</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">A</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">V</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">E</p>
-				</button>
-			</div>
+			<LeaveButton onClick={onLeave} />
 		</div>
 	);
 };

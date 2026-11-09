@@ -89,7 +89,7 @@ const PlayLimitNotice: React.FC<PlayLimitNoticeProps> = ({
 				<p className="text-amber-800 text-xs">{notice.body}</p>
 				{notice.cta ? (
 					<Link
-						className="mt-1 w-fit rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+						className="mt-1 w-fit rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
 						href={notice.cta.href}
 					>
 						{notice.cta.label}

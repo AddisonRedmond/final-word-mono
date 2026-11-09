@@ -54,7 +54,7 @@ const EliminationView: React.FC<EliminationViewProps> = ({
 				<div className="relative z-10 flex h-full w-full items-center justify-center">
 					<motion.div
 						animate={{ scale: 1, opacity: 1 }}
-						className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-red-500/70 bg-zinc-950/90 text-white shadow-2xl"
+						className="w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-red-500/70 bg-ink/90 text-white shadow-2xl"
 						initial={{ scale: 0.8, opacity: 0 }}
 						transition={{
 							delay: 0.15,
@@ -64,30 +64,30 @@ const EliminationView: React.FC<EliminationViewProps> = ({
 							damping: 15,
 						}}
 					>
-						<div className="border-white/15 border-b bg-red-500 px-6 py-3 text-center font-black text-sm text-zinc-950 tracking-[0.2em]">
+						<div className="border-white/15 border-b bg-red-500 px-6 py-3 text-center font-display text-sm text-zinc-950 tracking-[0.2em]">
 							ELIMINATED
 						</div>
 						<div className="px-6 py-7 text-center">
-							<p className="font-medium text-sm text-zinc-400 uppercase tracking-[0.16em]">
+							<p className="font-medium text-sm text-zinc-500 uppercase tracking-[0.16em]">
 								Better luck next time
 							</p>
-							<h2 className="wrap-break-word mt-2 font-black text-4xl text-red-400 tracking-wide">
+							<h2 className="wrap-break-word mt-2 font-display text-4xl text-red-400 tracking-wide">
 								{player?.name ?? "You"}
 							</h2>
 							{placement !== undefined && (
 								<p className="mt-3 font-semibold text-sm text-zinc-300">
 									Final placement{" "}
-									<span className="font-black text-red-400 uppercase tracking-wider">
+									<span className="font-display text-red-400 uppercase tracking-wider">
 										{ordinal(placement)}
 									</span>
 								</p>
 							)}
 							{player?.revealedWord && (
 								<div className="mt-4">
-									<p className="font-semibold text-[0.65rem] text-zinc-400 uppercase tracking-[0.16em]">
+									<p className="font-semibold text-[0.65rem] text-zinc-500 uppercase tracking-[0.16em]">
 										The word was
 									</p>
-									<p className="mt-1 font-black text-2xl text-emerald-300 uppercase tracking-[0.25em]">
+									<p className="mt-1 font-display text-2xl text-emerald-300 uppercase tracking-[0.25em]">
 										{player.revealedWord}
 									</p>
 								</div>
@@ -97,7 +97,7 @@ const EliminationView: React.FC<EliminationViewProps> = ({
 									<p className="font-bold text-xl tabular-nums">
 										{player?.totalGuesses ?? 0}
 									</p>
-									<p className="mt-1 font-semibold text-[0.65rem] text-zinc-400 uppercase tracking-wider">
+									<p className="mt-1 font-semibold text-[0.65rem] text-zinc-500 uppercase tracking-wider">
 										Guesses
 									</p>
 								</div>
@@ -105,13 +105,13 @@ const EliminationView: React.FC<EliminationViewProps> = ({
 									<p className="font-bold text-emerald-300 text-xl tabular-nums">
 										{player?.correctGuesses ?? 0}
 									</p>
-									<p className="mt-1 font-semibold text-[0.65rem] text-zinc-400 uppercase tracking-wider">
+									<p className="mt-1 font-semibold text-[0.65rem] text-zinc-500 uppercase tracking-wider">
 										Correct
 									</p>
 								</div>
 							</div>
 							<button
-								className="mt-7 w-full rounded-md bg-red-500 px-4 py-2.5 font-bold text-sm text-zinc-950 uppercase tracking-wider transition-colors hover:bg-red-400"
+								className="keycap mt-7 w-full cursor-pointer rounded-xl bg-hot px-4 py-2.5 font-display text-sm text-white uppercase tracking-wider [--keycap-edge:var(--color-hot-edge)] transition-[filter] hover:brightness-110"
 								onClick={onLeave}
 								type="button"
 							>

@@ -198,7 +198,7 @@ const Practice: React.FC = () => {
             which work great on mobile.
           </p>
           <Link
-            className="w-full rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-white uppercase tracking-wider transition-colors hover:bg-emerald-400"
+            className="w-full rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-ink uppercase tracking-wider transition-colors hover:bg-emerald-400"
             href="/sign-in"
           >
             Sign in to play
@@ -250,7 +250,7 @@ const Practice: React.FC = () => {
               How to play
             </button>
             <Link
-              className="rounded-md bg-stone-800 px-3 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-stone-700"
+              className="rounded-md bg-lime px-3 py-1.5 font-semibold text-ink text-xs transition-colors hover:bg-green-300"
               href="/sign-in"
               onClick={() => track("practice_signin_clicked")}
             >
@@ -396,7 +396,7 @@ const PracticeFinish: React.FC<PracticeFinishProps> = ({
         <p className="font-black text-2xl text-stone-800">{copy.title}</p>
         <p className="max-w-xs text-sm text-stone-600">{copy.body}</p>
         <button
-          className="w-full max-w-xs rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-white uppercase tracking-wider transition-colors hover:bg-emerald-400"
+          className="w-full max-w-xs rounded-lg bg-emerald-500 px-6 py-3 font-bold text-sm text-ink uppercase tracking-wider transition-colors hover:bg-emerald-400"
           onClick={onSignIn}
           type="button"
         >

@@ -24,7 +24,7 @@ const TargetButton: React.FC<TargetButtonProps> = ({
           transition-all duration-150 ease-in-out
           ${
             selected
-              ? "translate-y-0 bg-zinc-800"
+              ? "translate-y-0 bg-graphite"
               : "-translate-y-full bg-zinc-500 group-hover:translate-y-0"
           }`}
       />
@@ -35,7 +35,7 @@ const TargetButton: React.FC<TargetButtonProps> = ({
         onClick={onClick}
         className={`z-10 col-span-full row-span-full cursor-pointer p-2
           transition-colors duration-150 ease-in-out
-          ${selected ? "text-white" : "text-black group-hover:text-white"}`}
+          ${selected ? "text-white" : " group-hover:text-white"}`}
       >
         {label}
       </button>

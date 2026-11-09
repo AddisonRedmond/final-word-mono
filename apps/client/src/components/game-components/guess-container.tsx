@@ -7,6 +7,7 @@ import type {
 	QueuedAttackView,
 	RevealedLetters,
 } from "@/types/battle-royale.types";
+import { flatTileClasses } from "@/utils/letter-states";
 import GuessTiles, { type TileSlot } from "./guess-tiles";
 
 type GuessContainerProps = {
@@ -31,13 +32,10 @@ type GuessContainerProps = {
 
 const GUESS_LENGTH = 5;
 
-// The hopper queue keeps its own muted "hopper" tile look, which is not part of
-// the shared graded-tile palette used for the active row.
-const hopperTileClass = "bg-stone-200 text-black border border-stone-300";
 // Pending (uncemented) attack words render ghosted/dashed to read as "escapable
 // if you solve in time". No letters are ever shown for a pending word.
 const pendingTileClass =
-	"border border-dashed border-stone-400/60 bg-stone-100/40 text-stone-400";
+	"border border-dashed border-stone-400/60 bg-stone-100/40 text-stone-500";
 
 // Small countdown over the pending wave: solve your current word before this
 // hits 0 and the pending words vanish; otherwise they cement into the queue.
@@ -102,7 +100,7 @@ const HopperQueue: React.FC<{ queue?: RevealedLetters[] }> = memo(
 						>
 							{hopperWord.map((letter, letterIndex) => (
 								<div
-									className={`grid size-14 place-content-center rounded-md ${hopperTileClass}`}
+									className={`grid size-14 place-content-center rounded-md ${flatTileClasses.default}`}
 									// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders, so the index is a stable key
 									key={letterIndex}
 								>
@@ -155,7 +153,7 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
 	return (
 		<LazyMotion features={domAnimation} strict>
 			<div className="flex items-end gap-2">
-				<div className="relative isolate rounded-md border border-white/30 bg-white/10 shadow-lg backdrop-blur-md">
+				<div className="relative isolate rounded-md border-red-500 bg-white/10 shadow-lg backdrop-blur-md">
 					{/* Pending wave: a single batch countdown over ghosted rows that
               vanish if the player solves their current word in time. */}
 					{pendingCount > 0 && (

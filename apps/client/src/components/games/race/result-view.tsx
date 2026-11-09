@@ -40,10 +40,10 @@ const ordinal = (n: number): string => {
  */
 const WordReveal: React.FC<{ word: string }> = ({ word }) => (
 	<div className="mt-4">
-		<p className="font-semibold text-[0.65rem] text-zinc-400 uppercase tracking-[0.16em]">
+		<p className="font-semibold text-[0.65rem] text-zinc-500 uppercase tracking-[0.16em]">
 			Your word was
 		</p>
-		<p className="mt-1 font-black text-2xl text-emerald-300 uppercase tracking-[0.25em]">
+		<p className="mt-1 font-display text-2xl text-emerald-300 uppercase tracking-[0.25em]">
 			{word}
 		</p>
 	</div>
@@ -111,10 +111,10 @@ const ResultView: React.FC<ResultViewProps> = ({
 	}, [youWon]);
 
 	const headerClass = youWon
-		? "border-white/15 border-b bg-yellow-300 px-6 py-3 text-center font-black text-sm text-zinc-950 tracking-[0.2em]"
+		? "border-white/15 border-b bg-yellow-300 px-6 py-3 text-center font-display text-sm text-zinc-950 tracking-[0.2em]"
 		: isDraw
-			? "border-white/15 border-b bg-stone-300 px-6 py-3 text-center font-black text-sm text-zinc-950 tracking-[0.2em]"
-			: "border-white/15 border-b bg-red-400 px-6 py-3 text-center font-black text-sm text-zinc-950 tracking-[0.2em]";
+			? "border-white/15 border-b bg-graphite px-6 py-3 text-center font-display text-sm text-white tracking-[0.2em]"
+			: "border-white/15 border-b bg-red-400 px-6 py-3 text-center font-display text-sm text-zinc-950 tracking-[0.2em]";
 
 	const cardBorder = youWon
 		? "border-yellow-200/70"
@@ -161,7 +161,7 @@ const ResultView: React.FC<ResultViewProps> = ({
 
 				<motion.div
 					animate={{ scale: 1, opacity: 1 }}
-					className={`relative z-10 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-lg border ${cardBorder} bg-zinc-950/90 text-white shadow-2xl`}
+					className={`relative z-10 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border ${cardBorder} bg-ink/90 text-white shadow-2xl`}
 					initial={{ scale: 0.8, opacity: 0 }}
 					transition={{
 						delay: 0.15,
@@ -175,7 +175,7 @@ const ResultView: React.FC<ResultViewProps> = ({
 					<div className="px-6 py-7 text-center">
 						{isDraw ? (
 							<>
-								<p className="font-medium text-sm text-zinc-400 uppercase tracking-[0.16em]">
+								<p className="font-medium text-sm text-zinc-500 uppercase tracking-[0.16em]">
 									No survivors
 								</p>
 								{player?.revealedWord && (
@@ -184,10 +184,10 @@ const ResultView: React.FC<ResultViewProps> = ({
 							</>
 						) : youWon ? (
 							<>
-								<p className="font-medium text-sm text-zinc-400 uppercase tracking-[0.16em]">
+								<p className="font-medium text-sm text-zinc-500 uppercase tracking-[0.16em]">
 									You had the FINAL WORD
 								</p>
-								<h2 className="wrap-break-word mt-2 font-black text-4xl text-yellow-300 tracking-wide">
+								<h2 className="wrap-break-word mt-2 font-display text-4xl text-yellow-300 tracking-wide">
 									{player?.name ?? "You"}
 								</h2>
 								{player?.revealedWord && (
@@ -196,16 +196,16 @@ const ResultView: React.FC<ResultViewProps> = ({
 							</>
 						) : (
 							<>
-								<p className="font-medium text-sm text-zinc-400 uppercase tracking-[0.16em]">
+								<p className="font-medium text-sm text-zinc-500 uppercase tracking-[0.16em]">
 									Winner
 								</p>
-								<h2 className="wrap-break-word mt-2 font-black text-4xl text-emerald-300 tracking-wide">
+								<h2 className="wrap-break-word mt-2 font-display text-4xl text-emerald-300 tracking-wide">
 									{winnerName ?? "—"}
 								</h2>
 								{ownPlacement !== undefined && (
 									<p className="mt-3 font-semibold text-sm text-zinc-300">
 										You finished{" "}
-										<span className="font-black text-emerald-300 uppercase tracking-wider">
+										<span className="font-display text-emerald-300 uppercase tracking-wider">
 											{ordinal(ownPlacement)}
 										</span>
 									</p>
@@ -217,7 +217,7 @@ const ResultView: React.FC<ResultViewProps> = ({
 						)}
 
 						<button
-							className="mt-7 w-full rounded-md bg-white px-4 py-2.5 font-bold text-sm text-zinc-950 uppercase tracking-wider transition-colors hover:bg-stone-300"
+							className="mt-7 w-full keycap rounded-xl bg-paper px-4 py-2.5 font-display text-ink text-sm uppercase tracking-wider [--keycap-edge:var(--color-paper-edge)] transition-colors hover:bg-white"
 							onClick={onLeave}
 							type="button"
 						>

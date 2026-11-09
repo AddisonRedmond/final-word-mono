@@ -1,5 +1,6 @@
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import { memo } from "react";
+import { type LetterState, tileStateClasses } from "@/utils/letter-states";
 
 /**
  * Canonical Wordle-tile styling shared across every game mode. Battle Royale,
@@ -7,20 +8,11 @@ import { memo } from "react";
  * so the tile look-and-feel can only be changed in one place and never drifts
  * between modes.
  */
-export type TileState = "default" | "correct" | "present" | "absent";
-
-export const tileVariantClasses: Record<TileState, string> = {
-	default: "bg-amber-50 text-stone-800 border border-amber-200/60",
-	correct: "bg-emerald-500 text-white border border-emerald-600",
-	present: "bg-amber-400 text-white border border-amber-500",
-	absent: "bg-stone-400 text-white border border-stone-500",
-};
-
 export type TileSlot = {
 	/** The letter shown on the tile ("" renders an empty tile). */
 	letter?: string;
 	/** Grading state that drives the tile colour. */
-	state?: TileState;
+	state?: LetterState;
 	/** Small hint pinned to the tile's top-right corner (e.g. a known letter). */
 	cornerHint?: string;
 };
@@ -42,8 +34,8 @@ const GuessTiles = memo<GuessTilesProps>(({ slots, className = "" }) => {
 			<div className={`flex items-center justify-evenly gap-2 ${className}`}>
 				{slots.map((slot, index) => (
 					<div
-						className={`relative grid size-14 place-content-center rounded-md font-bold text-xl uppercase ${
-							tileVariantClasses[slot.state ?? "default"]
+						className={`relative grid size-14 place-content-center rounded-lg font-display text-xl uppercase ${
+							tileStateClasses[slot.state ?? "default"]
 						}`}
 						// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders, so the index is a stable key
 						key={index}

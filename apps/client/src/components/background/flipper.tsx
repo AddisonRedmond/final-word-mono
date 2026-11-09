@@ -66,14 +66,14 @@ const Tile = memo(({ letter, active, delay }: TileProps) => {
         style={{ transformStyle: "preserve-3d" }}
       >
         <div
-          className="absolute inset-0 grid place-content-center rounded-md bg-white text-black outline-[0.5px] outline-stone-300"
+          className="absolute inset-0 grid place-content-center rounded-md bg-panel-2 text-white/80 shadow-[inset_0_0_0_1px_var(--color-graphite)]"
           style={{ backfaceVisibility: "hidden" }}
         >
-          <span className="text-[2vw] font-bold">{letter}</span>
+          <span className="font-display text-[2vw]">{letter}</span>
         </div>
 
         <div
-          className="absolute inset-0 rounded-md bg-stone-100"
+          className="absolute inset-0 rounded-md bg-panel"
           style={{
             transform: "rotateY(180deg)",
             backfaceVisibility: "hidden",

@@ -123,7 +123,7 @@ const Key: React.FC<KeyProps> = ({ onJoin }) => {
 						// `overflow-hidden` clips it until it eases into place. `z-30`
 						// keeps it above the card's badge (`z-20`) so the close button in
 						// the panel's top-right corner isn't covered by the badge.
-						className="absolute inset-0 z-30 flex flex-col justify-center gap-3 bg-stone-800/95 p-5 backdrop-blur-sm"
+						className="absolute inset-0 z-30 flex flex-col justify-center gap-3 bg-ink/95 p-5 backdrop-blur-sm"
 						exit={{ y: "100%" }}
 						initial={{ y: "100%" }}
 						onAnimationComplete={(definition) => {
@@ -145,7 +145,7 @@ const Key: React.FC<KeyProps> = ({ onJoin }) => {
 					>
 						<button
 							aria-label="Close join game"
-							className="absolute top-2 right-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-stone-400 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+							className="absolute top-2 right-2 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-stone-500 transition-all hover:bg-white/10 hover:text-white active:scale-95"
 							onClick={(event) => {
 								event.stopPropagation();
 								close();
@@ -166,7 +166,7 @@ const Key: React.FC<KeyProps> = ({ onJoin }) => {
 							<input
 								autoCapitalize="characters"
 								autoComplete="off"
-								className="w-full rounded-md border border-stone-600 bg-stone-900/60 px-3 py-2 text-center font-mono text-sm text-white uppercase tracking-widest outline-none transition-all placeholder:text-stone-500 focus:border-green-400"
+								className="w-full rounded-md border border-white/15 bg-ink/60 px-3 py-2 text-center font-mono text-sm text-white uppercase tracking-widest outline-none transition-all placeholder:text-stone-500 focus:border-green-400"
 								id="join-game-id"
 								onChange={(event) => setGameId(event.target.value)}
 								onClick={(event) => event.stopPropagation()}
@@ -180,7 +180,7 @@ const Key: React.FC<KeyProps> = ({ onJoin }) => {
 								value={gameId}
 							/>
 							<button
-								className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-white text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+								className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-green-400 py-2 font-bold text-ink text-xs uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
 								disabled={!gameId.trim()}
 								type="submit"
 							>

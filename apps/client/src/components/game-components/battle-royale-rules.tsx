@@ -74,7 +74,7 @@ const SLIDES: RuleSlide[] = [
 						transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
 					/>
 				</div>
-				<p className="text-center text-[10px] text-gray-400 uppercase tracking-widest">
+				<p className="text-center text-[10px] text-gray-500 uppercase tracking-widest">
 					Life timer
 				</p>
 			</div>
@@ -116,7 +116,7 @@ const SLIDES: RuleSlide[] = [
 						</div>
 					))}
 				</div>
-				<span className="rounded-sm bg-amber-400 px-1.5 py-0.5 font-semibold text-[9px] text-white uppercase tracking-widest">
+				<span className="rounded-sm bg-amber-400 px-1.5 py-0.5 font-semibold text-[9px] text-ink uppercase tracking-widest">
 					Incoming &middot; solve to dodge
 				</span>
 			</div>

@@ -1,7 +1,7 @@
 export type SectionVariant = "default" | "green" | "amber" | "blue";
 
 const sectionVariantClasses: Record<SectionVariant, string> = {
-  default: "text-gray-400",
+  default: "text-gray-500",
   green: "text-emerald-500",
   amber: "text-amber-500",
   blue: "text-sky-500",

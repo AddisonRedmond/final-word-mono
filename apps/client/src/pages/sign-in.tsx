@@ -113,7 +113,7 @@ const SignIn: NextPage = () => {
             <Tile word={"FINAL"} revealed={true} variant="correct" size="lg" />
             <Tile word={"WORD"} revealed={true} variant="present" size="md" />
           </div>
-          <p className="mx-auto mt-3 max-w-sm text-sm text-stone-600 sm:text-base">
+          <p className="mx-auto mt-6 max-w-sm text-sm text-stone-600 sm:text-base">
             Guess the hidden five-letter word before your rivals do. Duel a
             friend head-to-head, or jump into live Battle Royale and Race modes.
           </p>
@@ -127,7 +127,7 @@ const SignIn: NextPage = () => {
         {hydrated && isDesktop && (
           <div>
             <Link
-              className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-4 font-bold text-white uppercase tracking-wider shadow-lg shadow-emerald-900/20 transition-all hover:bg-emerald-400 active:scale-95 sm:max-w-sm"
+              className="flex w-full max-w-xs items-center justify-center gap-2 rounded-xl keycap bg-emerald-500 px-6 py-4 font-display text-ink uppercase tracking-wider [--keycap-edge:var(--color-lime-edge)] transition-all hover:bg-emerald-400 sm:max-w-sm"
               href="/practice"
               onClick={() =>
                 track("practice_cta_clicked", { source: "primary_button" })
@@ -161,14 +161,14 @@ const SignIn: NextPage = () => {
 
         {/* Auth CTA, framed as a warm translucent panel so the sign-in action
           reads as the page's focal point rather than two loose buttons. */}
-        <div className="flex w-full max-w-xs flex-col gap-3 rounded-2xl border border-amber-200/60 bg-amber-50/70 p-5 shadow-xl shadow-amber-900/5 backdrop-blur-md sm:max-w-sm">
+        <div className="flex w-full max-w-xs flex-col gap-3 rounded-2xl border border-white/10 bg-panel/80 p-5 shadow-xl shadow-amber-900/5 backdrop-blur-md sm:max-w-sm">
           <p className="text-center font-semibold text-stone-500 text-xs uppercase tracking-widest">
             Sign in to play
           </p>
           <button
             type="button"
             onClick={() => handleOAuthSignIn("google")}
-            className="flex items-center justify-center gap-3 rounded-lg border border-white/60 bg-white px-6 py-3 font-semibold text-zinc-900 shadow-lg shadow-black/40 backdrop-blur-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 active:scale-95"
+            className="flex items-center justify-center gap-3 rounded-lg border border-white/60 bg-white px-6 py-3 font-semibold text-ink shadow-lg shadow-black/40 backdrop-blur-sm transition hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-95"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -198,7 +198,7 @@ const SignIn: NextPage = () => {
           <button
             type="button"
             onClick={() => handleOAuthSignIn("github")}
-            className="flex items-center justify-center gap-3 rounded-lg border border-white/60 bg-zinc-900/95 px-6 py-3 font-semibold text-white shadow-lg shadow-black/40 backdrop-blur-sm transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 active:scale-95"
+            className="flex items-center justify-center gap-3 rounded-lg border border-white/60 bg-panel/95 px-6 py-3 font-semibold text-white shadow-lg shadow-black/40 backdrop-blur-sm transition hover:bg-panel-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-95"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -237,7 +237,7 @@ const SignIn: NextPage = () => {
                 <>
                   <span
                     aria-hidden="true"
-                    className="grid size-9 shrink-0 place-content-center rounded-md border border-emerald-600 bg-emerald-500 font-black text-lg text-white shadow-sm"
+                    className="grid size-9 shrink-0 place-content-center rounded-md keycap bg-emerald-500 font-display text-lg text-ink [--keycap-edge:var(--color-lime-edge)]"
                   >
                     {mode.name.charAt(0)}
                   </span>
@@ -249,7 +249,7 @@ const SignIn: NextPage = () => {
                     {canPractice && (
                       <span
                         aria-hidden="true"
-                        className="mt-2 inline-flex items-center gap-1 font-bold text-emerald-600 text-xs uppercase tracking-wider"
+                        className="mt-2 inline-flex items-center gap-1 font-bold text-lime text-xs uppercase tracking-wider"
                       >
                         <Zap className="size-3" /> Give it a try →
                       </span>
@@ -266,7 +266,7 @@ const SignIn: NextPage = () => {
                       type="button"
                       onClick={() => launchPracticeFromCard(mode.name)}
                       aria-label={`Try ${mode.name} — play a free practice round, no account needed`}
-                      className="flex w-full items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 text-left shadow-sm backdrop-blur-sm transition hover:border-emerald-300/70 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-[0.99]"
+                      className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-panel/80 p-4 text-left shadow-sm backdrop-blur-sm transition hover:border-emerald-300/70 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 active:scale-[0.99]"
                     >
                       {content}
                     </button>
@@ -274,7 +274,7 @@ const SignIn: NextPage = () => {
                     // Non-interactive (e.g. mobile, where practice isn't
                     // playable yet): plain descriptive content, no button
                     // affordance so it doesn't read as a dead click.
-                    <div className="flex items-start gap-3 rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 text-left shadow-sm backdrop-blur-sm">
+                    <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-panel/80 p-4 text-left shadow-sm backdrop-blur-sm">
                       {content}
                     </div>
                   )}

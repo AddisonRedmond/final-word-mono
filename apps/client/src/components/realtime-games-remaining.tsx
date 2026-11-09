@@ -74,7 +74,7 @@ const RealtimeGamesRemaining: React.FC = () => {
 		return (
 			<output
 				aria-label="Loading your daily games"
-				className="inline-flex animate-pulse items-center gap-2 rounded-full border border-gray-200 bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur-sm"
+				className="inline-flex animate-pulse items-center gap-2 rounded-full border border-gray-200 bg-panel/70 px-3 py-1.5 shadow-sm backdrop-blur-sm"
 			>
 				<span className="size-5 shrink-0 rounded-md bg-gray-200" />
 				<span className="h-3 w-28 rounded bg-gray-200" />
@@ -95,18 +95,18 @@ const RealtimeGamesRemaining: React.FC = () => {
 			className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest shadow-sm backdrop-blur-sm ${
 				noneLeft
 					? "border-amber-200 bg-amber-50 text-amber-700"
-					: "border-gray-200 bg-white/70 text-gray-600"
+					: "border-gray-200 bg-panel/70 text-gray-600"
 			}`}
 		>
 			<span
-				className={`grid size-5 shrink-0 place-content-center rounded-md font-bold text-[11px] text-white ${
+				className={`grid size-5 shrink-0 place-content-center rounded-md font-bold text-[11px] text-stone-400 ${
 					noneLeft ? "bg-amber-400" : "bg-green-400"
 				}`}
 			>
 				{remaining}
 			</span>
 			<span>/ {limit} games left today</span>
-			{resetIn && <span className="text-gray-400">· resets in {resetIn}</span>}
+			{resetIn && <span className="text-gray-500">· resets in {resetIn}</span>}
 		</div>
 	);
 };

@@ -152,7 +152,7 @@ const PwaInstall = () => {
 					<motion.div
 						animate={{ opacity: 1, y: 0 }}
 						aria-label="Install Final Word"
-						className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur-lg"
+						className="fixed inset-x-4 bottom-[calc(var(--tabbar-h)+max(1rem,env(safe-area-inset-bottom)))] z-40 mx-auto flex max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-panel/95 p-3 shadow-xl backdrop-blur-lg"
 						exit={{ opacity: 0, y: 24 }}
 						initial={{ opacity: 0, y: 24 }}
 						role="region"
@@ -251,7 +251,7 @@ const InstallHelpDialog = ({
 				animate={{ opacity: 1, scale: 1, y: 0 }}
 				aria-labelledby="pwa-install-title"
 				aria-modal="true"
-				className="relative w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-xl"
+				className="relative w-full max-w-sm rounded-lg border border-gray-200 bg-panel p-6 shadow-xl"
 				exit={{ opacity: 0, scale: 0.95, y: 12 }}
 				initial={{ opacity: 0, scale: 0.95, y: 12 }}
 				role="dialog"
@@ -340,7 +340,7 @@ const InstallHelpDialog = ({
 };
 
 const StepBadge = ({ n }: { n: number }) => (
-	<span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-white">
+	<span className="grid size-6 shrink-0 place-content-center rounded-md bg-green-400 font-bold text-[11px] text-ink">
 		{n}
 	</span>
 );

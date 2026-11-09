@@ -10,6 +10,7 @@ import Keyboard from "../../game-components/keyboard";
 import MatchTimer from "../../game-components/match-timer";
 import ProgressBars from "../../game-components/progress-bars";
 import QualifiedSpots from "../../game-components/qualified-spots";
+import LeaveButton from "@/components/leave-button";
 
 type RoundBoardProps = {
 	/** Current match snapshot from the Race socket. */
@@ -359,22 +360,12 @@ const RoundBoard: React.FC<RoundBoardProps> = ({
 				partialMatch={partialMatch}
 			/>
 
-			<div className="flex gap-2">
-				<button
-					className="flex cursor-pointer gap-x-0.5 rounded-md p-2 font-semibold text-xs shadow-lg"
-					onClick={() => {
-						track("give_up_clicked", { mode: analyticsMode });
-						onLeave();
-					}}
-					type="button"
-				>
-					<p className="aspect-square rounded-md bg-red-300 p-1">L</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">E</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">A</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">V</p>
-					<p className="aspect-square rounded-md bg-red-300 p-1">E</p>
-				</button>
-			</div>
+			<LeaveButton
+				onClick={() => {
+					track("give_up_clicked", { mode: analyticsMode });
+					onLeave();
+				}}
+			/>
 		</div>
 	);
 };

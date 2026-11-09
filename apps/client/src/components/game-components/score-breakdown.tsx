@@ -39,8 +39,8 @@ const Chip: React.FC<{ label: string; value: string }> = ({
   label,
   value,
 }) => (
-  <div className="flex flex-col items-center rounded-md border border-gray-200 bg-white/70 px-2 py-1">
-    <span className="font-semibold text-[9px] text-gray-400 uppercase tracking-widest">
+  <div className="flex flex-col items-center rounded-md border border-gray-200 bg-panel/70 px-2 py-1">
+    <span className="font-semibold text-[9px] text-gray-500 uppercase tracking-widest">
       {label}
     </span>
     <span className="font-bold text-[13px] text-gray-800">{value}</span>
@@ -61,7 +61,7 @@ export const ScoreBreakdown: React.FC = () => (
 
     {/* Placement point tiers. */}
     <div>
-      <p className="mb-1 text-[9px] text-gray-400 uppercase tracking-widest">
+      <p className="mb-1 text-[9px] text-gray-500 uppercase tracking-widest">
         Placement points
       </p>
       <div className="flex flex-wrap justify-center gap-1.5">
@@ -77,7 +77,7 @@ export const ScoreBreakdown: React.FC = () => (
 
     {/* Placement multiplier tiers (the Apex-style part). */}
     <div>
-      <p className="mb-1 text-[9px] text-gray-400 uppercase tracking-widest">
+      <p className="mb-1 text-[9px] text-gray-500 uppercase tracking-widest">
         Combat multiplier (by placement)
       </p>
       <div className="flex flex-wrap justify-center gap-1.5">

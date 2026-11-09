@@ -75,13 +75,13 @@ const ModeCard: React.FC<{
 	const showSeasonPoints = scope === "season" && stats.seasonPoints > 0;
 
 	return (
-		<section className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-sm">
+		<section className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm backdrop-blur-sm">
 			<div className="mb-3 flex items-center justify-between">
 				<h2 className="font-mono text-sm uppercase tracking-widest">
 					{modeLabel(stats.mode)}
 				</h2>
 				{scope === "season" && placement !== undefined && (
-					<span className="rounded-sm bg-green-400 px-1.5 py-0.5 font-semibold text-[9px] text-white uppercase tracking-widest">
+					<span className="rounded-sm bg-green-400 px-1.5 py-0.5 font-semibold text-[9px] text-ink uppercase tracking-widest">
 						Season #{placement}
 					</span>
 				)}
@@ -112,16 +112,16 @@ const ModeCard: React.FC<{
 				{stats.premiumLocked ? (
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex flex-col gap-0.5">
-							<span className="text-[10px] text-gray-400 uppercase tracking-widest">
+							<span className="text-[10px] text-gray-500 uppercase tracking-widest">
 								Advanced stats
 							</span>
-							<span className="text-[11px] text-gray-400">
+							<span className="text-[11px] text-gray-500">
 								Unlock accuracy, best streak, placement, solve times and
 								personal records with premium.
 							</span>
 						</div>
 						<a
-							className="shrink-0 rounded-md bg-green-400 px-2.5 py-1 font-semibold text-[10px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+							className="shrink-0 rounded-md bg-green-400 px-2.5 py-1 font-semibold text-[10px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
 							href="/api/polar/checkout"
 						>
 							Upgrade
@@ -228,11 +228,11 @@ const Stats: React.FC = () => {
 					{(
 						<>
 							{/* Lifetime vs current-season toggle (R2.4). */}
-							<div className="flex items-center gap-1 self-start rounded-md border border-gray-200 bg-white/80 p-1">
+							<div className="flex items-center gap-1 self-start rounded-md border border-gray-200 bg-panel/80 p-1">
 								<button
 									className={`rounded-sm px-3 py-1 font-semibold text-[11px] uppercase tracking-widest transition-all ${
 										scope === "lifetime"
-											? "bg-green-400 text-white"
+											? "bg-green-400 text-ink"
 											: "text-gray-500 hover:bg-gray-100"
 									}`}
 									onClick={() => setScope("lifetime")}
@@ -243,7 +243,7 @@ const Stats: React.FC = () => {
 								<button
 									className={`rounded-sm px-3 py-1 font-semibold text-[11px] uppercase tracking-widest transition-all ${
 										scope === "season"
-											? "bg-green-400 text-white"
+											? "bg-green-400 text-ink"
 											: "text-gray-500 hover:bg-gray-100"
 									}`}
 									onClick={() => setScope("season")}
@@ -254,22 +254,22 @@ const Stats: React.FC = () => {
 							</div>
 
 							{scope === "season" && stats?.season && (
-								<p className="-mt-3 text-[11px] text-gray-400">
+								<p className="-mt-3 text-[11px] text-gray-500">
 									Current season: {stats.season}
 								</p>
 							)}
 
 							{/* Loading state (R2.6). */}
 							{statsLoading ? (
-								<div className="rounded-lg border border-gray-200/80 bg-white/80 p-5 shadow-sm">
-									<p className="py-3 text-gray-400 text-sm">
+								<div className="rounded-lg border border-gray-200/80 bg-panel/80 p-5 shadow-sm">
+									<p className="py-3 text-gray-500 text-sm">
 										Loading your stats…
 									</p>
 								</div>
 							) : modes.length === 0 ? (
 								/* Empty state — no games in this scope. Avoid showing zeros
 								   that imply a bug (R2.6). */
-								<div className="rounded-lg border border-gray-200/80 bg-white/80 p-8 text-center shadow-sm">
+								<div className="rounded-lg border border-gray-200/80 bg-panel/80 p-8 text-center shadow-sm">
 									<h2 className="font-mono text-sm uppercase tracking-widest">
 										No games yet
 									</h2>
@@ -279,7 +279,7 @@ const Stats: React.FC = () => {
 											: "You haven't played any games yet. Play a round and your stats will start building here."}
 									</p>
 									<Link
-										className="mt-4 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-white uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
+										className="mt-4 inline-block rounded-md bg-green-400 px-3 py-1.5 font-semibold text-[11px] text-ink uppercase tracking-widest transition-all hover:bg-green-300 active:scale-95"
 										href="/"
 									>
 										Play a game
