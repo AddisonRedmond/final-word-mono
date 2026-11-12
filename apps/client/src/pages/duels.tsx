@@ -123,7 +123,32 @@ const Duels = () => {
         },
       };
     });
-  }, []);
+
+    // Realtime carries no guess words, so an opponent's final guesses would be
+    // missing from the open result view. The duel is complete, which means the
+    // viewer has finished, so the server's redacted result now includes them:
+    // fetch it and fold the guesses in. Best effort: a failure just leaves the
+    // result view as it was (reopening it refreshes).
+    void utils.duels.getDuelResult
+      .fetch(event.duelId)
+      .then((result) => {
+        setActiveDuelData((current) => {
+          if (!current || current.duel.id !== event.duelId) {
+            return current;
+          }
+          return {
+            ...current,
+            participant: current.participant.map((existing) => ({
+              ...existing,
+              guesses:
+                result.participant.find((p) => p.userId === existing.userId)
+                  ?.guesses ?? existing.guesses,
+            })),
+          };
+        });
+      })
+      .catch(() => undefined);
+  }, [utils]);
 
   const participantsByDuel = useDuelRealtime(duelIds, {
     currentUserId,
@@ -169,10 +194,15 @@ const Duels = () => {
 
   /*
    * While a board is open, keep its participant list in sync with realtime so
-   * the result view reflects opponents' latest guesses and finish state. We
+   * the result view reflects opponents' latest progress and finish state. We
    * only replace the `participant` array — the current user's derived fields
    * (matchResults, keyboardState, secretWord) come from the server response
    * and must not be recomputed here.
+   *
+   * Realtime rows never contain guess words (they are kept out of anything the
+   * browser can subscribe to). The words in `activeDuelData` come from the
+   * server's redacted tRPC response, so carry them over by user id instead of
+   * letting the live rows blank them.
    */
   useEffect(() => {
     if (!activeDuelData) {
@@ -200,7 +230,7 @@ const Duels = () => {
           );
           return (
             live !== undefined &&
-            live.guesses.length === existing.guesses.length &&
+            live.totalGuesses === existing.totalGuesses &&
             live.endTime?.getTime() === existing.endTime?.getTime() &&
             live.success === existing.success &&
             live.accepted === existing.accepted
@@ -211,7 +241,15 @@ const Duels = () => {
         return current;
       }
 
-      return { ...current, participant: liveParticipants };
+      return {
+        ...current,
+        participant: liveParticipants.map((live) => ({
+          ...live,
+          guesses:
+            current.participant.find((p) => p.userId === live.userId)
+              ?.guesses ?? [],
+        })),
+      };
     });
   }, [participantsByDuel, activeDuelData]);
 
@@ -474,7 +512,11 @@ const Duels = () => {
             nameDirectory.find((person) => person.id === userId)?.name ??
             "Unknown",
           status,
-          guesses: participant?.guesses ?? [],
+          // Guess words come from the server's redacted response (realtime rows
+          // carry none): empty until this player's own game has ended.
+          guesses:
+            activeDuelData.participant.find((item) => item.userId === userId)
+              ?.guesses ?? [],
         };
       });
   }, [activeDuelData, currentUserId, participantsByDuel, nameDirectory]);

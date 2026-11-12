@@ -246,10 +246,10 @@ const Navbar = () => {
         >
           {/* Three stacked tiles evoke both a hamburger icon and the game's
               tile rows. */}
-          <span className="flex flex-col gap-[3px]">
-            <span className="block h-[3px] w-4 rounded-full bg-ink" />
-            <span className="block h-[3px] w-4 rounded-full bg-ink" />
-            <span className="block h-[3px] w-4 rounded-full bg-ink" />
+          <span className="flex flex-col gap-0.75">
+            <span className="block h-0.75 w-4 rounded-full bg-ink" />
+            <span className="block h-0.75 w-4 rounded-full bg-ink" />
+            <span className="block h-0.75 w-4 rounded-full bg-ink" />
           </span>
         </button>
 

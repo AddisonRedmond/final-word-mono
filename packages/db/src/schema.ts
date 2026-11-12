@@ -87,6 +87,10 @@ export const duelParticipants = pgTable(
     endTime: timestamp("end_time", { withTimezone: true }),
     totalGuesses: integer("total_guesses").notNull().default(0),
     success: boolean("success").notNull().default(false),
+    // @deprecated Guesses now live in `duel_guesses` (client-unreadable). This
+    // column is no longer written; it only exists until the "contract" steps of
+    // the guess-privacy migration (blank it, then drop it) so in-flight duels
+    // and older deployed code keep working. Never read it for client responses.
     guesses: text("guesses").array().notNull().default([]),
     accepted: boolean(),
     // True when the participant ended their own game by forfeiting (gave up)
@@ -96,6 +100,35 @@ export const duelParticipants = pgTable(
     // forfeit; it only means "accepted/started the duel".
     forfeited: boolean("forfeited").notNull().default(false),
     completed_game_acknowledged: boolean().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.duelId, t.userId] })],
+);
+
+/**
+ * The guess words each participant has submitted in a duel, split out of
+ * `duel_participants` for the same reason `duel_secrets` is split out of
+ * `duels`: a participant's final correct guess IS the answer.
+ *
+ * The browser reads `duel_participants` directly (Supabase realtime/PostgREST,
+ * anon key, subject to RLS). RLS filters ROWS, not columns, and realtime
+ * delivers whole rows, so a `guesses` column there would be visible to every
+ * other participant. This table has RLS enabled with NO client SELECT policy and
+ * is NOT in the `supabase_realtime` publication (see supabase/migrations), so
+ * clients can never read it. The tRPC server (privileged connection) reads it
+ * and returns an opponent's guesses only once the requesting player's own game
+ * has ended. Non-sensitive progress (count, finished state) stays on
+ * `duel_participants.total_guesses` / `end_time`.
+ */
+export const duelGuesses = pgTable(
+  "duel_guesses",
+  {
+    duelId: uuid("duel_id")
+      .notNull()
+      .references(() => duels.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    guesses: text("guesses").array().notNull().default([]),
   },
   (t) => [primaryKey({ columns: [t.duelId, t.userId] })],
 );
@@ -460,6 +493,8 @@ export type NewDuel = typeof duels.$inferInsert;
 
 export type DuelSecret = typeof duelSecrets.$inferSelect;
 export type NewDuelSecret = typeof duelSecrets.$inferInsert;
+
+export type DuelGuesses = typeof duelGuesses.$inferSelect;
 
 export type DuelParticipant = typeof duelParticipants.$inferSelect;
 export type NewDuelParticipant = typeof duelParticipants.$inferInsert;

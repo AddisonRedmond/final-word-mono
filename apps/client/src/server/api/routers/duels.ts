@@ -15,6 +15,7 @@ import { z } from "zod";
 import {
   type DuelParticipant,
   type DuelResult,
+  duelGuesses,
   duelParticipants,
   duelQueue,
   duelResults,
@@ -40,6 +41,7 @@ import {
   MAX_GUESSES,
   planExpiredDuel,
 } from "@/utils/duel";
+import { loadDuelGuesses, resolveGuesses, saveGuesses } from "@/server/duel-guesses";
 import { buildDuelResponse } from "@/utils/duel-response";
 
 /**
@@ -939,7 +941,13 @@ export const duelsRouter = createTRPCRouter({
         });
       }
 
-      return buildDuelResponse(duel, secret.word, participants, userId);
+      return buildDuelResponse(
+        duel,
+        secret.word,
+        participants,
+        userId,
+        await loadDuelGuesses(ctx.db, input, participants),
+      );
     }),
 
   /*
@@ -1295,7 +1303,13 @@ export const duelsRouter = createTRPCRouter({
         });
       }
 
-      return buildDuelResponse(duel, secret.word, participants, userId);
+      return buildDuelResponse(
+        duel,
+        secret.word,
+        participants,
+        userId,
+        await loadDuelGuesses(ctx.db, input, participants),
+      );
     }),
 
   /*
@@ -1508,7 +1522,23 @@ export const duelsRouter = createTRPCRouter({
           });
         }
 
-        if (participant.guesses.length >= MAX_GUESSES) {
+        // Guesses live in the client-unreadable `duel_guesses` table. The duel
+        // row is locked above, so this read-modify-write can't interleave.
+        const [storedGuesses] = await tx
+          .select({ guesses: duelGuesses.guesses })
+          .from(duelGuesses)
+          .where(
+            and(
+              eq(duelGuesses.duelId, input.duelId),
+              eq(duelGuesses.userId, userId),
+            ),
+          );
+        const existingGuesses = resolveGuesses(
+          storedGuesses?.guesses ?? [],
+          participant.guesses,
+        );
+
+        if (existingGuesses.length >= MAX_GUESSES) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "No guesses remaining.",
@@ -1532,7 +1562,7 @@ export const duelsRouter = createTRPCRouter({
         const normalizedWord = secret.word.toUpperCase();
         const isCorrect = normalizedGuess === normalizedWord;
 
-        const updatedGuesses = [...participant.guesses, normalizedGuess];
+        const updatedGuesses = [...existingGuesses, normalizedGuess];
 
         const isGameOver = isCorrect || updatedGuesses.length >= MAX_GUESSES;
 
@@ -1543,12 +1573,14 @@ export const duelsRouter = createTRPCRouter({
          * been recorded for the play session, stamp it now.
          */
         const shouldStampStartTime =
-          participant.startTime === null && participant.guesses.length === 0;
+          participant.startTime === null && existingGuesses.length === 0;
 
         const [updatedParticipant] = await tx
           .update(duelParticipants)
           .set({
-            guesses: updatedGuesses,
+            // `guesses` is deliberately NOT written here: it lives in
+            // duel_guesses (below). Only the non-sensitive count is kept on the
+            // participant row, which opponents can see.
             totalGuesses: updatedGuesses.length,
             // success must be monotonic — never flip a solved player back to
             // false on a subsequent write.
@@ -1570,6 +1602,8 @@ export const duelsRouter = createTRPCRouter({
             message: "Failed to save guess.",
           });
         }
+
+        await saveGuesses(tx, input.duelId, userId, updatedGuesses);
 
         /*
          * Always fetch all participants after updating the current
@@ -1626,7 +1660,13 @@ export const duelsRouter = createTRPCRouter({
         }
 
         return {
-          ...buildDuelResponse(updatedDuel, secret.word, participants, userId),
+          ...buildDuelResponse(
+            updatedDuel,
+            secret.word,
+            participants,
+            userId,
+            await loadDuelGuesses(tx, input.duelId, participants),
+          ),
           isCorrect,
           isGameOver,
         };

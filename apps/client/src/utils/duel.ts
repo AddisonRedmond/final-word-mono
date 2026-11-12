@@ -121,7 +121,7 @@ export const planExpiredDuel = (
     }
     timedOut.push({
       userId,
-      forfeited: row.startTime === null && row.guesses.length === 0,
+      forfeited: row.startTime === null && row.totalGuesses === 0,
     });
   }
 

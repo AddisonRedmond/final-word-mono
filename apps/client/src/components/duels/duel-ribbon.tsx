@@ -61,7 +61,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 	const hasCompleted = Boolean(currentParticipant?.endTime);
 	// Creating a duel adds the initiator as an accepted participant, but they
 	// have not actually begun playing until they submit their first guess.
-	const hasStartedPlaying = (currentParticipant?.guesses.length ?? 0) > 0;
+	const hasStartedPlaying = (currentParticipant?.totalGuesses ?? 0) > 0;
 	return (
 		<div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
 			<div className="min-w-0">

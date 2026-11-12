@@ -10,7 +10,6 @@ type DuelParticipantRow = {
 	end_time: string | null;
 	total_guesses: number;
 	success: boolean;
-	guesses: string[];
 	accepted: boolean | null;
 	forfeited: boolean;
 	completed_game_acknowledged: boolean;
@@ -20,11 +19,15 @@ type DuelParticipantRow = {
  * Explicit column list for the initial participant fetch. We select named
  * columns rather than `*` as defense-in-depth: if a sensitive column is ever
  * added to duel_participants, it won't be pulled into the browser by accident.
- * The answer word already lives in the separate duel_secrets table, which the
- * client cannot read at all.
+ *
+ * Guess words are deliberately NOT here. They live in the `duel_guesses` table,
+ * which the client cannot read at all, and reach the browser only through tRPC
+ * responses the server has redacted for the viewer. (A participant's last guess
+ * can be the answer, so opponents' guesses must never travel over realtime.)
+ * Only the non-sensitive `total_guesses` count is available here.
  */
 const DUEL_PARTICIPANT_COLUMNS =
-	"duel_id, user_id, start_time, end_time, total_guesses, success, guesses, accepted, forfeited, completed_game_acknowledged" as const;
+	"duel_id, user_id, start_time, end_time, total_guesses, success, accepted, forfeited, completed_game_acknowledged" as const;
 
 type DuelRow = {
 	id: string;
@@ -71,7 +74,9 @@ const toDuelParticipant = (row: DuelParticipantRow): DuelParticipant => ({
 	endTime: row.end_time ? new Date(row.end_time) : null,
 	totalGuesses: row.total_guesses,
 	success: row.success,
-	guesses: row.guesses,
+	// Realtime never carries guess words; consumers that need them take them from
+	// the tRPC duel response (see the merge in pages/duels.tsx).
+	guesses: [],
 	accepted: row.accepted,
 	forfeited: row.forfeited,
 	completed_game_acknowledged: row.completed_game_acknowledged,
