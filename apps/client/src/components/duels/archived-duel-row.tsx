@@ -60,9 +60,13 @@ const ArchivedDuelRow: React.FC<ArchivedDuelRowProps> = ({
 					{opponentIds.map((id) => {
 						const name =
 							friends.find((friend) => friend.id === id)?.name ?? "Unknown";
+						// The winner's square is green; everyone else stays neutral.
+						const isWinner = duel.winner === id;
 						return (
 							<span
-								className="grid size-6 shrink-0 select-none place-content-center rounded-md bg-stone-400 font-bold text-[10px] text-white"
+								className={`grid size-6 shrink-0 select-none place-content-center rounded-md font-bold text-[10px] text-white ${
+									isWinner ? "bg-green-500" : "bg-stone-400"
+								}`}
 								key={id}
 								title={name}
 							>
@@ -72,7 +76,16 @@ const ArchivedDuelRow: React.FC<ArchivedDuelRowProps> = ({
 					})}
 				</div>
 				<p className="truncate text-[11px] text-gray-500">
-					{new Date(duel.createdAt).toLocaleDateString()} · {outcomeLabel()}
+					{new Date(duel.createdAt).toLocaleDateString()} ·{" "}
+					<span
+						className={
+							duel.winner === currentUserId
+								? "font-semibold text-green-600"
+								: undefined
+						}
+					>
+						{outcomeLabel()}
+					</span>
 				</p>
 			</div>
 

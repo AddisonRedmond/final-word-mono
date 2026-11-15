@@ -50,6 +50,35 @@ const syncRealtimeAuth = (accessToken: string | undefined) => {
 	void supabase.realtime.setAuth(accessToken);
 };
 
+let unauthorizedInFlight: Promise<void> | null = null;
+
+/**
+ * Call when the API rejects a request as unauthenticated (HTTP 401).
+ *
+ * The browser may still believe it has a session (a revoked or expired token
+ * the client hasn't noticed yet), so the store would keep showing a signed-in
+ * user. Try one token refresh; if that fails the session is dead, so drop it
+ * locally. That emits SIGNED_OUT, the store clears `user`, and the app-wide
+ * auth guard sends the visitor to /sign-in. Concurrent 401s (a failed batch,
+ * several queries) share one attempt.
+ */
+export const handleUnauthorized = (): Promise<void> => {
+	unauthorizedInFlight ??= (async () => {
+		try {
+			const { error } = await supabase.auth.refreshSession();
+			if (error) {
+				await supabase.auth.signOut({ scope: "local" });
+				// signOut may not emit when there was no session to remove, so
+				// clear the store directly as well.
+				setUser(null);
+			}
+		} finally {
+			unauthorizedInFlight = null;
+		}
+	})();
+	return unauthorizedInFlight;
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
 	user: null,
 	profileName: null,

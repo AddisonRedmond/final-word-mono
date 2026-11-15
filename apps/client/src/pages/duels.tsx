@@ -586,6 +586,7 @@ const Duels = () => {
                   handleForfeit={requestForfeit}
                   key={duel.id}
                   participants={participantsByDuel[duel.id] ?? []}
+                  participantsLoaded={participantsByDuel[duel.id] !== undefined}
                   startOrResumeDuel={handleStartDuel}
                 />
               ))

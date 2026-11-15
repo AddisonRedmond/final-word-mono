@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   exists,
+  gte,
   inArray,
   lt,
   not,
@@ -1198,6 +1199,7 @@ export const duelsRouter = createTRPCRouter({
    */
   archivedDuels: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.user.id;
+    const archiveCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const archivedForUser = ctx.db
       .select({ duelId: duelParticipants.duelId })
@@ -1226,8 +1228,12 @@ export const duelsRouter = createTRPCRouter({
           arrayContains(duels.participants, [userId]),
           eq(duels.completed, true),
           exists(archivedForUser),
+          // For now the archive only lists the last 30 days.
+          gte(duels.createdAt, archiveCutoff),
         ),
-      );
+      )
+      // Newest first.
+      .orderBy(desc(duels.createdAt));
   }),
 
   /*

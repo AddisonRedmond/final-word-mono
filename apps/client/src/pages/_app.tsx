@@ -10,6 +10,7 @@ import DuelNotifications from "@/components/duel-notifications";
 import PwaInstall from "@/components/pwa-install";
 import TabBar from "@/components/navigation/tab-bar";
 import Toaster from "@/components/toaster";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useAuthStore } from "@/state/auth-store";
 import { identifyUser, initAnalytics, resetAnalytics } from "@/utils/posthog";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/utils/site";
@@ -30,6 +31,15 @@ const FONT_VARS = `:root{--font-geist-sans:${geist.style.fontFamily};--font-arch
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   const userId = useAuthStore((state) => state.user?.id);
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
+
+  // Start auth tracking once for the whole app (not only where a Navbar is
+  // mounted) so the session is read and kept in sync on every page, then guard
+  // protected routes against the session ending while a page is open.
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+  useAuthGuard();
 
   // Initialize PostHog once on the client (no-op without a key, so dev/preview
   // builds don't run analytics).

@@ -195,65 +195,70 @@ const Leaderboard: React.FC = () => {
 										{EMPTY_BOARD_COPY}
 									</p>
 								) : (
-									<table className="w-full border-collapse text-sm">
-										<thead>
-											<tr className="border-gray-100 border-b text-[10px] text-gray-500 uppercase tracking-widest">
-												<th className="px-4 py-2.5 text-left font-semibold">
-													#
-												</th>
-												<th className="px-4 py-2.5 text-left font-semibold">
-													Player
-												</th>
-												<th className="px-4 py-2.5 text-right font-semibold">
-													Points
-												</th>
-												<th className="px-4 py-2.5 text-right font-semibold">
-													Wins
-												</th>
-												<th className="px-4 py-2.5 text-right font-semibold">
-													Games
-												</th>
-												{/* Premium-gated expanded columns (R3.7). */}
-												{isPremium && (
+									// The section clips overflow (for its rounded corners), so the
+									// table scrolls inside this wrapper when it's wider than the
+									// screen (e.g. the premium columns on a phone).
+									<div className="overflow-x-auto overscroll-x-contain">
+										<table className="w-full whitespace-nowrap border-collapse text-sm">
+											<thead>
+												<tr className="border-gray-100 border-b text-[10px] text-gray-500 uppercase tracking-widest">
+													<th className="px-4 py-2.5 text-left font-semibold">
+														#
+													</th>
+													<th className="px-4 py-2.5 text-left font-semibold">
+														Player
+													</th>
+													<th className="px-4 py-2.5 text-right font-semibold">
+														Points
+													</th>
+													<th className="px-4 py-2.5 text-right font-semibold">
+														Wins
+													</th>
+													<th className="px-4 py-2.5 text-right font-semibold">
+														Games
+													</th>
+													{/* Premium-gated expanded columns (R3.7). */}
+													{isPremium && (
+														<>
+															<th className="px-4 py-2.5 text-right font-semibold">
+																Avg Place
+															</th>
+															<th className="px-4 py-2.5 text-right font-semibold">
+																Best Match PTS
+															</th>
+														</>
+													)}
+												</tr>
+											</thead>
+											<tbody>
+												{entries.map((entry) => (
+													<Row
+														entry={entry}
+														isPremium={isPremium}
+														key={entry.userId}
+													/>
+												))}
+												{/* Caller's own row pinned when outside the visible page. */}
+												{mePinned && (
 													<>
-														<th className="px-4 py-2.5 text-right font-semibold">
-															Avg Place
-														</th>
-														<th className="px-4 py-2.5 text-right font-semibold">
-															Best Match PTS
-														</th>
+														<tr>
+															<td
+																className="px-4 py-1 text-center text-[10px] text-gray-300"
+																colSpan={isPremium ? 7 : 5}
+															>
+																•••
+															</td>
+														</tr>
+														<Row
+															entry={mePinned}
+															isPremium={isPremium}
+															key={`pinned-${mePinned.userId}`}
+														/>
 													</>
 												)}
-											</tr>
-										</thead>
-										<tbody>
-											{entries.map((entry) => (
-												<Row
-													entry={entry}
-													isPremium={isPremium}
-													key={entry.userId}
-												/>
-											))}
-											{/* Caller's own row pinned when outside the visible page. */}
-											{mePinned && (
-												<>
-													<tr>
-														<td
-															className="px-4 py-1 text-center text-[10px] text-gray-300"
-															colSpan={isPremium ? 7 : 5}
-														>
-															•••
-														</td>
-													</tr>
-													<Row
-														entry={mePinned}
-														isPremium={isPremium}
-														key={`pinned-${mePinned.userId}`}
-													/>
-												</>
-											)}
-										</tbody>
-									</table>
+											</tbody>
+										</table>
+									</div>
 								)}
 							</section>
 

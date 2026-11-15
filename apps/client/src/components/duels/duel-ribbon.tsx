@@ -8,6 +8,14 @@ export interface DuelRibbonProps {
 	currentUserId: string;
 	friends: Friend[];
 	participants: DuelParticipant[];
+	/**
+	 * Whether this duel's participants have loaded. Everything the actions
+	 * depend on (have I joined, have I finished) comes from participants, which
+	 * load separately from the duel list. Until they arrive we don't know, and
+	 * showing buttons from an empty list offers the wrong ones (Start, Decline,
+	 * Forfeit on a duel you already finished). Defaults to true.
+	 */
+	participantsLoaded?: boolean;
 	startOrResumeDuel: (duelId: string) => void;
 	handleDeclineDuel: (duelId: string) => void;
 	handleForfeit: (duelId: string) => void;
@@ -47,6 +55,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 	currentUserId,
 	friends,
 	participants,
+	participantsLoaded = true,
 	startOrResumeDuel,
 	handleDeclineDuel,
 	handleForfeit,
@@ -63,8 +72,10 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 	// have not actually begun playing until they submit their first guess.
 	const hasStartedPlaying = (currentParticipant?.guesses.length ?? 0) > 0;
 	return (
-		<div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
-			<div className="min-w-0">
+		// Mobile: info on top, actions underneath (they're too wide to share a
+		// line with the opponent info on a phone). sm+: the original single row.
+		<div className="flex flex-col gap-2 rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10 sm:flex-row sm:items-center sm:justify-between">
+			<div className="shrink-0">
 				<div className="flex items-center gap-1.5">
 					<p className="font-semibold text-gray-800 text-sm">vs</p>
 					{opponentIds.map((id) => {
@@ -84,12 +95,23 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 						);
 					})}
 				</div>
-				<p className="truncate text-[11px] text-gray-500">
+				<p className="whitespace-nowrap text-[11px] text-gray-500">
 					{new Date(duel.createdAt).toLocaleDateString()}
 				</p>
 			</div>
-			{duel.completed ? (
-				<div className="flex items-center gap-1.5">
+			{!participantsLoaded ? (
+				// Same footprint as the real buttons so the row doesn't jump when
+				// they appear, and nothing here is clickable.
+				<div
+					aria-busy="true"
+					aria-label="Loading duel actions"
+					className="flex gap-1.5"
+				>
+					<span className="h-[30px] w-20 animate-pulse rounded-lg bg-stone-500/20" />
+					<span className="h-[30px] w-20 animate-pulse rounded-lg bg-stone-500/20" />
+				</div>
+			) : duel.completed ? (
+				<div className="flex flex-wrap items-center gap-1.5 [&_button]:whitespace-nowrap">
 					<span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 font-bold text-[11px] text-stone-600 uppercase tracking-widest">
 						Completed
 					</span>
@@ -119,7 +141,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 					)}
 				</div>
 			) : (
-				<div className="flex shrink-0 gap-1.5">
+				<div className="flex flex-wrap gap-1.5 sm:shrink-0 [&_button]:whitespace-nowrap">
 					{!hasJoined && !isInitiator && (
 						<Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
 							Decline

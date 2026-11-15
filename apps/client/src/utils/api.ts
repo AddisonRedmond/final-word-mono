@@ -11,6 +11,7 @@ import superjson from "superjson";
 import { ssrPrepass } from "@trpc/next/ssrPrepass";
 
 import type { AppRouter } from "@/server/api/root";
+import { handleUnauthorized } from "@/state/auth-store";
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined") return ""; // browser should use relative url
@@ -51,6 +52,16 @@ export const api = createTRPCNext<AppRouter>({
            */
           transformer: superjson,
           url: `${getBaseUrl()}/api/trpc`,
+          // A 401 means the server no longer accepts the session. Let the auth
+          // store verify it and sign out (which redirects to /sign-in) rather
+          // than leaving the user on a page full of failed queries.
+          async fetch(url, options) {
+            const response = await fetch(url, options);
+            if (response.status === 401 && typeof window !== "undefined") {
+              void handleUnauthorized();
+            }
+            return response;
+          },
         }),
       ],
     };

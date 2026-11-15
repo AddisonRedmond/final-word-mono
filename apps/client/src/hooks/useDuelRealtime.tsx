@@ -190,7 +190,14 @@ export const useDuelRealtime = (
 				return;
 			}
 
+			// Seed an entry for EVERY tracked duel (even one that came back with no
+			// rows) so a missing key means "participants not loaded yet" and a
+			// present key means "loaded". Consumers rely on that to avoid acting on
+			// an empty list, which looks identical to "you haven't joined".
 			const grouped: Record<string, DuelParticipant[]> = {};
+			for (const duelId of trackedDuelIds) {
+				grouped[duelId] = [];
+			}
 			for (const row of data as DuelParticipantRow[]) {
 				const participant = toDuelParticipant(row);
 				grouped[participant.duelId] = [
