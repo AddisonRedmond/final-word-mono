@@ -26,6 +26,8 @@ type OpponentsProps = {
   opponents: OpponentWithId[];
   selectedId?: string;
   onSelect: (id: string) => void;
+  /** Extra classes on the scroll container (e.g. responsive visibility). */
+  className?: string;
 };
 
 type ContainerSize = {
@@ -41,7 +43,7 @@ type OpponentCardProps = {
 };
 
 const Opponents = memo(
-  ({ opponents, selectedId, onSelect }: OpponentsProps) => {
+  ({ opponents, selectedId, onSelect, className = "" }: OpponentsProps) => {
     const ref = useRef<HTMLDivElement>(null);
 
     const activeOpponents = useMemo(
@@ -116,7 +118,7 @@ const Opponents = memo(
     return (
       <div
         ref={ref}
-        className="min-h-0 min-w-0 flex-1 overflow-auto scrollbar-gutter-stable p-1"
+        className={`min-h-0 min-w-0 flex-1 overflow-auto scrollbar-gutter-stable p-1 ${className}`}
       >
         <div className="flex flex-wrap content-start justify-evenly gap-2">
           <AnimatePresence mode="popLayout">

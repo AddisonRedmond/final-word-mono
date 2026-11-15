@@ -63,8 +63,10 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 	// have not actually begun playing until they submit their first guess.
 	const hasStartedPlaying = (currentParticipant?.totalGuesses ?? 0) > 0;
 	return (
-		<div className="flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10">
-			<div className="min-w-0">
+		// Mobile: info on top, actions underneath (they're too wide to share a
+		// line with the opponent info on a phone). sm+: the original single row.
+		<div className="flex flex-col gap-2 rounded-md px-3 py-2.5 transition-colors hover:bg-stone-500/10 sm:flex-row sm:items-center sm:justify-between">
+			<div className="shrink-0">
 				<div className="flex items-center gap-1.5">
 					<p className="font-semibold text-gray-800 text-sm">vs</p>
 					{opponentIds.map((id) => {
@@ -84,12 +86,12 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 						);
 					})}
 				</div>
-				<p className="truncate text-[11px] text-gray-500">
+				<p className="whitespace-nowrap text-[11px] text-gray-500">
 					{new Date(duel.createdAt).toLocaleDateString()}
 				</p>
 			</div>
 			{duel.completed ? (
-				<div className="flex items-center gap-1.5">
+				<div className="flex flex-wrap items-center gap-1.5 [&_button]:whitespace-nowrap">
 					<span className="shrink-0 rounded-md bg-stone-200 px-2 py-1 font-bold text-[11px] text-stone-600 uppercase tracking-widest">
 						Completed
 					</span>
@@ -119,7 +121,7 @@ const DuelRibbon: React.FC<DuelRibbonProps> = ({
 					)}
 				</div>
 			) : (
-				<div className="flex shrink-0 gap-1.5">
+				<div className="flex flex-wrap gap-1.5 sm:shrink-0 [&_button]:whitespace-nowrap">
 					{!hasJoined && !isInitiator && (
 						<Button onClick={() => handleDeclineDuel(duel.id)} variant="red">
 							Decline

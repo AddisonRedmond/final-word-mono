@@ -23,6 +23,16 @@ type GuessTilesProps = {
 };
 
 /**
+ * Tile edge length. Below `lg` the tile scales with the viewport so a 5-tile row
+ * fits a narrow phone (width term) and a stack of queued rows fits a short one
+ * (dvh term), clamped to 40px-56px. From `lg` up it's the fixed 56px (size-14).
+ * `size-14` stays as the base class (tests and desktop rely on it); `max-lg:`
+ * overrides it on smaller screens.
+ */
+export const boardTileSizeClass =
+	"size-14 max-lg:size-[clamp(2.5rem,min(calc((100vw_-_4.5rem)/5),7.5dvh),3.5rem)]";
+
+/**
  * A single row of graded guess tiles. Purely presentational: callers map their
  * mode-specific state (an in-progress guess, per-letter feedback, revealed
  * letters, …) into {@link TileSlot}s and this component renders them with the
@@ -34,7 +44,7 @@ const GuessTiles = memo<GuessTilesProps>(({ slots, className = "" }) => {
 			<div className={`flex items-center justify-evenly gap-2 ${className}`}>
 				{slots.map((slot, index) => (
 					<div
-						className={`relative grid size-14 place-content-center rounded-lg font-display text-xl uppercase ${
+						className={`relative grid ${boardTileSizeClass} place-content-center rounded-lg font-display text-xl uppercase ${
 							tileStateClasses[slot.state ?? "default"]
 						}`}
 						// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders, so the index is a stable key

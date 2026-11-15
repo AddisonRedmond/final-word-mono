@@ -154,10 +154,8 @@ export default function Home() {
 	}, [isPlaying, isPlayingRace, isReady, refetchChampion]);
 
 	const handlePlay = async (code?: string) => {
-		// Realtime modes are desktop-only; never start one from a small screen.
-		if (!isDesktop) {
-			return;
-		}
+		// Battle Royale has a mobile layout, so it can start on any screen size.
+		// (Race is still desktop-only; see handlePlayRace.)
 		// Clear any stale play-limit notice when starting a fresh attempt.
 		setPlayLimitReason(undefined);
 		// v1 play-with-friends — remember the share code (if any) so the mounted
@@ -324,9 +322,9 @@ export default function Home() {
 						)}
 					</AnimatePresence>
 					<AnimatePresence>
-						{/* Realtime games are desktop-only, so they can only ever mount
-						    when `isDesktop` is true (the cards that start them are hidden
-						    below the desktop breakpoint and the play handlers no-op). */}
+						{/* Battle Royale mounts on any screen size (it has a mobile
+						    layout). Race is desktop-only: its card is hidden below the
+						    desktop breakpoint and its play handler no-ops. */}
 						{isPlaying && user?.id ? (
 							<BattleRoyale
 								joinCode={joinCode}
@@ -371,28 +369,24 @@ export default function Home() {
 											{/* Only decide desktop-vs-mobile once hydrated so the
 										    server markup (desktop) doesn't flash a realtime card
 										    onto a phone. */}
-											{hydrated &&
-												(isDesktop ? (
-													<>
-														{/* Shared free-tier realtime allowance (3/UTC-day
-														    across BR + Race). Renders nothing for premium.
-														    Spans the full card row so it sits above both
-														    cards. */}
-
-														<BattleRoyalCard handlePlay={handlePlay} />
+											{hydrated && (
+												<>
+													<BattleRoyalCard handlePlay={handlePlay} />
+													{isDesktop ? (
 														<RaceCard handlePlay={handlePlayRace} />
-													</>
-												) : (
-													<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-panel/80 p-4 text-center shadow-sm backdrop-blur-sm">
-														<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
-															Desktop only
-														</p>
-														<p className="mt-1 text-sm text-stone-600">
-															Battle Royale and Race need a larger screen. Open
-															Final Word on a desktop to play the live modes.
-														</p>
-													</div>
-												))}
+													) : (
+														<div className="w-full max-w-xs rounded-lg border border-stone-200 bg-panel/80 p-4 text-center shadow-sm backdrop-blur-sm">
+															<p className="font-bold text-stone-500 text-xs uppercase tracking-widest">
+																Race: larger screen
+															</p>
+															<p className="mt-1 text-sm text-stone-600">
+																Race needs a larger screen. Open Final Word on a
+																desktop to play it.
+															</p>
+														</div>
+													)}
+												</>
+											)}
 										</div>
 									</KeyGroupProvider>
 								</div>

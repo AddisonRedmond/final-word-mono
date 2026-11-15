@@ -49,7 +49,7 @@ const Winner = ({ userData, gameStartTimestamp, handleLeave }: WinnerProps) => {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 h-screen w-screen overflow-hidden"
+        className="fixed inset-0 z-50 overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

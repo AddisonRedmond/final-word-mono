@@ -17,7 +17,11 @@ type GameCenterPanelProps = {
  */
 const GameCenterPanel = ({ children, className = "" }: GameCenterPanelProps) => (
   <div
-    className={`mx-5 flex flex-col items-center justify-center gap-3 rounded-xl border border-zinc-400 bg-zinc-100/75 px-2 shadow-xl ${className}`}
+    // Mobile-first: below `lg` the panel is full-bleed (no card chrome, no side
+    // margins) because the opponent columns are replaced by a compact target
+    // bar and every pixel of width goes to the board. From `lg` up it is the
+    // original raised, translucent card between the flanking columns.
+    className={`flex w-full min-w-0 flex-col items-center justify-center gap-3 px-2 lg:mx-5 lg:w-auto lg:rounded-xl lg:border lg:border-zinc-400 lg:bg-zinc-100/75 lg:shadow-xl ${className}`}
   >
     {children}
   </div>

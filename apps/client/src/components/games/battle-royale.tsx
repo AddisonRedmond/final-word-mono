@@ -26,6 +26,11 @@ import Winner from "../game-components/winner";
 import ShareCode from "../game-components/share-code";
 import GameCenterPanel from "../game-components/game-center-panel";
 import LeaveButton from "@/components/leave-button";
+import Modal from "@/components/modal";
+import MobileTargetBar, {
+  TopOpponents,
+} from "../game-components/mobile-target-bar";
+import { LogOut, Users } from "lucide-react";
 
 type BattleRoyaleProps = {
   socketRef: RefObject<Socket | null>;
@@ -66,6 +71,8 @@ const BattleRoyale = ({
   // exactly who gets hit.
   const [targetMode, setTargetMode] = useState<TargetMode>("random");
   const [target, setTarget] = useState("");
+  // Mobile-only: the "All" ring opens a sheet with the full opponent grid.
+  const [allOpponentsOpen, setAllOpponentsOpen] = useState(false);
   const [scope, animate] = useAnimate();
   // Analytics guards so each funnel event fires at most once per match: the
   // player's first valid guess, and the game's start/finish transitions.
@@ -145,6 +152,15 @@ const BattleRoyale = ({
     setTarget(id);
   }, []);
 
+  // Picking an opponent from the mobile "All" sheet locks them and closes it.
+  const handleSelectOpponentFromSheet = useCallback(
+    (id: string) => {
+      handleSelectOpponent(id);
+      setAllOpponentsOpen(false);
+    },
+    [handleSelectOpponent],
+  );
+
   // Funnel: a realtime match actually began / ended. Each fires once per match,
   // guarded by a ref, driven by the authoritative room flags from the server.
   useEffect(() => {
@@ -211,6 +227,23 @@ const BattleRoyale = ({
     };
   }, [lobby?.players, userId]);
 
+  // Every opponent in one list, for the mobile "All" sheet (desktop splits them
+  // across the two flanking columns).
+  const allOpponents = useMemo(
+    () => [...evenOpponents, ...oddOpponents],
+    [evenOpponents, oddOpponents],
+  );
+
+  // "42/99 remaining": everyone still alive (including you) out of the full
+  // roster. Eliminated players stay in `players`, so the total is stable.
+  const { playersRemaining, totalPlayers } = useMemo(() => {
+    const all = Object.values(lobby?.players ?? {});
+    return {
+      playersRemaining: all.filter((player) => !player.isEliminated).length,
+      totalPlayers: all.length,
+    };
+  }, [lobby?.players]);
+
   // Keep the resolved `target` in sync with the current roster/lives:
   // - first/last: re-resolve every update so the highlight tracks the live
   //   leader/trailer without the user re-clicking.
@@ -248,14 +281,17 @@ const BattleRoyale = ({
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 100 }}
       exit={{ scale: 0, opacity: 0 }}
-      className="flex w-full min-h-0 grow py-5"
+      className="flex w-full min-h-0 grow py-1 lg:py-5"
     >
+      {/* Flanking opponent columns are desktop-only (lg+). Below that the
+          target ring row + "All" sheet replace them. */}
       <Opponents
+        className="hidden lg:block"
         opponents={evenOpponents}
         selectedId={target}
         onSelect={handleSelectOpponent}
       />
-      <GameCenterPanel>
+      <GameCenterPanel className="min-h-0 grow justify-start gap-2 lg:grow-0 lg:justify-center lg:gap-3">
         {lobby?.room.isFinished &&
           lobby.room.winnerId === userId &&
           lobby.players[userId] && (
@@ -266,9 +302,40 @@ const BattleRoyale = ({
             />
           )}
 
-        {lobby?.room.isStarted && (
-          <MatchTimer expiryTimestamp={lobby.room.matchEndTime} />
-        )}
+        {/* Mobile: one status row (leave, match timer, life). `lg:contents`
+            dissolves the wrapper on desktop so MatchTimer and Health stack in
+            the panel exactly as before. */}
+        <div className="flex w-full items-center gap-x-3 lg:contents">
+          <button
+            aria-label="Leave game"
+            className="grid size-9 shrink-0 cursor-pointer place-content-center rounded-lg text-zinc-500 outline-none hover:text-hot focus-visible:ring-2 focus-visible:ring-hot lg:hidden"
+            onClick={() => br.leave(socketRef)}
+            type="button"
+          >
+            <LogOut aria-hidden="true" size={18} />
+          </button>
+
+          {lobby?.room.isStarted && (
+            <MatchTimer expiryTimestamp={lobby.room.matchEndTime} />
+          )}
+
+          {/* Mobile-only: players still alive out of everyone who started. */}
+          {lobby?.room.isStarted && (
+            <p
+              aria-label={`${playersRemaining} of ${totalPlayers} players remaining`}
+              className="flex shrink-0 items-center gap-x-1 font-semibold text-xs tabular-nums lg:hidden"
+            >
+              <Users aria-hidden="true" className="size-3.5 text-zinc-500" />
+              {playersRemaining}/{totalPlayers}
+            </p>
+          )}
+
+          {lobby?.room.isStarted && !lobby.players[userId]?.isEliminated && (
+            <div className="min-w-0 grow lg:contents">
+              <Health expiryTimestamp={lobby?.players[userId]?.life} />
+            </div>
+          )}
+        </div>
 
         {!lobby?.room.isStarted ? (
           <>
@@ -289,11 +356,7 @@ const BattleRoyale = ({
               </p>
             )}
           </>
-        ) : (
-          !lobby.players[userId]?.isEliminated && (
-            <Health expiryTimestamp={lobby?.players[userId]?.life} />
-          )
-        )}
+        ) : null}
 
         {lobby?.players[userId]?.isEliminated ? (
           <Eliminated
@@ -302,13 +365,40 @@ const BattleRoyale = ({
             handleLeave={() => br.leave(socketRef)}
           />
         ) : (
-          <div className="text-xs text-center font-semibold">
-            <p>Target</p>
-            <AttackPicker mode={targetMode} onSelect={handleSelectTargetType} />
-          </div>
+          <>
+            <div className="hidden text-xs text-center font-semibold lg:block">
+              <p>Target</p>
+              <AttackPicker
+                mode={targetMode}
+                onSelect={handleSelectTargetType}
+              />
+            </div>
+            {/* Mobile target selection + a read-out of who you're hitting. */}
+            {lobby?.room.isStarted && (
+              <div className="flex w-full flex-col gap-y-1 lg:hidden">
+                <MobileTargetBar
+                  onOpenAll={() => setAllOpponentsOpen(true)}
+                  onSelectMode={handleSelectTargetType}
+                  players={lobby.players}
+                  target={target}
+                  targetMode={targetMode}
+                  userId={userId}
+                />
+                <TopOpponents
+                  onSelect={handleSelectOpponent}
+                  players={lobby.players}
+                  target={target}
+                  userId={userId}
+                />
+              </div>
+            )}
+          </>
         )}
 
-        <div ref={scope}>
+        <div
+          className="flex min-h-0 grow items-center justify-center lg:grow-0"
+          ref={scope}
+        >
           {!lobby?.players[userId]?.isEliminated && (
             <GuessContainer
               fullMatches={lobby?.players[userId]?.revealed_letters}
@@ -347,13 +437,29 @@ const BattleRoyale = ({
             noMatch={lobby?.players[userId]?.noMatch}
           />
         )}
-        <LeaveButton onClick={() => br.leave(socketRef)} />
+        <div className="hidden lg:block">
+          <LeaveButton onClick={() => br.leave(socketRef)} />
+        </div>
       </GameCenterPanel>
       <Opponents
+        className="hidden lg:block"
         opponents={oddOpponents}
         selectedId={target}
         onSelect={handleSelectOpponent}
       />
+
+      {allOpponentsOpen && (
+        <Modal className="lg:hidden" onClose={() => setAllOpponentsOpen(false)}>
+          <p className="mb-2 text-center font-semibold text-sm">
+            Pick a target
+          </p>
+          <Opponents
+            opponents={allOpponents}
+            selectedId={target}
+            onSelect={handleSelectOpponentFromSheet}
+          />
+        </Modal>
+      )}
     </motion.div>
   );
 };

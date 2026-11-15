@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { CornerDownLeft, Delete } from "lucide-react";
+import { type CSSProperties, useState } from "react";
 import { keyStateClasses, type LetterState } from "@/utils/letter-states";
 
 const TOP_ROW = "QWERTYUIOP";
@@ -46,11 +47,19 @@ type LetterKeyProps = {
 const gridRowClass =
 	"grid grid-cols-[repeat(20,minmax(0,1fr))] gap-[var(--key-gap)] sm:flex sm:items-center sm:justify-center sm:gap-1.5";
 
+// Touch accuracy: `touch-manipulation` drops the double-tap-zoom delay,
+// `select-none` stops long-presses selecting the letter, and the tap highlight
+// is hidden. The `before:` pseudo-element extends each key's hit area by half
+// the inter-key gap (3px of the 6px gap) on every side, so adjacent keys meet
+// in the middle and there is no dead zone between them.
+const touchClass =
+	"relative touch-manipulation select-none [-webkit-tap-highlight-color:transparent] before:absolute before:-inset-[3px]";
+
 const keyBaseClass =
 	// Mobile key height scales with viewport height (clamped so keys stay
 	// tappable) so the keyboard shrinks on short screens instead of forcing the
 	// board to scroll. From sm+ we fall back to auto height.
-	"keycap flex h-[clamp(38px,6.5dvh,52px)] items-center justify-center rounded-lg font-display text-base sm:h-auto sm:min-w-9 sm:px-3 sm:py-2 sm:text-sm";
+	`${touchClass} keycap flex h-[clamp(38px,6.5dvh,52px)] items-center justify-center rounded-lg font-display text-base sm:h-auto sm:min-w-9 sm:px-3 sm:py-2 sm:text-sm`;
 
 // Column spans (ignored at sm+, where the layout falls back to flex).
 const letterKeySpan = "col-span-2";
@@ -95,6 +104,15 @@ const LetterKey = ({
 	noMatch,
 }: LetterKeyProps) => {
 	const variant = resolveVariant(letter, fullMatch, partialMatch, noMatch);
+	// Touch-only magnified preview, so you can see which letter you hit even
+	// though your finger covers the key.
+	const [previewing, setPreviewing] = useState(false);
+	const startPreview = (pointerType: string) => {
+		if (pointerType === "touch" && !disabled) {
+			setPreviewing(true);
+		}
+	};
+	const stopPreview = () => setPreviewing(false);
 
 	return (
 		<button
@@ -104,9 +122,21 @@ const LetterKey = ({
 			}`}
 			disabled={disabled}
 			onClick={() => onLetter(letter)}
+			onPointerCancel={stopPreview}
+			onPointerDown={(event) => startPreview(event.pointerType)}
+			onPointerLeave={stopPreview}
+			onPointerUp={stopPreview}
 			type="button"
 		>
 			{letter}
+			{previewing && (
+				<span
+					aria-hidden="true"
+					className={`pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 grid h-14 w-12 -translate-x-1/2 place-content-center rounded-xl font-display text-2xl shadow-xl ${keyStateClasses[variant]}`}
+				>
+					{letter}
+				</span>
+			)}
 		</button>
 	);
 };
@@ -126,12 +156,16 @@ const Keyboard = ({
 
 	const enterKey = (
 		<button
+			aria-label="Enter"
 			className={`${keyBaseClass} ${actionKeySpan} bg-paper text-ink text-xs uppercase tracking-wide [--keycap-edge:var(--color-paper-edge)] sm:min-w-16 sm:text-sm ${disabled || !onEnter ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
 			disabled={disabled || !onEnter}
 			onClick={onEnter}
 			type="button"
 		>
-			Enter
+			{/* Icon on phones (the word is too wide for a 1.5-unit key); the
+			    word on sm+ where there's room. */}
+			<CornerDownLeft aria-hidden="true" className="size-5 sm:hidden" />
+			<span className="max-sm:hidden">Enter</span>
 		</button>
 	);
 
@@ -143,7 +177,8 @@ const Keyboard = ({
 			onClick={onBackspace}
 			type="button"
 		>
-			Delete
+			<Delete aria-hidden="true" className="size-5 sm:hidden" />
+			<span className="max-sm:hidden">Delete</span>
 		</button>
 	);
 

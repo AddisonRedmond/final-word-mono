@@ -8,7 +8,7 @@ import type {
 	RevealedLetters,
 } from "@/types/battle-royale.types";
 import { flatTileClasses } from "@/utils/letter-states";
-import GuessTiles, { type TileSlot } from "./guess-tiles";
+import GuessTiles, { boardTileSizeClass, type TileSlot } from "./guess-tiles";
 
 type GuessContainerProps = {
 	guess: string;
@@ -66,7 +66,7 @@ const PendingRow: React.FC = memo(() => (
 	<div className="my-1 flex justify-between gap-x-1 px-2 font-semibold text-lg opacity-70">
 		{Array.from({ length: GUESS_LENGTH }, (_, index) => (
 			<div
-				className={`grid size-14 place-content-center rounded-md ${pendingTileClass}`}
+				className={`grid ${boardTileSizeClass} place-content-center rounded-md ${pendingTileClass}`}
 				// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders
 				key={index}
 			>
@@ -100,7 +100,7 @@ const HopperQueue: React.FC<{ queue?: RevealedLetters[] }> = memo(
 						>
 							{hopperWord.map((letter, letterIndex) => (
 								<div
-									className={`grid size-14 place-content-center rounded-md ${flatTileClasses.default}`}
+									className={`grid ${boardTileSizeClass} place-content-center rounded-md ${flatTileClasses.default}`}
 									// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders, so the index is a stable key
 									key={letterIndex}
 								>
