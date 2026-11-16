@@ -1,24 +1,42 @@
+import { LoaderCircle } from "lucide-react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import Link from "next/link";
 
-import { useToastStore } from "@/state/toast-store";
+import { type ToastVariant, useToastStore } from "@/state/toast-store";
+
+const variantClasses: Record<ToastVariant, string> = {
+	info: "bg-green-400 text-ink",
+	success: "bg-green-400 text-ink",
+	error: "bg-red-400 text-white",
+	// Neutral while pending so it reads as "working on it", not a result.
+	loading: "bg-zinc-200 text-ink",
+};
 
 const Toaster: React.FC = () => {
 	const toasts = useToastStore((state) => state.toasts);
 	const dismiss = useToastStore((state) => state.dismiss);
 
 	return (
-		<div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tabbar-h)+max(1rem,env(safe-area-inset-bottom)))] z-50 flex flex-col items-end gap-2 px-4 sm:inset-x-auto sm:right-4">
+		<div
+			aria-live="polite"
+			className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--tabbar-h)+max(1rem,env(safe-area-inset-bottom)))] z-50 flex flex-col items-end gap-2 px-4 sm:inset-x-auto sm:right-4"
+		>
 			<LazyMotion features={domAnimation} strict>
 				<AnimatePresence initial={false}>
 					{toasts.map((toast) => (
 						<m.div
 							animate={{ opacity: 1, x: 0, scale: 1 }}
-							className="pointer-events-auto flex max-w-sm items-center gap-3 rounded-md bg-green-400 px-4 py-2 font-semibold text-sm text-ink shadow-lg"
+							className={`pointer-events-auto flex max-w-sm items-center gap-3 rounded-md px-4 py-2 font-semibold text-sm shadow-lg ${variantClasses[toast.variant]}`}
 							exit={{ opacity: 0, x: 16, scale: 0.96 }}
 							initial={{ opacity: 0, x: 16, scale: 0.96 }}
 							key={toast.id}
 						>
+							{toast.variant === "loading" && (
+								<LoaderCircle
+									aria-hidden="true"
+									className="size-4 shrink-0 animate-spin"
+								/>
+							)}
 							<span>{toast.message}</span>
 							{toast.action && (
 								<Link
@@ -31,7 +49,11 @@ const Toaster: React.FC = () => {
 							)}
 							<button
 								aria-label="Dismiss notification"
-								className="-mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+								className={`-mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors ${
+									toast.variant === "loading"
+										? "text-ink/60 hover:bg-ink/10 hover:text-ink"
+										: "text-white/80 hover:bg-white/20 hover:text-white"
+								}`}
 								onClick={() => dismiss(toast.id)}
 								type="button"
 							>

@@ -13,7 +13,6 @@
 
 import { useEffect, useState } from "react";
 import { TIER_LIMITS } from "@/db/schema";
-import { usePremium } from "@/hooks/usePremium";
 import { api } from "@/utils/api";
 
 /** Formats milliseconds until reset as "Hh Mm" (or "Mm" under an hour). */
@@ -36,12 +35,15 @@ const RealtimeGamesRemaining: React.FC = () => {
 	// we must also wait on `isPremiumLoading` before rendering — otherwise a
 	// premium user briefly sees the free-tier "games left today" pill, which then
 	// vanishes once premium resolves (the flash this guards against).
-	const { isPremium, isLoading: isPremiumLoading } = usePremium();
-
-	const { data } = api.billing.realtimeUsage.useQuery(undefined, {
-		// Keep in step with the server counter; refetch when the user returns.
-		refetchOnWindowFocus: true,
-	});
+	//
+	// `realtimeUsage` already reports `isPremium` (from the same profile row), so
+	// this one query answers both "premium?" and "how many left?".
+	const { data, isLoading: isPremiumLoading } =
+		api.billing.realtimeUsage.useQuery(undefined, {
+			// Keep in step with the server counter; refetch when the user returns.
+			refetchOnWindowFocus: true,
+			staleTime: 0,
+		});
 
 	// Live countdown to the UTC-midnight reset, recomputed each minute.
 	const [resetIn, setResetIn] = useState<string | null>(null);
@@ -59,7 +61,7 @@ const RealtimeGamesRemaining: React.FC = () => {
 
 	// Premium users (unlimited realtime play) never see this once their status
 	// is known.
-	if (isPremium || data?.isPremium) {
+	if (data?.isPremium) {
 		return null;
 	}
 

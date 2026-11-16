@@ -81,7 +81,11 @@ const HeadToHeadPanel: React.FC<{
   opponentId: string;
   opponentName: string;
 }> = ({ opponentId, opponentName }) => {
-  const { data, isLoading } = api.duels.headToHead.useQuery({ opponentId });
+  const { data, isLoading } = api.duels.headToHead.useQuery(
+    { opponentId },
+    // The record changes the moment a duel finishes; always show current.
+    { staleTime: 0 },
+  );
 
   if (isLoading) {
     return (

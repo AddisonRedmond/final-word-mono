@@ -50,6 +50,12 @@ type UseDuelRealtimeOptions = {
 	currentUserId?: string;
 	/** Fired for high-level duel events (invites, completion, opponent finish). */
 	onEvent?: (event: DuelRealtimeEvent) => void;
+	/**
+	 * Whether to fetch every tracked duel's participants up front (default true).
+	 * Callers that only want the events and never read the returned participants
+	 * (the app-level notifications) pass false to skip that request.
+	 */
+	loadParticipants?: boolean;
 };
 
 /**
@@ -81,7 +87,11 @@ export const useDuelRealtime = (
 	duelIds: string[],
 	options: UseDuelRealtimeOptions = {},
 ) => {
-	const { currentUserId, onEvent } = options;
+	const {
+		currentUserId,
+		onEvent,
+		loadParticipants: shouldLoad = true,
+	} = options;
 
 	const [participants, setParticipants] = useState<
 		Record<string, DuelParticipant[]>
@@ -208,7 +218,9 @@ export const useDuelRealtime = (
 			setParticipants(grouped);
 		};
 
-		void loadParticipants();
+		if (shouldLoad) {
+			void loadParticipants();
+		}
 
 		// Build + subscribe synchronously — see the invite effect above. The
 		// instanceId in the topic guarantees a fresh, non-reused channel.
@@ -312,7 +324,7 @@ export const useDuelRealtime = (
 			isMounted = false;
 			void supabase.removeChannel(channel);
 		};
-	}, [trackedDuelIds, instanceId]);
+	}, [trackedDuelIds, instanceId, shouldLoad]);
 
 	return participants;
 };

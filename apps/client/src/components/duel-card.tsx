@@ -35,6 +35,8 @@ const QuickDuelButton = () => {
   const { data: isInQueue } = api.duels.isInDuelQueue.useQuery(undefined, {
     enabled: Boolean(currentUserId),
     refetchOnWindowFocus: true,
+    // Queue state changes server-side when a match is found; never serve stale.
+    staleTime: 0,
   });
 
   // When queued, a navigating <Link> would let the user leave anyway, so render

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 
 import {
 	type DuelRealtimeEvent,
@@ -24,48 +24,67 @@ import { api } from "@/utils/api";
  */
 const DuelNotifications: React.FC = () => {
 	const currentUserId = useAuthStore((state) => state.user?.id);
-
-	// Only fetch when logged in; the duel + friends queries are protected.
+	// Only fetch when logged in; the duel query is protected. This is the only
+	// query run up front: friend / opponent names are only needed once a toast
+	// fires, so they're fetched lazily (see `fetchName`).
 	const { data: duels } = api.duels.allDuels.useQuery(undefined, {
 		enabled: Boolean(currentUserId),
 	});
-	const { data: friends } = api.friends.list.useQuery(undefined, {
-		enabled: Boolean(currentUserId),
-	});
-
 	const utils = api.useUtils();
-
 	const duelIds = useMemo(() => (duels ?? []).map((duel) => duel.id), [duels]);
 
-	const { data: opponentNames } = api.duels.duelOpponentNames.useQuery(
-		undefined,
-		{ enabled: Boolean(currentUserId) },
+	// A name we already have cached, or undefined. Synchronous, so a toast whose
+	// name is known appears instantly with no loading state.
+	const cachedName = useCallback(
+		(userId: string) =>
+			utils.friends.list.getData()?.find((friend) => friend.id === userId)
+				?.name ??
+			utils.duels.duelOpponentNames
+				.getData()
+				?.find((person) => person.id === userId)?.name,
+		[utils],
 	);
-	const opponentNamesRef = useRef(opponentNames);
-	useEffect(() => {
-		opponentNamesRef.current = opponentNames;
-	}, [opponentNames]);
 
-	// Keep the friends list in a ref so name resolution doesn't force the event
-	// handler (and thus the realtime subscription) to be recreated.
-	const friendsRef = useRef(friends);
-	useEffect(() => {
-		friendsRef.current = friends;
-	}, [friends]);
-
-	const nameForUser = useCallback(
-		(userId: string) => {
-			if (userId === currentUserId) {
-				return "You";
-			}
+	// Fetch names from the server. `staleTime: 0` forces a fresh read: a brand
+	// new challenger won't be in any cached list, and a cached list would just
+	// answer "Your opponent".
+	const fetchName = useCallback(
+		async (userId: string) => {
+			const [friends, names] = await Promise.all([
+				utils.friends.list.fetch(undefined, { staleTime: 0 }),
+				utils.duels.duelOpponentNames.fetch(undefined, { staleTime: 0 }),
+			]);
 			return (
-				friendsRef.current?.find((friend) => friend.id === userId)?.name ??
-				opponentNamesRef.current?.find((person) => person.id === userId)
-					?.name ??
+				friends.find((friend) => friend.id === userId)?.name ??
+				names.find((person) => person.id === userId)?.name ??
 				"Your opponent"
 			);
 		},
-		[currentUserId],
+		[utils],
+	);
+
+	// Raise a toast that names `userId`. Known name -> shown immediately.
+	// Unknown -> a loading toast that turns into the real message once the name
+	// arrives (and falls back to "Your opponent" if the lookup fails).
+	const announce = useCallback(
+		(
+			userId: string,
+			loading: string,
+			build: (name: string) => string,
+			options: ToastOptions,
+		) => {
+			const known = cachedName(userId);
+			if (known) {
+				toast(build(known), options);
+				return;
+			}
+			void toast.promise(
+				fetchName(userId).catch(() => "Your opponent"),
+				{ loading, success: build, error: build("Your opponent") },
+				options,
+			);
+		},
+		[cachedName, fetchName],
 	);
 
 	const handleRealtimeEvent = useCallback(
@@ -88,8 +107,10 @@ const DuelNotifications: React.FC = () => {
 
 			switch (event.type) {
 				case "invited":
-					toast(
-						`${nameForUser(event.initiatedBy)} challenged you to a duel`,
+					announce(
+						event.initiatedBy,
+						"New duel challenge…",
+						(name) => `${name} challenged you to a duel`,
 						duelToastOptions("info"),
 					);
 					void utils.duels.allDuels.invalidate();
@@ -99,35 +120,45 @@ const DuelNotifications: React.FC = () => {
 					if (event.userId === currentUserId) {
 						break;
 					}
-					toast(
-						`${nameForUser(event.userId)} finished their duel`,
+					announce(
+						event.userId,
+						"Duel update…",
+						(name) => `${name} finished their duel`,
 						duelToastOptions("info"),
 					);
 					void utils.duels.allDuels.invalidate();
 					break;
 				case "duelCompleted": {
-					const message =
-						event.winner === null
-							? "A duel ended in a draw"
-							: event.winner === currentUserId
-								? "You won a duel!"
-								: `${nameForUser(event.winner)} won the duel`;
-					toast(
-						message,
-						duelToastOptions(
-							event.winner === currentUserId ? "success" : "info",
-						),
+					const options = duelToastOptions(
+						event.winner === currentUserId ? "success" : "info",
 					);
+					if (event.winner === null) {
+						toast("A duel ended in a draw", options);
+					} else if (event.winner === currentUserId) {
+						toast("You won a duel!", options);
+					} else {
+						announce(
+							event.winner,
+							"Duel finished…",
+							(name) => `${name} won the duel`,
+							options,
+						);
+					}
 					void utils.duels.allDuels.invalidate();
 					break;
 				}
 			}
 		},
-		[currentUserId, nameForUser, utils],
+		[announce, currentUserId, utils],
 	);
 
-	useDuelRealtime(duelIds, { currentUserId, onEvent: handleRealtimeEvent });
-
+	// This component only needs the events, never the participant rows, so skip
+	// the participants fetch.
+	useDuelRealtime(duelIds, {
+		currentUserId,
+		onEvent: handleRealtimeEvent,
+		loadParticipants: false,
+	});
 	return null;
 };
 
