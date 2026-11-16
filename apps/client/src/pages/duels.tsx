@@ -44,6 +44,7 @@ const Duels = () => {
     isFetching: isFetchingDuels,
   } = api.duels.allDuels.useQuery(undefined, {
     refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const sendDuelMutation = api.duels.sendDuel.useMutation();
@@ -75,6 +76,7 @@ const Duels = () => {
     isFetching: isFetchingArchived,
   } = api.duels.archivedDuels.useQuery(undefined, {
     enabled: showArchived,
+    staleTime: 0,
   });
 
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -85,6 +87,7 @@ const Duels = () => {
   const { data: isInQueue, refetch: refetchInQueue } =
     api.duels.isInDuelQueue.useQuery(undefined, {
       enabled: Boolean(currentUserId),
+      staleTime: 0,
     });
 
   // Keyboard Enter/Delete swap preference (persisted). Toggled from the duel

@@ -29,7 +29,10 @@ export const api = createTRPCNext<AppRouter>({
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: true,
-            staleTime: 0,
+            // Reuse results for 30s so focusing the tab or navigating between
+            // pages doesn't refetch everything. Data that must be live opts back
+            // in with `staleTime: 0` at the call site.
+            staleTime: 30_000,
           },
         },
       },
