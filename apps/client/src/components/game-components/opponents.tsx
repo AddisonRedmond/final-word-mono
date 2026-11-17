@@ -18,6 +18,9 @@ import {
   isSameRevealedLetters,
 } from "@/utils/opponents";
 
+// Spare pixels left when fitting cards to the column (see `opponentWidth`).
+const FIT_MARGIN = 4;
+
 export type OpponentWithId = PlayerDisplay & {
   id: string;
 };
@@ -62,8 +65,10 @@ const Opponents = memo(
       const observer = new ResizeObserver(([entry]) => {
         if (!entry) return;
 
-        const width = Math.round(entry.contentRect.width);
-        const height = Math.round(entry.contentRect.height);
+        // Round DOWN: rounding to nearest can report a container up to half a
+        // pixel bigger than it is, and the layout below fills it exactly.
+        const width = Math.floor(entry.contentRect.width);
+        const height = Math.floor(entry.contentRect.height);
 
         setContainerSize((previous) => {
           if (previous.width === width && previous.height === height) {
@@ -91,14 +96,20 @@ const Opponents = memo(
 
       let largestWidth = 0;
 
+      // Size cards against a slightly smaller box. Filling the container
+      // exactly leaves zero slack, so any sub-pixel rounding (fractional
+      // container size, scrollbar gutter, DPR scaling) makes the content a
+      // fraction of a pixel too big and a scrollbar appears even though
+      // everything "fits". A few spare pixels absorb that.
+      const usableWidth = containerSize.width - FIT_MARGIN;
+      const usableHeight = containerSize.height - FIT_MARGIN;
+
       for (let columns = 1; columns <= count; columns++) {
         const rows = Math.ceil(count / columns);
 
-        const availableWidth =
-          (containerSize.width - GAP * (columns - 1)) / columns;
+        const availableWidth = (usableWidth - GAP * (columns - 1)) / columns;
 
-        const availableHeight =
-          (containerSize.height - GAP * (rows - 1)) / rows;
+        const availableHeight = (usableHeight - GAP * (rows - 1)) / rows;
 
         const maxWidthFromHeight = getWidthForHeight(availableHeight);
 
@@ -110,7 +121,10 @@ const Opponents = memo(
       // Clamp to the cap so a small field (1-3 opponents) doesn't inflate each
       // card to fill the column and dwarf the player's own board. With a large
       // field the computed width is already below the cap, so this is a no-op.
-      return Math.min(MAX_OPPONENT_WIDTH, Math.max(0, largestWidth));
+      // Whole pixels, rounded down, so the total can never creep past the box.
+      return Math.floor(
+        Math.min(MAX_OPPONENT_WIDTH, Math.max(0, largestWidth)),
+      );
     }, [activeOpponents.length, containerSize.width, containerSize.height]);
 
     return (
