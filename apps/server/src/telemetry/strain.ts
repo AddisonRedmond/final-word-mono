@@ -37,6 +37,23 @@ export const STRAIN_REPORT_INTERVAL_MS = Math.max(
 );
 
 /**
+ * Whether telemetry logging is on. Reads `TELEMETRY_LOGGING_ENABLED` at start
+ * time. Only an explicit `false` or `0` turns it off, so an unset or mistyped
+ * value keeps today's behaviour (logging on), the same convention as
+ * `DELTA_BROADCAST_ENABLED`. When off, the sampler never starts (no histogram,
+ * no timer) and broadcasts aren't counted, so there's no logging and no cost.
+ */
+export const isTelemetryLoggingEnabled = (
+  env: NodeJS.ProcessEnv = process.env,
+): boolean => {
+  const raw = env.TELEMETRY_LOGGING_ENABLED?.trim().toLowerCase();
+  return raw !== "false" && raw !== "0";
+};
+
+/** Set by startStrainTelemetry when the env var turned telemetry off. */
+let telemetryDisabled = false;
+
+/**
  * Resolution (ms) of the event-loop-delay histogram. The histogram samples the
  * loop at this resolution between flushes.
  */
@@ -147,6 +164,9 @@ export const recordBroadcast = ({
   bytes: number;
   recipients: number;
 }): void => {
+  if (telemetryDisabled) {
+    return;
+  }
   try {
     const safeBytes = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
     const safeRecipients =
@@ -277,6 +297,15 @@ export const startStrainTelemetry = (): void => {
     return;
   }
 
+  if (!isTelemetryLoggingEnabled()) {
+    telemetryDisabled = true;
+    logger.info(
+      "telemetry logging disabled (TELEMETRY_LOGGING_ENABLED=false)",
+    );
+    return;
+  }
+  telemetryDisabled = false;
+
   histogram = monitorEventLoopDelay({ resolution: LOOP_DELAY_RESOLUTION_MS });
   histogram.enable();
 
@@ -299,4 +328,5 @@ export const stopStrainTelemetry = (): void => {
     histogram = undefined;
   }
   broadcastCounters = emptyBroadcastCounters();
+  telemetryDisabled = false;
 };

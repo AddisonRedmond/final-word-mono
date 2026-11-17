@@ -29,11 +29,14 @@ export const MATCH_TIME_LIMIT_MS = 10 * 60 * 1000;
 // whole pending wave cements together. See ATTACK_MECHANICS.md §5.2a.
 export const ATTACK_PENDING_MS = 15 * 1000;
 
-// Hard cap on how many CEMENTED attack words a player can be carrying. Pending
-// (uncemented) words do not count against this; only words that have cemented
-// into the real solve cycle do. Raised from the old flat 3 now that the queue
-// is a cancelable buffer rather than guaranteed one-way damage.
-export const MAX_CEMENTED_ATTACK_WORDS = 5;
+// Hard cap on how many attack words a player can have queued at once, counting
+// BOTH pending and cemented words. An attack on a full queue strips one revealed
+// letter from a queued word instead; if none has a letter left to strip, the
+// attack goes to a random other opponent (see `deliverAttack`).
+export const MAX_QUEUED_ATTACK_WORDS = 4;
+// Cemented words can never exceed the total cap. Kept as its own name for the
+// cement-time guard and existing imports.
+export const MAX_CEMENTED_ATTACK_WORDS = MAX_QUEUED_ATTACK_WORDS;
 
 // --- Time-scaled starting hints ---------------------------------------------
 // How many letters of a player's OWN (non-attack) word are pre-revealed when it

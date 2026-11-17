@@ -6,6 +6,7 @@ import {
 	getStartingHintCount,
 	MATCH_TIME_LIMIT_MS,
 	MAX_CEMENTED_ATTACK_WORDS,
+	MAX_QUEUED_ATTACK_WORDS,
 } from "shared/battle-royale.js";
 import type { Server } from "socket.io";
 import type {
@@ -69,6 +70,48 @@ export const Max_Attack_Words = MAX_CEMENTED_ATTACK_WORDS;
  */
 export const cementedCount = (data: AttackQueueState): number =>
 	data.cemented.length;
+
+/** Every attack word a player has queued: pending and cemented. */
+export const queuedCount = (data: AttackQueueState): number =>
+	data.pending.length + data.cemented.length;
+
+/** Whether one more attack word fits under MAX_QUEUED_ATTACK_WORDS. */
+export const hasQueueRoom = (data: AttackQueueState): boolean =>
+	queuedCount(data) < MAX_QUEUED_ATTACK_WORDS;
+
+/** Queued words (pending or cemented) that still have a revealed letter. */
+const entriesWithReveal = (data: AttackQueueState): AttackEntry[] =>
+	[...data.pending, ...data.cemented].filter(
+		(entry) => Object.keys(entry.reveal ?? {}).length > 0,
+	);
+
+/**
+ * Full-queue attack: removes ONE revealed letter from a random queued word
+ * (pending or cemented) that still has one, making it harder to solve. Returns
+ * false when no queued word has a revealed letter left, so the caller can send
+ * the attack elsewhere.
+ */
+export const stripRevealedLetter = (
+	data: AttackQueueState,
+	random: () => number = Math.random,
+): boolean => {
+	const candidates = entriesWithReveal(data);
+	if (candidates.length === 0) {
+		return false;
+	}
+	const entry = candidates[
+		Math.floor(random() * candidates.length)
+	] as AttackEntry;
+	const indexes = Object.keys(entry.reveal ?? {});
+	const index = indexes[Math.floor(random() * indexes.length)] as string;
+	const { [Number(index)]: _removed, ...rest } = entry.reveal ?? {};
+	entry.reveal = rest;
+	return true;
+};
+
+/** Whether an attack on this queue would land (room, or a letter to strip). */
+export const canAbsorbAttack = (data: AttackQueueState): boolean =>
+	hasQueueRoom(data) || entriesWithReveal(data).length > 0;
 
 /**
  * Builds the client-facing, letterless view of a player's queued attacks in
@@ -1032,6 +1075,96 @@ export const applyAttack = (
 	targetServerData.pending.push(entry);
 
 	syncAttackQueueDisplay(target, targetServerData);
+};
+
+type DeliverAttackArgs = {
+	players: Map<string, PlayerDisplay>;
+	attackerId: string;
+	/** The opponent the attacker aimed at (already resolved from first/last/...). */
+	targetId: string;
+	getServerData: (
+		playerId: string,
+	) => PlayerServerData | BotServerData | undefined;
+	guessedWord: string;
+	guessCount: number;
+	attackerName?: string;
+	random?: () => number;
+};
+
+/**
+ * Lands an attack, applying the full-queue rules:
+ *
+ * 1. Target has room (fewer than MAX_QUEUED_ATTACK_WORDS queued): the word is
+ *    queued as usual (`applyAttack`).
+ * 2. Target is full: one revealed letter is removed from one of their queued
+ *    words instead.
+ * 3. Target is full and none of their queued words has a revealed letter left:
+ *    the attack goes to a random other opponent who can take it (room, or a
+ *    letter to strip), with rules 1/2 applied to them.
+ *
+ * Returns the id of the player actually hit, or "" if nobody could take it.
+ */
+export const deliverAttack = ({
+	players,
+	attackerId,
+	targetId,
+	getServerData,
+	guessedWord,
+	guessCount,
+	attackerName,
+	random = Math.random,
+}: DeliverAttackArgs): string => {
+	const hit = (playerId: string): boolean => {
+		const player = players.get(playerId);
+		const data = getServerData(playerId);
+		if (!player || player.isEliminated || !data) {
+			return false;
+		}
+		if (hasQueueRoom(data)) {
+			applyAttack(guessedWord, guessCount, player, data, attackerName);
+			return true;
+		}
+		if (stripRevealedLetter(data, random)) {
+			if (attackerName) {
+				player.lastAttackerName = attackerName;
+			}
+			syncAttackQueueDisplay(player, data);
+			return true;
+		}
+		return false;
+	};
+
+	if (targetId && hit(targetId)) {
+		return targetId;
+	}
+
+	// Redirect: a random living opponent (not the attacker, not the original
+	// target) whose queue can still take an attack.
+	const others = [...players.entries()]
+		.filter(
+			([id, player]) =>
+				id !== attackerId && id !== targetId && !player.isEliminated,
+		)
+		.map(([id]) => id)
+		.filter((id) => {
+			const data = getServerData(id);
+			return data ? canAbsorbAttack(data) : false;
+		});
+
+	if (others.length > 0) {
+		const redirectId = others[
+			Math.floor(random() * others.length)
+		] as string;
+		if (hit(redirectId)) {
+			return redirectId;
+		}
+	}
+
+	logger.info(
+		{ attackerId, targetId },
+		"Attack dropped: every opponent's queue is full with nothing to strip",
+	);
+	return "";
 };
 
 export const determineTarget = (

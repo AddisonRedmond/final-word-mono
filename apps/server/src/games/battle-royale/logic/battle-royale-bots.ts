@@ -5,11 +5,9 @@ import type {
   ServerPlayerData,
 } from "types/battle-royale.types.js";
 import {
-  applyAttack,
   applyCorrectGuessReward,
-  cementedCount,
+  deliverAttack,
   determineTarget,
-  Max_Attack_Words,
 } from "./battle-royale.js";
 import logger from "../../../utils/logger.js";
 
@@ -198,34 +196,24 @@ export const runBots = (
           const guessCount = botDisplayData.currentWordGuesses;
           const guessedWord = botServerData.word;
 
-          // Mirror the human path: prefer targets whose CEMENTED queue has
-          // room, so a bot doesn't waste attacks on someone whose cemented
-          // queue is already maxed (surplus is dropped at cement time). Pending
-          // words don't count — they're an escapable buffer (§5.2a).
-          const isAttackable = (playerId: string) => {
-            const data =
-              playerServerData[playerId] ?? serverOnlyBotdata[playerId];
-            return data ? cementedCount(data) < Max_Attack_Words : true;
-          };
-
+          // Same rules as the human path: resolve the aimed-at opponent, then
+          // deliverAttack handles a full queue (strip a letter, or redirect).
           const targetId = determineTarget(
             playerData,
             botId,
             botServerData.target,
-            isAttackable,
           );
-          const target = playerData.get(targetId);
-          const targetServerData =
-            serverOnlyBotdata[targetId] ?? playerServerData[targetId];
-
           if (!serverOnlyBotdata[botId].currentWordIsAttack) {
-            applyAttack(
+            deliverAttack({
+              players: playerData,
+              attackerId: botId,
+              targetId,
+              getServerData: (playerId) =>
+                serverOnlyBotdata[playerId] ?? playerServerData[playerId],
               guessedWord,
               guessCount,
-              target,
-              targetServerData,
-              botDisplayData.name,
-            );
+              attackerName: botDisplayData.name,
+            });
           }
           applyCorrectGuessReward({
             player: botDisplayData,

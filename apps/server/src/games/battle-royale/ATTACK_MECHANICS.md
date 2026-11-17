@@ -146,7 +146,8 @@ mechanically indistinguishable from player attacks. Bot target mode defaults to
 | Attack trigger          | Correct guess on a non-attack word                | `handlers.ts` |
 | Target modes (UI)       | first / random / last                             | `attack-picker.tsx` |
 | Target modes (server)   | first / last / random / specific id               | `determineTarget` |
-| Max queued attack words | 3 (`Max_Attack_Words`)                            | `logic/battle-royale.ts` |
+| Max queued attack words | 4, pending + cemented (`MAX_QUEUED_ATTACK_WORDS`) | `shared/battle-royale.ts` |
+| Attack on a full queue  | Strip 1 revealed letter from a random queued word; if none left, redirect to a random opponent who can take it | `deliverAttack` |
 | Letters revealed        | 2 / 3 / 4 by attacker speed (≤3 / 4–7 / ≥8)       | `applyAttack` |
 | Reveal display cap      | 4 entries in `display_queue`                      | `applyAttack` |
 | Survive-attack bonus    | +10s flat (`ATTACK_WORD_BONUS_MS`)                | `shared/battle-royale.ts` |
@@ -457,6 +458,14 @@ solve in time:
 - **New constant:** `ATTACK_PENDING_MS` in `packages/shared/src/battle-royale.ts`
   (batch grace window). `Max_Attack_Words` stays as the committed-queue cap but is
   now a *cemented* cap; revisit the exact value (3 → up to 5) during tuning.
+- **Update (full-queue rules):** the cap is now `MAX_QUEUED_ATTACK_WORDS = 4`
+  and counts pending AND cemented words together. `deliverAttack` replaces the
+  old "prefer a target with room" logic in `determineTarget`: the attacker's
+  pick is always honoured first. If that target is full, one revealed letter is
+  removed from a random queued word (pending or cemented). Only when none of
+  their queued words has a revealed letter left does the attack go to a random
+  other living opponent who can take it. If nobody can, the attack is dropped
+  and logged.
 
 ### 5.3 Attack power from kills + stealing ("badges")
 

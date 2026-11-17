@@ -1,4 +1,4 @@
-import { Swords } from "lucide-react";
+import { ChevronRight, Swords } from "lucide-react";
 import { AnimatePresence, domAnimation, LazyMotion, m } from "motion/react";
 import { memo, useEffect } from "react";
 import { useTimer } from "react-timer-hook";
@@ -7,7 +7,7 @@ import type {
 	QueuedAttackView,
 	RevealedLetters,
 } from "@/types/battle-royale.types";
-import { flatTileClasses } from "@/utils/letter-states";
+import { flatTileClasses, tileStateClasses } from "@/utils/letter-states";
 import GuessTiles, { type TileSlot } from "./guess-tiles";
 
 type GuessContainerProps = {
@@ -37,6 +37,10 @@ const GUESS_LENGTH = 5;
 const pendingTileClass =
 	"border border-dashed border-stone-400/60 bg-stone-100/40 text-stone-500";
 
+// An empty tile whose letter is already known: outlined in lime, not filled.
+const knownTileClass =
+	"bg-lime/10 text-lime shadow-[inset_0_0_0_2px_var(--color-lime),0_0_14px_rgba(182,255,46,0.25)]";
+
 // Small countdown over the pending wave: solve your current word before this
 // hits 0 and the pending words vanish; otherwise they cement into the queue.
 const CementCountdown: React.FC<{ cementAt: number }> = memo(({ cementAt }) => {
@@ -63,7 +67,8 @@ CementCountdown.displayName = "CementCountdown";
 
 // A single ghosted pending row (no letters — the word is hidden while pending).
 const PendingRow: React.FC = memo(() => (
-	<div className="my-1 flex justify-between gap-x-1 px-2 font-semibold text-lg opacity-70">
+	// Faded well below the current row so it never reads as the word to guess.
+	<div className="my-1 flex justify-between gap-x-1 px-2 font-semibold text-lg opacity-35">
 		{Array.from({ length: GUESS_LENGTH }, (_, index) => (
 			<div
 				className={`grid size-14 place-content-center rounded-md ${pendingTileClass}`}
@@ -94,7 +99,8 @@ const HopperQueue: React.FC<{ queue?: RevealedLetters[] }> = memo(
 
 					return (
 						<div
-							className="my-1 flex justify-between gap-x-1 px-2 font-semibold text-lg"
+							// Queued, not current: faded so the active row below stands out.
+							className="my-1 flex justify-between gap-x-1 px-2 font-semibold text-lg opacity-45"
 							// biome-ignore lint/suspicious/noArrayIndexKey: cemented rows are positional and consumed front-first; a letter-based key would collide across identical reveals
 							key={rowIndex}
 						>
@@ -136,15 +142,27 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
 	fullMatches,
 	attackerInitials,
 }) => {
-	// The active row always renders in the "correct" (green) style in Battle
-	// Royale, with any known letter pinned to the tile corner.
+	// The active row: an untouched tile is dark; a tile whose letter is known
+	// (revealed) gets a lime outline, a small HINT label, and the letter in the
+	// top-right corner; a typed letter fills the tile lime. The known letter
+	// stays in that corner the whole time, so typing over it doesn't move it.
 	const slots: TileSlot[] = Array.from(
 		{ length: GUESS_LENGTH },
-		(_, index) => ({
-			letter: guess.at(index) ?? "",
-			state: "correct",
-			cornerHint: fullMatches?.[index],
-		}),
+		(_, index) => {
+			const letter = guess.at(index) ?? "";
+			const known = fullMatches?.[index];
+
+			return {
+				letter,
+				cornerHint: known,
+				label: known ? "HINT" : undefined,
+				tileClassName: letter
+					? tileStateClasses.correct
+					: known
+						? knownTileClass
+						: tileStateClasses.default,
+			};
+		},
 	);
 
 	const pendingCount =
@@ -153,7 +171,8 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
 	return (
 		<LazyMotion features={domAnimation} strict>
 			<div className="flex items-end gap-2">
-				<div className="relative isolate rounded-md border-red-500 bg-white/10 shadow-lg backdrop-blur-md">
+				<div className="relative isolate">
+
 					{/* Pending wave: a single batch countdown over ghosted rows that
               vanish if the player solves their current word in time. */}
 					{pendingCount > 0 && (
@@ -171,9 +190,23 @@ const GuessContainer: React.FC<GuessContainerProps> = ({
 					{/* Cemented words: solid rows with any bled-in letter hints. */}
 					<HopperQueue queue={queue} />
 
+					{/* Label sits directly on the row being guessed, not above the
+					    queue, so it labels the right word. */}
+					<p className="mt-1 text-center font-semibold text-[10px] text-gray-500 uppercase tracking-[0.25em]">
+						Your word
+					</p>
+
 					{/* Badge pinned to the active guess row so it reads as "this word
               you're working on was sent by <attacker>". */}
 					<div className="relative z-10 p-2">
+						{/* Points at the row you're actually guessing. Sits in the
+						    row's padding so it never shifts the tiles or overflows a
+						    narrow phone. */}
+						<ChevronRight
+							aria-hidden="true"
+							className="absolute top-1/2 -left-2.5 size-4 -translate-y-1/2 text-lime"
+							strokeWidth={3}
+						/>
 						{attackerInitials && (
 							<div
 								className="absolute -top-2 -right-2 z-20 flex items-center gap-x-1 rounded-full bg-red-500 px-2 py-0.5 font-bold text-[0.65rem] text-white uppercase tracking-wider shadow-md"

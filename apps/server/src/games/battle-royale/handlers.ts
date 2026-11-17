@@ -12,11 +12,9 @@ import {
   handleAddBots,
   randomInitialBotSeedCount,
   applyCorrectGuessReward,
-  applyAttack,
   cleanupGame,
+  deliverAttack,
   determineTarget,
-  Max_Attack_Words,
-  cementedCount,
   applyIndexBleedToCemented,
   removeAccidentallyGuessedCemented,
   syncAttackQueueDisplay,
@@ -220,7 +218,10 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         // (realtime-broadcast-scaling Req 3.2). Flag-off this is the full
         // trimmed snapshot exactly as before; flag-on it is the stamped
         // keyframe envelope carried on the same `join:ack` event.
-        socket.emit("join:ack", buildBattleRoyaleKeyframePayload(roomId, existingGame));
+        socket.emit(
+          "join:ack",
+          buildBattleRoyaleKeyframePayload(roomId, existingGame),
+        );
 
         logger.info(
           { roomId, userId, playerCount: existingGame.players.size },
@@ -406,8 +407,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         // up to MAX_PLAYERS, offsetting past these seeded ids so nothing
         // collides.
         const seedCount = randomInitialBotSeedCount();
-        const { botsDisplayData, roomBotServerData } =
-          handleAddBots(seedCount);
+        const { botsDisplayData, roomBotServerData } = handleAddBots(seedCount);
         serverOnlyBotData.set(roomId, roomBotServerData);
         botsDisplayData.forEach((bot, botId) => {
           game.players.set(botId, bot);
@@ -520,7 +520,10 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
         return;
       }
 
-      socket.emit("lobby:update", buildBattleRoyaleKeyframePayload(roomId, game));
+      socket.emit(
+        "lobby:update",
+        buildBattleRoyaleKeyframePayload(roomId, game),
+      );
 
       logger.info(
         { roomId, userId },
@@ -585,32 +588,21 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
 
       if (result.isMatch) {
         const guessCount = player.currentWordGuesses;
-        // §5.2a: only CEMENTED words count toward the attack cap; pending words
-        // are an escapable buffer the defender can still clear.
-        const isAttackable = (playerId: string) => {
-          const data =
-            roomServerOnlyData.playerData[playerId] ??
-            serverOnlyBotData.get(roomId)?.[playerId];
-          return data ? cementedCount(data) < Max_Attack_Words : true;
-        };
-        const targetId = determineTarget(
-          game.players,
-          userId,
-          payload.target,
-          isAttackable,
-        );
-        const target = game.players.get(targetId);
-        const targetServerData =
-          roomServerOnlyData.playerData[targetId] ??
-          serverOnlyBotData.get(roomId)?.[targetId];
+        // Resolve who the player aimed at, then let deliverAttack apply the
+        // full-queue rules (strip a letter, or redirect to a random opponent).
+        const targetId = determineTarget(game.players, userId, payload.target);
         if (!roomServerOnlyData.playerData[userId]?.currentWordIsAttack) {
-          applyAttack(
-            targetWord,
+          deliverAttack({
+            players: game.players,
+            attackerId: userId,
+            targetId,
+            getServerData: (playerId) =>
+              roomServerOnlyData.playerData[playerId] ??
+              serverOnlyBotData.get(roomId)?.[playerId],
+            guessedWord: targetWord,
             guessCount,
-            target,
-            targetServerData,
-            player.name,
-          );
+            attackerName: player.name,
+          });
         }
         applyCorrectGuessReward({
           player,
@@ -641,6 +633,7 @@ export const registerBattleRoyaleHandlers = (io: Server) => {
           ...new Set([...(player.noMatch ?? []), ...result.noMatch]),
         ].filter((letter) => !player.partialMatches?.includes(letter));
       }
+
       scheduleLobbyUpdate(io, roomId, game);
     });
   });

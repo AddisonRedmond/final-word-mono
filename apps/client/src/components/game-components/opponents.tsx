@@ -1,22 +1,25 @@
-import { flatTileClasses } from "@/utils/letter-states";
 import type { PlayerDisplay } from "@/types/battle-royale.types";
 import OpponentTimer from "./opponent-timer";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  CARD_HEADER_HEIGHT,
+  CARD_ROW_GAP,
+  CARD_SECTION_GAP,
+  CARD_TILE_FONT_RATIO,
+  CARD_TILE_GAP,
   GAP,
   GUESS_LENGTH,
-  HOPPER_FONT_RATIO,
-  HOPPER_TILE_RATIO,
   MAX_OPPONENT_WIDTH,
-  REVEALED_FONT_RATIO,
-  REVEALED_TILE_RATIO,
+  MAX_QUEUE_ROWS,
   getCardHeight,
+  getCardTileSize,
   getInitials,
   getWidthForHeight,
   isSameQueue,
   isSameRevealedLetters,
 } from "@/utils/opponents";
+import type { RevealedLetters } from "@/types/battle-royale.types";
 
 // Spare pixels left when fitting cards to the column (see `opponentWidth`).
 const FIT_MARGIN = 4;
@@ -177,10 +180,57 @@ const areCardPropsEqual = (
   );
 };
 
+const MIN_LEGIBLE_TILE = 7;
+
+/**
+ * One row of the mini board: five tiles, lime where the letter is known and
+ * dark where it isn't. `queued` rows (attack words waiting behind the current
+ * one) are dimmed slightly so the current word reads first.
+ */
+const BoardRow = ({
+  letters,
+  tileSize,
+  queued = false,
+}: {
+  letters?: RevealedLetters;
+  tileSize: number;
+  queued?: boolean;
+}) => (
+  <div
+    className={`flex ${queued ? "opacity-70" : ""}`}
+    style={{ gap: CARD_TILE_GAP }}
+  >
+    {Array.from({ length: GUESS_LENGTH }, (_, index) => {
+      const letter = letters?.[index];
+      return (
+        <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row
+          key={index}
+          className={`grid place-content-center rounded-[3px] font-display leading-none ${
+            letter ? "bg-lime text-ink" : "bg-white/6"
+          }`}
+          style={{
+            width: tileSize,
+            height: tileSize,
+            fontSize: tileSize * CARD_TILE_FONT_RATIO,
+          }}
+        >
+          {/* Below ~7px a glyph is an unreadable smudge; the lime fill alone
+              shows the letter is known. */}
+          {tileSize >= MIN_LEGIBLE_TILE ? (letter ?? "") : ""}
+        </div>
+      );
+    })}
+  </div>
+);
+
 const OpponentCard = memo(
   ({ opponent, width, selected, onSelect }: OpponentCardProps) => {
-    const hopperTileSize = width * HOPPER_TILE_RATIO;
-    const revealedTileSize = width * REVEALED_TILE_RATIO;
+    const tileSize = getCardTileSize(width);
+    // The initials chip lives up top; the life bar further down tints it too.
+    const chipRef = useRef<HTMLSpanElement>(null);
+    // The card reserves room for MAX_QUEUE_ROWS; never draw past it.
+    const queue = opponent.display_queue?.slice(0, MAX_QUEUE_ROWS) ?? [];
 
     return (
       <motion.div
@@ -211,78 +261,57 @@ const OpponentCard = memo(
           },
         }}
         onClick={() => onSelect(opponent.id)}
-        className={`flex shadow-lg cursor-pointer flex-col items-center justify-between gap-y-1 rounded-lg border-zinc-100/25 bg-zinc-100/50 p-1.5  transition-shadow ${
+        className={`flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-panel-2/80 p-1 shadow-lg transition-[box-shadow,border-color] ${
           selected
-            ? "border-emerald-400 bg-emerald-500/20 ring-2 ring-emerald-400"
-            : ""
+            ? "border-lime shadow-[0_0_12px_rgba(182,255,46,0.35)] ring-1 ring-lime"
+            : "border-white/10 hover:border-white/25"
         }`}
         style={{
           width,
           height: getCardHeight(width),
+          gap: CARD_SECTION_GAP,
         }}
       >
+        {/* Initials, above the word they're on. */}
+        <div
+          className="flex shrink-0 items-center"
+          style={{ height: CARD_HEADER_HEIGHT }}
+        >
+          <span
+            ref={chipRef}
+            className="rounded-[3px] bg-graphite px-1 font-display text-[7px] text-white/80 uppercase leading-[11px] transition-colors"
+          >
+            {getInitials(opponent.name)}
+          </span>
+        </div>
+
+        {/* The word they're guessing now. */}
+        <BoardRow letters={opponent.revealed_letters} tileSize={tileSize} />
+
+        {/* Life bar, doubling as the divider between the current word and
+            the attack words queued behind it. */}
         <OpponentTimer
-          initials={getInitials(opponent.name)}
+          chipRef={chipRef}
           duration={90_000}
           expiryTimestamp={opponent.life}
         />
 
-        <div className="flex flex-col items-center gap-y-0.5">
+        <div className="flex flex-col" style={{ gap: CARD_ROW_GAP }}>
           <AnimatePresence initial={false}>
-            {opponent.display_queue?.map((item, queueIndex) => (
+            {queue.map((item, queueIndex) => (
               <motion.div
+                // biome-ignore lint/suspicious/noArrayIndexKey: queue rows are positional and consumed front-first
                 key={queueIndex}
                 layout
-                initial={{
-                  opacity: 0,
-                  y: -10,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  y: 12,
-                }}
-                transition={{
-                  duration: 0.25,
-                  ease: "easeIn",
-                }}
-                className="flex gap-x-0.5"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                {Array.from({ length: GUESS_LENGTH }, (_, index) => (
-                  <div
-                    key={index}
-                    className={`grid place-content-center rounded-sm font-semibold ${flatTileClasses.default}`}
-                    style={{
-                      width: hopperTileSize,
-                      height: hopperTileSize,
-                      fontSize: hopperTileSize * HOPPER_FONT_RATIO,
-                    }}
-                  >
-                    {item[index] ?? " "}
-                  </div>
-                ))}
+                <BoardRow letters={item} queued tileSize={tileSize} />
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
-
-        <div className="flex gap-x-0.5">
-          {Array.from({ length: GUESS_LENGTH }, (_, index) => (
-            <div
-              key={index}
-              className={`grid place-content-center rounded-sm font-semibold ${flatTileClasses.correct}`}
-              style={{
-                width: revealedTileSize,
-                height: revealedTileSize,
-                fontSize: revealedTileSize * REVEALED_FONT_RATIO,
-              }}
-            >
-              {opponent.revealed_letters?.[index] ?? " "}
-            </div>
-          ))}
         </div>
       </motion.div>
     );

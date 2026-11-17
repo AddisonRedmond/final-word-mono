@@ -40,7 +40,6 @@ const RaceCard: React.FC<RaceCardProps> = ({ handlePlay }) => {
         { word: "A", variant: "present" },
         { word: "C", variant: "absent" },
         { word: "E", variant: "correct" },
-        { word: "R", variant: "present" },
       ]}
       title="Elimination Race"
       rules={({ isOpen, setIsOpen }) => (

@@ -15,42 +15,77 @@ export const GUESS_LENGTH = 5;
  */
 export const MAX_OPPONENT_WIDTH = 150;
 
-// Tile sizes scale with card width
-export const HOPPER_TILE_RATIO = 0.11;
-export const HOPPER_FONT_RATIO = 0.7;
-export const REVEALED_TILE_RATIO = 0.16;
-export const REVEALED_FONT_RATIO = 0.6;
-
-// Fixed (non-width-scaled) vertical space inside a card: p-1.5 padding,
-// the timer row, gap-y-1 gaps between rows, and gap-y-0.5 gaps between
-// hopper rows
-const CARD_PADDING = 12;
-const TIMER_ROW_HEIGHT = 11;
-const CONTENT_GAP_TOTAL = 8;
-const HOPPER_GAP = 2;
-const MAX_QUEUE_ROWS = 4;
-
-/**
- * Card height is linear relative to its width:
- * height = FIXED_CARD_HEIGHT + width * CARD_HEIGHT_RATIO
+/*
+ * Battle Royale opponent card: a mini board.
  *
- * Reserves room for a full (4-row) hopper queue so attack words in flight
- * never spill past the bottom of the card.
+ *   p-1 padding
+ *   initials chip                               HEADER_ROW_HEIGHT
+ *   gap
+ *   current word (revealed letters)             tile
+ *   gap
+ *   life bar (divider)                          DIVIDER_HEIGHT
+ *   gap
+ *   queued attack words, up to MAX_QUEUE_ROWS   tile each, ROW_GAP between
+ *
+ * Tiles are sized from the card width so five always fit across exactly:
+ *   tile = (width - padding - 4 * TILE_GAP) / 5
+ * Height reserves room for every row (current + MAX_QUEUE_ROWS), so all cards
+ * in the grid share one size whatever their queue holds. That makes height a
+ * linear function of width, which is what the fit-to-column layout needs.
  */
-const CARD_HEIGHT_RATIO =
-	MAX_QUEUE_ROWS * HOPPER_TILE_RATIO + REVEALED_TILE_RATIO;
+// Kept tight on purpose: with ~50 opponents per column a card is only ~35px
+// wide, so padding and gaps would otherwise eat most of the tile space.
+const CARD_PADDING = 8; // p-1, both sides (must match the card's class)
+const HEADER_ROW_HEIGHT = 11; // initials chip row (must match the card)
+const SECTION_GAP = 3; // between card sections (must match the card's gap-y)
+const DIVIDER_HEIGHT = 4; // the life bar (must match OpponentTimer's h-1)
+const TILE_GAP = 1; // between tiles in a row
+const ROW_GAP = 1; // between queued rows
+export const MAX_QUEUE_ROWS = 4;
+const BOARD_ROWS = 1 + MAX_QUEUE_ROWS;
+const MIN_TILE = 2;
 
+/** Font size as a fraction of the tile edge. */
+export const CARD_TILE_FONT_RATIO = 0.62;
+
+/** Edge length of one tile on a card of the given width. */
+export const getCardTileSize = (width: number) =>
+	Math.max(
+		MIN_TILE,
+		(width - CARD_PADDING - (GUESS_LENGTH - 1) * TILE_GAP) / GUESS_LENGTH,
+	);
+
+export const CARD_TILE_GAP = TILE_GAP;
+export const CARD_ROW_GAP = ROW_GAP;
+export const CARD_SECTION_GAP = SECTION_GAP;
+export const CARD_HEADER_HEIGHT = HEADER_ROW_HEIGHT;
+
+// height = FIXED + BOARD_ROWS * tile, and tile = (width - TILE_FIXED) / 5.
+// Four sections (chip, current word, divider, queue) means three gaps.
+const TILE_FIXED = CARD_PADDING + (GUESS_LENGTH - 1) * TILE_GAP;
 const FIXED_CARD_HEIGHT =
 	CARD_PADDING +
-	TIMER_ROW_HEIGHT +
-	CONTENT_GAP_TOTAL +
-	(MAX_QUEUE_ROWS - 1) * HOPPER_GAP;
+	HEADER_ROW_HEIGHT +
+	3 * SECTION_GAP +
+	DIVIDER_HEIGHT +
+	(MAX_QUEUE_ROWS - 1) * ROW_GAP;
 
 export const getCardHeight = (width: number) =>
-	FIXED_CARD_HEIGHT + width * CARD_HEIGHT_RATIO;
+	FIXED_CARD_HEIGHT + BOARD_ROWS * getCardTileSize(width);
 
-export const getWidthForHeight = (height: number) =>
-	Math.max(0, (height - FIXED_CARD_HEIGHT) / CARD_HEIGHT_RATIO);
+/** Narrowest card we render; below this the tiles hit MIN_TILE. */
+const MIN_CARD_WIDTH = MIN_TILE * GUESS_LENGTH + TILE_FIXED;
+
+/**
+ * Inverse of getCardHeight: the widest card whose height fits `height`. Kept
+ * consistent with the MIN_TILE clamp so the layout never picks a width whose
+ * real (clamped) height is taller than it planned for.
+ */
+export const getWidthForHeight = (height: number) => {
+	const width =
+		((height - FIXED_CARD_HEIGHT) / BOARD_ROWS) * GUESS_LENGTH + TILE_FIXED;
+	return width < MIN_CARD_WIDTH ? 0 : width;
+};
 
 /* --------------------------------------------------------------------------
  * Race opponent card sizing

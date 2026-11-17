@@ -15,6 +15,14 @@ export type TileSlot = {
 	state?: LetterState;
 	/** Small hint pinned to the tile's top-right corner (e.g. a known letter). */
 	cornerHint?: string;
+	/**
+	 * Replaces the state-derived tile classes for this slot. Opt-in, for a mode
+	 * (Battle Royale's current word) that wants its own look; other modes leave
+	 * it unset and keep the shared styling.
+	 */
+	tileClassName?: string;
+	/** Tiny caption at the bottom of the tile, shown while it's empty. */
+	label?: string;
 };
 
 type GuessTilesProps = {
@@ -35,7 +43,7 @@ const GuessTiles = memo<GuessTilesProps>(({ slots, className = "" }) => {
 				{slots.map((slot, index) => (
 					<div
 						className={`relative grid size-14 place-content-center rounded-lg font-display text-xl uppercase ${
-							tileStateClasses[slot.state ?? "default"]
+							slot.tileClassName ?? tileStateClasses[slot.state ?? "default"]
 						}`}
 						// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row that never reorders, so the index is a stable key
 						key={index}
@@ -44,6 +52,14 @@ const GuessTiles = memo<GuessTilesProps>(({ slots, className = "" }) => {
 							<p className="absolute top-0.5 right-0.5 text-xs">
 								{slot.cornerHint}
 							</p>
+						)}
+						{!slot.letter && slot.label && (
+							<span
+								aria-hidden="true"
+								className="absolute bottom-1 left-0 w-full text-center font-bold font-sans text-[7px] tracking-[0.15em] opacity-80"
+							>
+								{slot.label}
+							</span>
 						)}
 						<AnimatePresence>
 							{slot.letter && (

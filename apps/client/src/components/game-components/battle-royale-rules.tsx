@@ -82,7 +82,7 @@ const SLIDES: RuleSlide[] = [
 	},
 	{
 		title: "Attack your rivals",
-		body: "Solving a word doesn't just help you \u2014 it fires that word at an opponent to crack. You choose who to hit: the player in the lead, the one trailing behind, or a random rival. The faster you solved it, the fewer of its letters they get to see, making it harder on them. A rival can be stacked with up to 5 attack words at once.",
+		body: "Solving a word doesn't just help you \u2014 it fires that word at an opponent to crack. You choose who to hit: the player in the lead, the one trailing behind, or a random rival. The faster you solved it, the fewer of its letters they get to see, making it harder on them. A rival can be stacked with up to 4 attack words at once. Hit someone whose stack is full and you strip one of their hint letters instead; if they have none left, your attack lands on a random rival.",
 		visual: (
 			<div className="flex flex-col items-center gap-2">
 				<TileRow
