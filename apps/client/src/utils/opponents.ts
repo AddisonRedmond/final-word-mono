@@ -90,73 +90,61 @@ export const getWidthForHeight = (height: number) => {
 /* --------------------------------------------------------------------------
  * Race opponent card sizing
  * --------------------------------------------------------------------------
- * Race shares Battle Royale's grow-to-fill flanking layout but its cards have a
- * different, simpler anatomy: an initials/qualified row, a thin progress bar,
- * and a "x / N" count — no attack-word hopper. So it needs its own width->height
- * relationship rather than reusing getCardHeight (which reserves room for a
- * 4-row hopper that Race never shows).
+ * Same idea as the Battle Royale card: a slim fixed frame plus a row of tiles
+ * sized from the card width, so the card can shrink far enough for a full
+ * 99-player lobby (~49 opponents per column) without overflowing.
  *
- * Like Battle Royale, Race sizes cards to fill the available column space and
- * then CLAMPS to a max so a small field (a few survivors) doesn't balloon each
- * card past the player's own board. The clamp is a fixed pixel cap (approach
- * "a") — simple and jank-free; cards still shrink below it when the field is
- * large.
+ *   p-1 padding
+ *   header: initials, progress bar, "x/N" or tick  RACE_HEADER_HEIGHT
+ *   gap
+ *   found-letter tiles (one per letter)            tile
+ *
+ *   tile = (width - padding - (letters - 1) * gap) / letters
+ *   height = fixed frame + tile
+ *
+ * Word length changes between rounds, so every function takes `letters`.
  */
 
-/** Upper bound on a Race opponent card's width (mirrors MAX_OPPONENT_WIDTH). */
+/** Upper bound on a Race opponent card's width, so a small field stays small. */
 export const MAX_RACE_OPPONENT_WIDTH = 150;
 
-/**
- * Upper bound on a Race opponent card's height. Derived from the max width via
- * the Race height formula so a card at full width is never taller than this —
- * keeps the explicit height cap and the width cap consistent.
- */
-export const MAX_RACE_OPPONENT_HEIGHT = 116;
+const RACE_PADDING = 8; // p-1, both sides (must match the card's class)
+export const RACE_HEADER_HEIGHT = 11; // (must match the card's header row)
+export const RACE_SECTION_GAP = 3; // (must match the card's gap)
 
-// Fixed vertical space inside a Race card, independent of width: p-2 padding,
-// the initials row, the progress bar, the count row, and the gap-y-1.5 gaps
-// between the three rows. Only the (small) horizontal content scales with
-// width, so Race height grows gently with width.
-const RACE_CARD_PADDING = 16; // p-2 top+bottom
-const RACE_INITIALS_ROW = 16; // initials / qualified tick row
-const RACE_PROGRESS_ROW = 12; // progress bar incl. its p-0.5 track
-const RACE_COUNT_ROW = 14; // "x / N" text row
-const RACE_REVEAL_ROW = 16; // row of reveal tiles (opponent's found letters)
-const RACE_ROW_GAP_TOTAL = 18; // three gap-y-1.5 gaps (6px each)
+export const RACE_TILE_GAP = 1;
+const RACE_MIN_TILE = 2;
 
-/** Edge length of a Race reveal tile for a card of the given width. */
-export const RACE_REVEAL_TILE_MAX = RACE_REVEAL_ROW;
-export const getRaceRevealTileSize = (width: number, letters = GUESS_LENGTH) =>
-	Math.max(
-		6,
-		Math.min(
-			RACE_REVEAL_TILE_MAX,
-			// card width minus p-2 padding and the 2px gaps between tiles
-			(width - RACE_CARD_PADDING - (letters - 1) * 2) / letters,
-		),
-	);
+const raceTileFixed = (letters: number) =>
+	RACE_PADDING + (letters - 1) * RACE_TILE_GAP;
+
+// The progress bar sits inside the header row, so it adds no height.
 const RACE_FIXED_CARD_HEIGHT =
-	RACE_CARD_PADDING +
-	RACE_INITIALS_ROW +
-	RACE_PROGRESS_ROW +
-	RACE_COUNT_ROW +
-	RACE_REVEAL_ROW +
-	RACE_ROW_GAP_TOTAL;
+	RACE_PADDING + RACE_HEADER_HEIGHT + RACE_SECTION_GAP;
 
-// Gentle width coupling so wider cards get a little taller and keep their
-// proportions, without the large hopper reservation BR needs.
-const RACE_CARD_HEIGHT_RATIO = 0.12;
+/** Edge length of a found-letter tile on a card of the given width. */
+export const getRaceRevealTileSize = (width: number, letters = GUESS_LENGTH) =>
+	Math.max(RACE_MIN_TILE, (width - raceTileFixed(letters)) / letters);
 
-/** Race card height for a given (already-clamped) width, capped at the max. */
-export const getRaceCardHeight = (width: number) =>
-	Math.min(
-		MAX_RACE_OPPONENT_HEIGHT,
-		RACE_FIXED_CARD_HEIGHT + width * RACE_CARD_HEIGHT_RATIO,
-	);
+/** Race card height for a given width. */
+export const getRaceCardHeight = (width: number, letters = GUESS_LENGTH) =>
+	RACE_FIXED_CARD_HEIGHT + getRaceRevealTileSize(width, letters);
 
-/** Inverse of getRaceCardHeight: the width whose card height fills `height`. */
-export const getRaceWidthForHeight = (height: number) =>
-	Math.max(0, (height - RACE_FIXED_CARD_HEIGHT) / RACE_CARD_HEIGHT_RATIO);
+/**
+ * Inverse of getRaceCardHeight: the widest card whose height fits `height`.
+ * Returns 0 below the minimum tile size, so the layout never plans a card
+ * whose real (clamped) height is taller than it allowed for.
+ */
+export const getRaceWidthForHeight = (
+	height: number,
+	letters = GUESS_LENGTH,
+) => {
+	const tile = height - RACE_FIXED_CARD_HEIGHT;
+	if (tile < RACE_MIN_TILE) {
+		return 0;
+	}
+	return tile * letters + raceTileFixed(letters);
+};
 
 // socket.io round-trips every player through JSON each tick, so object
 // identity is never stable - compare rendered fields instead of identity.

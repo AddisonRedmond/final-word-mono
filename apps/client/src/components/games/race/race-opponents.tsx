@@ -1,4 +1,3 @@
-import { flatTileClasses } from "@/utils/letter-states";
 import { Bot, Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +9,16 @@ import {
 	getRaceRevealTileSize,
 	getRaceWidthForHeight,
 	MAX_RACE_OPPONENT_WIDTH,
+	RACE_HEADER_HEIGHT,
+	RACE_SECTION_GAP,
+	RACE_TILE_GAP,
 } from "@/utils/opponents";
+
+// Spare pixels left when fitting cards to the column, so sub-pixel rounding
+// can't push the grid a fraction past the column and show a scrollbar.
+const FIT_MARGIN = 4;
+// Below ~7px a glyph is an unreadable smudge; the lime fill alone shows it.
+const MIN_LEGIBLE_TILE = 7;
 
 // Opponent cards render off the trimmed broadcast player (ClientRacePlayer),
 // not the full authoritative RacePlayer — the dropped server-only fields are
@@ -76,8 +84,9 @@ const RaceOpponents = memo(
 			const observer = new ResizeObserver(([entry]) => {
 				if (!entry) return;
 
-				const width = Math.round(entry.contentRect.width);
-				const height = Math.round(entry.contentRect.height);
+				// Round DOWN so the measured column is never bigger than it is.
+				const width = Math.floor(entry.contentRect.width);
+				const height = Math.floor(entry.contentRect.height);
 
 				setContainerSize((previous) =>
 					previous.width === width && previous.height === height
@@ -100,24 +109,33 @@ const RaceOpponents = memo(
 				return 0;
 			}
 
+			const usableWidth = containerSize.width - FIT_MARGIN;
+			const usableHeight = containerSize.height - FIT_MARGIN;
+
 			let largestWidth = 0;
 			for (let columns = 1; columns <= count; columns++) {
 				const rows = Math.ceil(count / columns);
-				const availableWidth =
-					(containerSize.width - GAP * (columns - 1)) / columns;
-				const availableHeight =
-					(containerSize.height - GAP * (rows - 1)) / rows;
-				const maxWidthFromHeight = getRaceWidthForHeight(availableHeight);
+				const availableWidth = (usableWidth - GAP * (columns - 1)) / columns;
+				const availableHeight = (usableHeight - GAP * (rows - 1)) / rows;
+				const maxWidthFromHeight = getRaceWidthForHeight(
+					availableHeight,
+					wordLength,
+				);
 				largestWidth = Math.max(
 					largestWidth,
 					Math.min(availableWidth, maxWidthFromHeight),
 				);
 			}
 
-			return Math.min(MAX_RACE_OPPONENT_WIDTH, Math.max(0, largestWidth));
-		}, [active.length, containerSize.width, containerSize.height]);
+			// Whole pixels, rounded down, so the total can't creep past the box.
+			return Math.floor(
+				Math.min(MAX_RACE_OPPONENT_WIDTH, Math.max(0, largestWidth)),
+			);
+		}, [active.length, containerSize.width, containerSize.height, wordLength]);
 
-		const cardHeight = cardWidth ? getRaceCardHeight(cardWidth) : undefined;
+		const cardHeight = cardWidth
+			? getRaceCardHeight(cardWidth, wordLength)
+			: undefined;
 
 		return (
 			<div
@@ -144,72 +162,84 @@ const RaceOpponents = memo(
 							return (
 								<motion.div
 									animate={{ opacity: 1, scale: 1 }}
-									className="flex min-w-0 flex-col items-center justify-between gap-y-1.5 rounded-lg bg-zinc-100 p-2 shadow-md"
+									className={`flex min-w-0 flex-col overflow-hidden rounded-lg border bg-panel-2/80 p-1 shadow-lg ${
+										opponent.qualified ? "border-lime/60" : "border-white/10"
+									}`}
 									exit={{ opacity: 0, scale: 0.7 }}
 									initial={{ opacity: 0, scale: 0.7 }}
 									key={opponent.id}
 									layout
-									style={
-										cardWidth
-											? { width: cardWidth, height: cardHeight }
-											: undefined
-									}
+									style={{
+										...(cardWidth ? { width: cardWidth, height: cardHeight } : {}),
+										gap: RACE_SECTION_GAP,
+									}}
 									transition={{ duration: 0.25, ease: "easeOut" }}
 								>
-									<div className="flex w-full items-center justify-between gap-x-1">
+									{/* Header: who, round progress bar, and words solved. */}
+									<div
+										className="flex w-full shrink-0 items-center gap-x-1"
+										style={{ height: RACE_HEADER_HEIGHT }}
+									>
 										{showBotIcon ? (
 											<Bot
 												aria-label="Bot opponent"
-												className="size-3.5 text-stone-500"
+												className="size-2.75 shrink-0 text-gray-500"
 											/>
 										) : (
-											<span className="font-semibold text-[9px] leading-none">
+											<span className="shrink-0 rounded-[3px] bg-graphite px-1 font-display text-[7px] text-white/80 uppercase leading-[11px]">
 												{getInitials(opponent.name)}
 											</span>
 										)}
-										{opponent.qualified && (
-											<span className="grid size-4 place-content-center rounded-full bg-emerald-500 text-ink">
-												<Check className="size-3" />
+										{/* Round progress, inline with the initials. */}
+										<div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+											<div
+												className="h-full rounded-full bg-lime transition-all duration-500 ease-linear"
+												style={{ width: `${progress * 100}%` }}
+											/>
+										</div>
+										{opponent.qualified ? (
+											<span
+												aria-label="Qualified"
+												role="img"
+												className="grid size-2.75 shrink-0 place-content-center rounded-full bg-lime text-ink"
+											>
+												<Check className="size-2" strokeWidth={4} />
+											</span>
+										) : (
+											<span className="truncate font-semibold text-[7px] text-gray-500 tabular-nums leading-none">
+												{Math.min(opponent.completedWords, qualifyingCount)}/
+												{qualifyingCount}
 											</span>
 										)}
 									</div>
 
 									<div
 										aria-label="Letters found in current word"
-										className="flex gap-x-0.5"
+										className="flex"
 										role="img"
+										style={{ gap: RACE_TILE_GAP }}
 									>
 										{Array.from({ length: wordLength }, (_, index) => {
 											const letter = revealed[index];
 											return (
 												<div
-													className={`grid place-content-center rounded-sm font-semibold ${
-														letter ? flatTileClasses.correct : flatTileClasses.default
+													className={`grid place-content-center rounded-[3px] font-display leading-none ${
+														letter ? "bg-lime text-ink" : "bg-white/[0.06]"
 													}`}
+													// biome-ignore lint/suspicious/noArrayIndexKey: fixed-length positional tile row
 													key={index}
 													style={{
 														width: tileSize,
 														height: tileSize,
-														fontSize: tileSize * 0.65,
+														fontSize: tileSize * 0.62,
 													}}
 												>
-													{letter ?? " "}
+													{tileSize >= MIN_LEGIBLE_TILE ? (letter ?? "") : ""}
 												</div>
 											);
 										})}
 									</div>
 
-									<div className="w-full rounded-full bg-zinc-200/70 p-0.5">
-										<div
-											className="h-2 rounded-full bg-emerald-400 transition-all duration-500 ease-linear"
-											style={{ width: `${progress * 100}%` }}
-										/>
-									</div>
-
-									<p className="font-semibold text-[0.65rem] text-stone-600 tabular-nums">
-										{Math.min(opponent.completedWords, qualifyingCount)} /{" "}
-										{qualifyingCount}
-									</p>
 								</motion.div>
 							);
 						})}

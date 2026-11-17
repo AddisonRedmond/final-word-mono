@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRaceSocket } from "@/hooks/useRaceSocket";
 import { track } from "@/utils/posthog";
 import { RACE_CONFIG } from "@/shared/race";
-import GameCenterPanel from "../game-components/game-center-panel";
+import GameCenterPanel, {
+	RACE_CENTER_PANEL_CLASS,
+} from "../game-components/game-center-panel";
 import EliminationView from "./race/elimination-view";
 import LobbyView from "./race/lobby-view";
 import type { RaceOpponent } from "./race/race-opponents";
@@ -238,7 +240,9 @@ const Race: React.FC<RaceProps> = ({
 				<div className="min-w-0 flex-1" />
 			)}
 
-			<GameCenterPanel>{renderCenter()}</GameCenterPanel>
+			<GameCenterPanel className={RACE_CENTER_PANEL_CLASS}>
+				{renderCenter()}
+			</GameCenterPanel>
 
 			{showOpponents ? (
 				<RaceOpponents

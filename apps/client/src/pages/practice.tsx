@@ -10,7 +10,9 @@ import {
   useRef,
   useState,
 } from "react";
-import GameCenterPanel from "@/components/game-components/game-center-panel";
+import GameCenterPanel, {
+  RACE_CENTER_PANEL_CLASS,
+} from "@/components/game-components/game-center-panel";
 import LobbyView from "@/components/games/race/lobby-view";
 import type { RaceOpponent } from "@/components/games/race/race-opponents";
 import PracticeTutorial, {
@@ -267,7 +269,7 @@ const Practice: React.FC = () => {
             wordLength={5}
           />
 
-          <GameCenterPanel>
+          <GameCenterPanel className={RACE_CENTER_PANEL_CLASS}>
             {result && outcome ? (
               <PracticeFinish
                 outcome={outcome}
